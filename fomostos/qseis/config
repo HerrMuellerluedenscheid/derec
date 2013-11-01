@@ -45,6 +45,15 @@ tabulated_phases:
   id: begin
   definition: p,P,p\,P\,Pv_(cmb)p,pP 
 - !pyrocko.gf.meta.TPDef
+  id: P
+  definition: '!P'
+- !pyrocko.gf.meta.TPDef
+  id: s
+  definition: '!s'
+- !pyrocko.gf.meta.TPDef
+  id: p
+  definition: '!p'
+- !pyrocko.gf.meta.TPDef
   id: pP
   definition: '!pP'
 receiver_depth: 0.0
