@@ -63,7 +63,7 @@ class MakeTestTraces:
             receivers.append(r)
 
         stations = receivers_to_stations(receivers)
-        model.dump_stations(stations, '/scratch/local1/fishsod/test_stations.txt')
+        model.dump_stations(stations, 'reference_stations.txt')
 
         # Composition of the source
         self.olat, self.olon = 52.0000, 9.00000
@@ -71,7 +71,7 @@ class MakeTestTraces:
 
         # The gfdb can be chosen within snuffler.
         # This refers to the 'add_parameter' method.
-        db = gfdb.Gfdb('/data/share/u253/wegener/local2/gfdb/gemini-iasp91-20000km/db')
+        db = gfdb.Gfdb('fomostos/qseis/traces')
 
         seis = seismosizer.Seismosizer(hosts=['localhost'])
         seis.set_database(db)
@@ -103,9 +103,9 @@ class MakeTestTraces:
         
         trs = []
         for rec in recs:
-            rec.save_traces_mseed(
-                filename_tmpl='/scratch/local1/fishsod/%(whichset)s_%(network)s_%(station)s_%(location)s_%(channel)s.mseed' )
             trs.extend(rec.get_traces())
+        trs.save_traces_mseed(
+                filename_tmpl='mseeds/%(whichset)s_%(network)s_%(station)s_%(location)s_%(channel)s.mseed')
 
         # Create event:
         ref_event = model.Event(lat=self.olat,
@@ -114,26 +114,26 @@ class MakeTestTraces:
                                 time=self.otime,
                                 name='Reference Event')
         synthetic_event_marker = gui_util.EventMarker(event=ref_event)
-        gui_util.Marker.save_markers([synthetic_event_marker], '/scratch/local1/fishsod/ref_marker.txt')
+        gui_util.Marker.save_markers([synthetic_event_marker], 'reference_marker.txt')
 
         # Define fade in and out, band pass filter and cut off fader for the TF.
-        tfade = 8
-        freqlimit = (0.005, 0.006, 1, 1.3)
-        cut_off_fading = 5
-        ntraces = []
-
-        for tr in trs:
-            TF = STS2()
-
-            # Save synthetic trace after transfer function was applied.
-            trace_filtered = tr.transfer(tfade, freqlimit, TF, cut_off_fading)
-            # Set new codes to the filtered trace to make it identifiable.
-            rename = {'e': 'BHE', 'n': 'BHN', 'u': 'BHZ'}
-            trace_filtered.set_codes(channel=rename[trace_filtered.channel],
-                                     network='',
-                                     station='HHHA',
-                                     location='syn')
-            ntraces.append(trace_filtered)
+        #tfade = 8
+        #freqlimit = (0.005, 0.006, 1, 1.3)
+        #cut_off_fading = 5
+        #ntraces = []
+        #
+        #for tr in trs:
+        #    TF = STS2()
+        #
+        #    # Save synthetic trace after transfer function was applied.
+        #    trace_filtered = tr.transfer(tfade, freqlimit, TF, cut_off_fading)
+        #    # Set new codes to the filtered trace to make it identifiable.
+        #    rename = {'e': 'BHE', 'n': 'BHN', 'u': 'BHZ'}
+        #    trace_filtered.set_codes(channel=rename[trace_filtered.channel],
+        #                             network='',
+        #                             station='HHHA',
+        #                             location='syn')
+        #    ntraces.append(trace_filtered)
 
             ## Extract the synthetic trace's data with get_?data() and store them.
             #xval = trace_filtered.get_xdata()
