@@ -1,2 +1,0 @@
-# Snuffler Markers File Version 0.2
-event: 1986-08-22 07:00:00.000  0 zk5xeigv1hvl           52.0          9.0         5000 None None  'Reference Event' None

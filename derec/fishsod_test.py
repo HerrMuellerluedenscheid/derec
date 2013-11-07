@@ -70,11 +70,12 @@ class TestFSU(unittest.TestCase):
                          'Frequency Domain Misfit of equal test_piles is NOT 0')
 
     def test_time_domain_misfit_of_random_traces(self):
-        random_pile_test = pile.make_pile('testRandomTestFiles/', show_progress=False)
-        random_pile2_reference = pile.make_pile('referenceRandomTestFiles/', show_progress=False)
+        random_pile_test = pile.make_pile('mseeds/testRandomTestFiles/', show_progress=False)
+        random_pile2_reference = pile.make_pile('mseeds/referenceRandomTestFiles/', show_progress=False)
 
+        random_list_test=[tr for tr in random_pile_test.iter_traces(load_data=True)]
         self.assertNotEqual(time_domain_misfit(reference_pile=random_pile2_reference,
-                                            test_pile=random_pile_test), 0,
+                                               test_list=random_list_test), 0,
                             'MF of 2piles with random traces is 0, should not be 0')
 
     def test_time_domain_misfit_UNequal_piles(self):

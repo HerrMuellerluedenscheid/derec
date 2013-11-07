@@ -1,36 +1,8 @@
-from pyrocko import util, gui_util, model
+from pyrocko import util, gui_util, model, io
 from tunguska import gfdb, receiver, seismosizer, source
 from numpy import array, pi, savetxt, complex, ones
 import sys
 
-
-class STS2:
-    
-    ''' Apply the STS2's transfer function which is deduced from the 
-poles, zeros and gain of the transfer tunction. The Green's function database (gdfb) which is required for synthetic
-seismograms and the rake of the focal mechanism can be chosen and changed within snuffler.
-Two gfdbs are needed.
-Three synthetic seismograms of an STS2 seismometer will be the result
-'''
-
-    def evaluate(self, freqs):
-        
-        # transform the frequency to angular frequency.
-        w = 2j*pi*freqs
-
-        poles = array([-3.7e-2+3.7e-2j, -3.7e-2-3.7e-2j,
-                       -2.51e2, -1.31e2+4.67e2j, -1.31e2-4.67e2])
-        zeros = array([0,0,0])
-        k = 6.16817e7
-
-        # Multiply factored polynomials of the transfer function's numerator
-        # and denominator.
-        a = ones(freqs.size,dtype=complex)*k
-        for i_z in zeros:
-            a *= w-i_z
-        for i_p in poles:
-            a /= w-i_p
-        return a
 
 
 def receivers_to_stations(receivers):
@@ -71,7 +43,8 @@ class MakeTestTraces:
 
         # The gfdb can be chosen within snuffler.
         # This refers to the 'add_parameter' method.
-        db = gfdb.Gfdb('fomostos/qseis/traces')
+        db = gfdb.Gfdb('/data/share/u253/wegener/local2/gfdb_prem_0.05s/db')
+        #db = gfdb.Gfdb('fomostos/qseis/traces')
 
         seis = seismosizer.Seismosizer(hosts=['localhost'])
         seis.set_database(db)
@@ -79,7 +52,7 @@ class MakeTestTraces:
         seis.set_local_interpolation('bilinear')
         seis.set_receivers(receivers)
         seis.set_source_location( self.olat, self.olon, self.otime)
-        seis.set_source_constraints (0, 0, 0, 0, 0, -1)
+        seis.set_source_constraints(0, 0, 0, 0, 0, -1)
         self.seis = seis
 
     def __del__(self):
@@ -89,23 +62,36 @@ class MakeTestTraces:
 
         # Change strike within Snuffler with the added scroll bar.
         strike = 0
-
-        # Other focal mechanism parameters are constants
         dip = 90
         rake = 0
         moment = 7.00e20
-        depth = 5000
-        risetime = 1
-        s = source.Source('bilateral',
-        sourceparams_str ='0 0 0 %g %g %g %g %g 0 0 0 0 1 %g' % (depth, moment, strike, dip, rake, risetime))
+        depth = 3000
+        rise_time = 1
+        scale = 1E21
+        mxx=1.*scale
+        mxy=1.*scale
+        myz=1.*scale
+        mxz=1.*scale
+
+        #explosion source
+        source_params = dict(zip(['mxx', 'myy', 'mzz', 'mxy', 'mxz',
+                                 'myz', 'depth', 'rise-time'],
+                                [mxx, mxx, mxx, mxy, mxz, myz,
+                                depth, rise_time]))
+
+        s = source.Source(sourcetype='moment_tensor', sourceparams=source_params)
+
+        #strike dip rake
+        #s = source.Source('bilateral',
+        #sourceparams_str ='0 0 0 %g %g %g %g %g 0 0 0 0 1 %g' % (depth, moment, strike, dip, rake, rise_time))
+
         self.seis.set_source(s)
         recs = self.seis.get_receivers_snapshot( which_seismograms = ('syn',), which_spectra=(), which_processing='tapered')
         
         trs = []
         for rec in recs:
             trs.extend(rec.get_traces())
-        trs.save_traces_mseed(
-                filename_tmpl='mseeds/%(whichset)s_%(network)s_%(station)s_%(location)s_%(channel)s.mseed')
+        io.save(trs, 'mseeds/%(network)s_%(station)s_%(location)s_%(channel)s.mseed')
 
         # Create event:
         ref_event = model.Event(lat=self.olat,
@@ -116,29 +102,6 @@ class MakeTestTraces:
         synthetic_event_marker = gui_util.EventMarker(event=ref_event)
         gui_util.Marker.save_markers([synthetic_event_marker], 'reference_marker.txt')
 
-        # Define fade in and out, band pass filter and cut off fader for the TF.
-        #tfade = 8
-        #freqlimit = (0.005, 0.006, 1, 1.3)
-        #cut_off_fading = 5
-        #ntraces = []
-        #
-        #for tr in trs:
-        #    TF = STS2()
-        #
-        #    # Save synthetic trace after transfer function was applied.
-        #    trace_filtered = tr.transfer(tfade, freqlimit, TF, cut_off_fading)
-        #    # Set new codes to the filtered trace to make it identifiable.
-        #    rename = {'e': 'BHE', 'n': 'BHN', 'u': 'BHZ'}
-        #    trace_filtered.set_codes(channel=rename[trace_filtered.channel],
-        #                             network='',
-        #                             station='HHHA',
-        #                             location='syn')
-        #    ntraces.append(trace_filtered)
-
-            ## Extract the synthetic trace's data with get_?data() and store them.
-            #xval = trace_filtered.get_xdata()
-            #yval = trace_filtered.get_ydata()
-            #savetxt('synthetic_data_'+trace_filtered.channel,xval)
 
 Maker = MakeTestTraces()
 try:

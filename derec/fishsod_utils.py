@@ -108,7 +108,6 @@ def misfit_by_samples(data_set, square=False):
         exp = 2 
     else: 
         exp = 1
-    print data_set[0]
 
     return np.sum(abs(pow(data_set[0], exp)-pow(data_set[1], exp)))
 

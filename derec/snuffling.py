@@ -12,7 +12,9 @@ class STS2:
         function database (gdfb) which is required for synthetic seismograms 
         and the rake of the focal mechanism can be chosen and changed within 
         snuffler.
-        Three synthetic seismograms of an STS2 seismometer will be the result
+        Three synthetic seismograms of an STS2 seismometer will be the result.array
+
+        All factors are scaled by
     """
     def evaluate(self, freqs):
         
@@ -66,29 +68,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         if self.seis is not None:
             self.seis.close()
 
-    def setup_source(self, **kwargs):
-        # Composition of the source
-        db = self.db
-        seis = seismosizer.Seismosizer(hosts=['localhost'])
-        seis.set_database(db)
-        seis.set_effective_dt(db.dt)
-        seis.set_local_interpolation('bilinear')
-        seis.set_receivers(kwargs['receivers'])
-        seis.set_source_location( kwargs['origin_lat'],
-                                  kwargs['origin_lon'],
-                                  kwargs['otime'])
-        seis.set_source_constraints (0, 0, 0, 0, 0, -1)
-        self.seis = seis
-        seis = None
 
-        source_params = dict(zip(['mxx', 'myy', 'mzz', 'mxy', 'mxz',
-                                 'myz', 'depth', 'rise-time'],
-                                [self.mxx, self.mxx, self.mxx,
-                                self.mxy, self.mxz, self.myz,
-                                kwargs['source_depth'], self.rise_time]))
-
-        s = source.Source(sourcetype='moment_tensor', sourceparams=source_params)
-        return s
 
     def setup(self):
         
@@ -96,7 +76,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         self.set_name('Fishsod')
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # GIVE THE GFDB DEFAULT DIRECTORY HERE:'
-        gfdb_dir = '/data/share/u253/wegener/local2/gfdb/gemini-iasp91-20000km/db'
+        gfdb_dir = '/data/share/u253/wegener/local2/gfdb_prem_0.05s/db'
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          
         try:
@@ -109,19 +89,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         except SystemExit:
             self.fail('Could not find Greens Functions Database at %s'%gfdb_dir)
 
-        # Add scroll bars of the parameters that you desire to adjust.
-        # 1st argument: Description that appears within the snuffling.
-        # 2nd argument: Name of parameter as used in the following code.
-        # 3rd-5th argument: default, start, stop.
-
-        #self.add_parameter(Param('Source Depth [m]',
-        #                         'source_depth',
-        #                         self.db.firstz,
-        #                         self.db.firstz,
-        #                         self.db.nz*self.db.dz-self.db.dz))
-        #self.add_parameter(Param('Distance [m]', 'dist', gfdb_max_range/2,
-        #                         gfdb_min_range, gfdb_max_range))
-        #self.add_parameter(Param('Azimuth [deg]', 'azi', 0., -180., 180.))
         self.add_parameter(Param('Mxx=Myy=Mzz [Nm]', 'mxx', 1., -1., 1.))
         self.add_parameter(Param('Mxy [Nm]', 'mxy', 0., -1., 1.))
         self.add_parameter(Param('Myz [Nm]', 'myz', 0., -1., 1.))
@@ -131,23 +98,46 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         self.add_parameter(Switch('Show Test Traces', 'show_test_traces', False))
         self.add_parameter(Switch('autorun Taup', 'auto_run_taup', False))
         self.add_parameter(Switch('autorun Cake', 'auto_run_cake', False))
-        self.add_parameter(Switch('Add 0.5*rise time', 'add_half_rise_time', True))
+        self.add_parameter(Switch('Add 0.5*rise time', 'add_half_rise_time', False))
         self.add_trigger('Choose GFDB', self.choose_gfdb)
         self.add_trigger('Run Taup', self.run_taup)
         self.add_trigger('Run Cake', self.run_cake)
         self.add_trigger('Save', self.savetraces)
         self.set_live_update(False)
 
+    def setup_source(self, **kwargs):
+        # Composition of the source
+        db = self.db
+        seis = seismosizer.Seismosizer(hosts=['localhost'])
+        seis.set_database(db)
+        seis.set_effective_dt(db.dt)
+        seis.set_local_interpolation('bilinear')
+        seis.set_receivers(kwargs['receivers'])
+        seis.set_source_location( kwargs['origin_lat'],
+                                  kwargs['origin_lon'],
+                                  kwargs['otime'])
+        seis.set_source_constraints(0, 0, 0, 0, 0, -1)
+        self.seis = seis
+        seis = None
+        scale = 1E21
+        source_params = dict(zip(['mxx', 'myy', 'mzz', 'mxy', 'mxz',
+                                 'myz', 'depth', 'rise-time'],
+                                [self.mxx*scale, self.mxx*scale, self.mxx*scale,
+                                self.mxy*scale, self.mxz*scale, self.myz*scale,
+                                kwargs['source_depth'], self.rise_time]))
+
+        s = source.Source(sourcetype='moment_tensor', sourceparams=source_params)
+        return s
+
     def call(self):
 
         self.cleanup()
         
         self.viewer = self.get_viewer()
-        #print dir(self.viewer.get_panel_parent())
 
         active_event, active_stations = self.get_active_event_and_stations()
 
-        probe_depths = [1000, 5000, 10000, 50000]
+        probe_depths = [3000]
 
         receivers = []
 
@@ -164,8 +154,8 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         reference_pile = self.get_pile()
 
-        process_t_min = active_event.time+0.5
-        process_t_max = active_event.time+20
+        process_t_min = active_event.time+1
+        process_t_max = active_event.time+120
 
         test_index = 0
         for z in probe_depths:
@@ -178,9 +168,13 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                   otime=active_event.time,
                                   source_depth=z)
             self.seis.set_source(s)
-            recs = self.seis.get_receivers_snapshot(which_seismograms=('syn',),
+            try:
+                recs = self.seis.get_receivers_snapshot(which_seismograms=('syn',),
                                                     which_spectra=(),
                                                     which_processing='tapered')
+
+            except:
+                print "Could not get receivers snapshot at z=%s"%z
 
             probe_event = model.Event(lat=float(active_event.lat),
                                       lon=float(active_event.lon),
@@ -190,6 +184,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             #self.viewer.add_event(probe_event)
 
             #rename = {'e': 'BHE', 'n': 'BHN', 'u': 'BHZ'}
+            traces_to_add = []
             for rec in recs:
                 for trace in rec.get_traces():
                     trace.set_codes(station='%s-%s' % (test_index, trace.station))
@@ -197,14 +192,15 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                     if self.add_half_rise_time:
                         trace.tmin += self.rise_time*0.5
 
-                    #if self.show_test_traces:
-                    #    self.add_traces(trace)
+                    if self.show_test_traces:
+                        traces_to_add.append(trace)
 
                     test_list.append(trace)
 
             chopped_reference_pile, tracesFileObjects = reference_pile.chop(tmin=process_t_min,
                                                                             tmax=process_t_max,
-                                                                            load_data=True)
+                                                                            load_data=True,
+                                                                            include_last=True)
             #TODO traces_file_objects notwendiger weise laden mit chop in 2. dim
             chopped_test_list = [tl.chop(tmin=process_t_min, tmax=process_t_max, include_last=True) for tl in test_list]
             TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_pile,
@@ -218,23 +214,8 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
             test_index += 1
 
-        #if self.simulate_STS2:
-        #    # Define fade in and out, band pass filter and cut off fader for the TF.
-        #    freq_limit = (0.005, .006, 1, 1.2)
-        #    cut_off_fading = 300
-        #    ntraces = []
-        #
-        #    for tr in self.test_traces:
-        #        TF = STS2()
-        #        trace_filtered = tr.transfer(self.tfade, freq_limit, TF, cut_off_fading)
-        #        # Set new codes to the filtered trace to make it identifiable.
-        #
-        #        trace_filtered.set_codes(channel=rename[trace_filtered.channel],
-        #                                 network='STS2',
-        #                                 station='HH',
-        #                                 location='syn')
-        #    ntraces.append(trace_filtered)
-        #    self.add_traces(ntraces)
+        if self.show_test_traces:
+            self.add_traces(traces_to_add)
 
         if self.auto_run_cake:
             self.run_cake()    

@@ -38,7 +38,7 @@ earthmodel_1d: |2
    2892.            13.66           7.282          5.772        723.1          274.
   outer-core
    2892.             7.972          0.             9.928          5.782E+04      0.
-sample_rate: 0.20000000000000001
+sample_rate: 0.020000000000001
 ncomponents: 10
 tabulated_phases:
 - !pyrocko.gf.meta.TPDef
@@ -48,18 +48,18 @@ tabulated_phases:
   id: P
   definition: '!P'
 - !pyrocko.gf.meta.TPDef
-  id: s
-  definition: '!s'
-- !pyrocko.gf.meta.TPDef
   id: p
   definition: '!p'
 - !pyrocko.gf.meta.TPDef
   id: pP
   definition: '!pP'
+- !pyrocko.gf.meta.TPDef
+  id: PP
+  definition: '!PP'
 receiver_depth: 0.0
-source_depth_min: 10000.0
-source_depth_max: 100000.0
-source_depth_delta: 1000.0
-distance_min: 10000.0
-distance_max: 5000000.0
-distance_delta: 10000.0
+source_depth_min: 1.0
+source_depth_max: 40000.0
+source_depth_delta: 2000.0
+distance_min: 1.0
+distance_max: 2000000.0
+distance_delta: 100000.0
