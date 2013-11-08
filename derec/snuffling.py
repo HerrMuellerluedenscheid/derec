@@ -90,9 +90,9 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             self.fail('Could not find Greens Functions Database at %s'%gfdb_dir)
 
         self.add_parameter(Param('Mxx=Myy=Mzz [Nm]', 'mxx', 1., -1., 1.))
-        self.add_parameter(Param('Mxy [Nm]', 'mxy', 0., -1., 1.))
-        self.add_parameter(Param('Myz [Nm]', 'myz', 0., -1., 1.))
-        self.add_parameter(Param('Mxz [Nm]', 'mxz', 0., -1., 1.))
+        self.add_parameter(Param('Mxy [Nm]', 'mxy', 1., -1., 1.))
+        self.add_parameter(Param('Myz [Nm]', 'myz', 1., -1., 1.))
+        self.add_parameter(Param('Mxz [Nm]', 'mxz', 1., -1., 1.))
         self.add_parameter(Param('STS2: Time fade [s]', 'tfade', 5., 0., 15))
         self.add_parameter(Switch('simulate STS2', 'simulate_STS2', False))
         self.add_parameter(Switch('Show Test Traces', 'show_test_traces', False))
