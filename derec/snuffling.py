@@ -1,6 +1,6 @@
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import io, cake, model
+from pyrocko import cake
 from tunguska import gfdb, receiver, seismosizer, source
 import fishsod_utils as fs
 
@@ -61,7 +61,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         self.add_parameter(Param('Myz [Nm]', 'myz', 1., -1., 1.))
         self.add_parameter(Param('Mxz [Nm]', 'mxz', 1., -1., 1.))
         self.add_parameter(Param('Spreading Time', 't_spread', 3., 0., 10.))
-        self.add_parameter(Param('Global Time Shift', 'globale_time_shift', self.rise_time/2, -1., 1.))
+        self.add_parameter(Param('Global Time Shift', 'global_time_shift', self.rise_time/2, -1., 1.))
         self.add_parameter(Switch('Show Test Traces', 'show_test_traces', False))
         self.set_live_update(False)
 
@@ -164,9 +164,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             for rec in recs:
                 for trace in rec.get_traces():
                     trace.set_codes(station='%s-%s' % (test_index, trace.station))
-
-                    if self.add_half_rise_time:
-                        trace.tmin += self.rise_time*0.5
 
                     if self.show_test_traces:
                         traces_to_add.append(trace)
