@@ -61,13 +61,8 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         self.add_parameter(Param('Myz [Nm]', 'myz', 1., -1., 1.))
         self.add_parameter(Param('Mxz [Nm]', 'mxz', 1., -1., 1.))
         self.add_parameter(Param('Spreading Time', 't_spread', 3., 0., 10.))
-        self.add_parameter(Param('STS2: Time fade [s]', 'tfade', 5., 0., 15))
+        self.add_parameter(Param('Global Time Shift', 'globale_time_shift', self.rise_time/2, -1., 1.))
         self.add_parameter(Switch('Show Test Traces', 'show_test_traces', False))
-        self.add_parameter(Switch('Global Time Shift', 'add_half_rise_time', False))
-        self.add_trigger('Choose GFDB', self.choose_gfdb)
-        self.add_trigger('Run Taup', self.run_taup)
-        self.add_trigger('Run Cake', self.run_cake)
-        self.add_trigger('Save', self.savetraces)
         self.set_live_update(False)
 
     def setup_source(self, **kwargs):
@@ -127,8 +122,8 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                            active_station.station,
                                            '*',
                                            '*')],
-                                tmin=active_event.time+ray.t,
-                                tmax=active_event.time+ray.t+self.t_spread,
+                                tmin=active_event.time+ray.t+self.global_time_shift,
+                                tmax=active_event.time+ray.t+self.global_time_shift+self.t_spread,
                                 kind=1,
                                 event=active_event,
                                 incidence_angle=ray.incidence_angle(),
@@ -195,42 +190,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         if self.show_test_traces:
             self.add_traces(traces_to_add)
-
-        if self.auto_run_cake:
-            self.run_cake()
-
-        if self.auto_run_taup:
-            self.run_taup()
-
-    def choose_gfdb(self):
-        inf = self.input_filename('Choose GFDB')
-        self.db = gfdb.Gfdb(inf.rsplit('.',1)[0])
-        gfdb_maxrange = self.db.nx*self.db.dx-self.db.dx
-        gfdb_minrange = self.db.firstx
-        self.set_parameter_range('source_depth', self.db.firstz, self.db.nz*self.db.dz-self.db.dz)
-        self.set_parameter_range('dist', gfdb_minrange, gfdb_maxrange)
-
-    def run_cake(self):
-        viewer = self.get_viewer()
-        for snuffling in viewer.snufflings:
-            if snuffling._name is 'Cake':
-                snuffling.call()
-                return
-        self.fail('Could not find Cake snuffling.')
-
-    def run_taup(self):
-        viewer = self.get_viewer()
-        for snuffling in viewer.snufflings:
-            if snuffling._name is 'TauP':
-                snuffling.call()
-                return
-        self.fail('Could not find TauP snuffling.')
-        
-    def savetraces(self):
-        io.save(self.test_traces, 'synthetics_depth{0}km.dist{1}km.azi{2}deg.mseed'
-                .format(str(int(self.source_depth)/1000).zfill(3),
-                        str(int(self.dist)/1000).zfill(3),
-                        str(int(self.azi)).zfill(4)))
 
 
 def __snufflings__():
