@@ -1,5 +1,6 @@
+from pyrocko.gui_util import PhaseMarker
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import io, model
+from pyrocko import io, cake, model
 from tunguska import gfdb, receiver, seismosizer, source
 import fishsod_utils as fs
 
@@ -59,12 +60,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         self.add_parameter(Param('Mxy [Nm]', 'mxy', 1., -1., 1.))
         self.add_parameter(Param('Myz [Nm]', 'myz', 1., -1., 1.))
         self.add_parameter(Param('Mxz [Nm]', 'mxz', 1., -1., 1.))
+        self.add_parameter(Param('Spreading Time', 't_spread', 3., 0., 10.))
         self.add_parameter(Param('STS2: Time fade [s]', 'tfade', 5., 0., 15))
-        self.add_parameter(Switch('simulate STS2', 'simulate_STS2', False))
         self.add_parameter(Switch('Show Test Traces', 'show_test_traces', False))
-        self.add_parameter(Switch('autorun Taup', 'auto_run_taup', False))
-        self.add_parameter(Switch('autorun Cake', 'auto_run_cake', False))
-        self.add_parameter(Switch('Add 0.5*rise time', 'add_half_rise_time', False))
+        self.add_parameter(Switch('Global Time Shift', 'add_half_rise_time', False))
         self.add_trigger('Choose GFDB', self.choose_gfdb)
         self.add_trigger('Run Taup', self.run_taup)
         self.add_trigger('Run Cake', self.run_cake)
@@ -101,10 +100,14 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         self.viewer = self.get_viewer()
         active_event, active_stations = self.get_active_event_and_stations()
-        probe_depths = [1000, 2000, 3000, 4000]
+        probe_depths = [3000, 4000]
 
         receivers = []
 
+        _model = cake.load_model()
+        wanted_phases = []
+        wanted_phases.extend(cake.PhaseDef.classic('p'))
+        phase_marker = []
         for active_station in active_stations:
             r = receiver.Receiver(lat=active_station.lat,
                                   lon=active_station.lon,
@@ -116,10 +119,27 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
             receivers.append(r)
 
+            rays = _model.arrivals(distances=[active_station.dist_deg],
+                                   phases=wanted_phases,
+                                   zstart=active_event.depth)
+            for ray in rays:
+                m = PhaseMarker(nslc_ids=[(active_station.network,
+                                           active_station.station,
+                                           '*',
+                                           '*')],
+                                tmin=active_event.time+ray.t,
+                                tmax=active_event.time+ray.t+self.t_spread,
+                                kind=1,
+                                event=active_event,
+                                incidence_angle=ray.incidence_angle(),
+                                takeoff_angle=ray.takeoff_angle(),
+                                phasename=ray.given_phase().definition())
+                m.set_selected(True)
+                phase_marker.append(m)
+                self.add_marker(m)
+                self.viewer.update()
+        print m
         reference_pile = self.get_pile()
-
-        process_t_min = active_event.time+1
-        process_t_max = active_event.time+120
 
         test_index = 0
         for z in probe_depths:
@@ -133,17 +153,17 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             self.seis.set_source(s)
             try:
                 recs = self.seis.get_receivers_snapshot(which_seismograms=('syn',),
-                                                    which_spectra=(),
-                                                    which_processing='tapered')
+                                                        which_spectra=(),
+                                                        which_processing='tapered')
 
             except:
                 print "Could not get receivers snapshot at z=%s"%z
 
-            probe_event = model.Event(lat=float(active_event.lat),
-                                      lon=float(active_event.lon),
-                                      depth=z,
-                                      time=active_event.time,
-                                      name='Test Event i=%s, z=%s' % (test_index, z))
+            #probe_event = model.Event(lat=float(active_event.lat),
+            #                          lon=float(active_event.lon),
+            #                          depth=z,
+            #                          time=active_event.time,
+            #                          name='Test Event i=%s, z=%s' % (test_index, z))
 
             traces_to_add = []
             for rec in recs:
@@ -158,10 +178,8 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
                     test_list.append(trace)
 
-            chopped_reference_pile, tracesFileObjects = reference_pile.chop(tmin=process_t_min,
-                                                                            tmax=process_t_max,
-                                                                            load_data=True,
-                                                                            include_last=False)
+            chopped_reference_pile = self.chopper_selected_traces()
+
             #TODO traces_file_objects notwendiger weise laden mit chop in 2. dim
             chopped_test_list = [tl.chop(tmin=process_t_min, tmax=process_t_max, include_last=False) for tl in test_list]
             TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_pile,
@@ -179,7 +197,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             self.add_traces(traces_to_add)
 
         if self.auto_run_cake:
-            self.run_cake()    
+            self.run_cake()
 
         if self.auto_run_taup:
             self.run_taup()
