@@ -1,41 +1,7 @@
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import util, io, model, pile
+from pyrocko import io, model
 from tunguska import gfdb, receiver, seismosizer, source
-from numpy import array, pi, complex, ones
 import fishsod_utils as fs
-import time
-
-
-class STS2:
-    """ Apply the STS2's transfer function which is deduced from the
-        poles, zeros and gain of the transfer function. The Green's
-        function database (gdfb) which is required for synthetic seismograms 
-        and the rake of the focal mechanism can be chosen and changed within 
-        snuffler.
-        Three synthetic seismograms of an STS2 seismometer will be the result.array
-
-        All factors are scaled by
-    """
-    def evaluate(self, freqs):
-        
-        # transform the frequency to angular frequency.
-        w = 2j*pi*freqs
-
-        poles = array([-3.7e-2+3.7e-2j, -3.7e-2-3.7e-2j,
-                       -2.51e2, -1.31e2+4.67e2j, -1.31e2-4.67e2])
-        #2 zeros -> displacement
-        #3 zeros -> velocity
-        zeros = array([0, 0, 0])
-        k = 6.16817e7
-
-        # Multiply factored polynomials of the transfer function's numerator
-        # and denominator.
-        a = ones(freqs.size, dtype=complex)*k
-        for i_z in zeros:
-            a *= w-i_z
-        for i_p in poles:
-            a /= w-i_p
-        return a
 
 
 class ExtendedSnuffling(Snuffling):
@@ -132,12 +98,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
     def call(self):
 
         self.cleanup()
-        
+
         self.viewer = self.get_viewer()
-
         active_event, active_stations = self.get_active_event_and_stations()
-
-        probe_depths = [3000]
+        probe_depths = [1000, 2000, 3000, 4000]
 
         receivers = []
 
@@ -160,7 +124,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         test_index = 0
         for z in probe_depths:
 
-            #test_list = pile.TracesFile()
             test_list = []
             s = self.setup_source(receivers=receivers,
                                   origin_lat=active_event.lat,
@@ -181,9 +144,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                       depth=z,
                                       time=active_event.time,
                                       name='Test Event i=%s, z=%s' % (test_index, z))
-            #self.viewer.add_event(probe_event)
 
-            #rename = {'e': 'BHE', 'n': 'BHN', 'u': 'BHZ'}
             traces_to_add = []
             for rec in recs:
                 for trace in rec.get_traces():
@@ -200,9 +161,9 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             chopped_reference_pile, tracesFileObjects = reference_pile.chop(tmin=process_t_min,
                                                                             tmax=process_t_max,
                                                                             load_data=True,
-                                                                            include_last=True)
+                                                                            include_last=False)
             #TODO traces_file_objects notwendiger weise laden mit chop in 2. dim
-            chopped_test_list = [tl.chop(tmin=process_t_min, tmax=process_t_max, include_last=True) for tl in test_list]
+            chopped_test_list = [tl.chop(tmin=process_t_min, tmax=process_t_max, include_last=False) for tl in test_list]
             TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_pile,
                                          test_list=chopped_test_list,
                                          square=True)
