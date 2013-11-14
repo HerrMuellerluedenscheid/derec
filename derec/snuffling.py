@@ -1,6 +1,6 @@
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import cake
+from pyrocko import cake, util
 from tunguska import gfdb, receiver, seismosizer, source
 import fishsod_utils as fs
 
@@ -43,7 +43,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         self.set_name('Fishsod')
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # GIVE THE GFDB DEFAULT DIRECTORY HERE:'
-        gfdb_dir = '/data/share/u253/wegener/local2/gfdb_prem_0.05s/db'
+        gfdb_dir = 'fomostos/local1/local1'
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
          
         try:
@@ -90,11 +90,11 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         return s
 
     def call(self):
-
+        active_event, active_stations = self.get_active_event_and_stations()
         self.cleanup()
 
         self.viewer = self.get_viewer()
-        active_event, active_stations = self.get_active_event_and_stations()
+
         probe_depths = [3000, 4000]
 
         receivers = []
@@ -170,15 +170,29 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
                     test_list.append(trace)
 
-            chopped_reference_pile = self.chopper_selected_traces()
+            #for m in self.viewer.selected_markers():
+            #    print 'selected markers: ',m
+            #    print m.nslc_ids
+            #    chopped_reference_pile = reference_pile.chop(load_data=True,
+            #                        tmin=m.tmin,
+            #                        tmax=m.tmax,
+            #                        trace_selector=(lambda tr: tr.nslc_id in self.viewer.selected_markers() ))
+            #    print 'done'
 
+
+            chopped_reference_pile = self.chopper_selected_traces()
+            print 'I chopped it ', chopped_reference_pile
+
+            #for s in chopped_reference_pile:
+            #    print s
             #TODO traces_file_objects notwendiger weise laden mit chop in 2. dim
-            chopped_test_list = [tl.chop(tmin=process_t_min, tmax=process_t_max, include_last=False) for tl in test_list]
+            #chopped_test_list = [tl. for tl in test_list]
             TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_pile,
-                                         test_list=chopped_test_list,
+                                         test_list=test_list,
                                          square=True)
+
             FDMF = fs.frequency_domain_misfit(reference_pile=chopped_reference_pile,
-                                              test_list=chopped_test_list,
+                                              test_list=test_list,
                                               square=True)
             print 'time domain misfit is %s'%TDMF
             print 'frequency domain misfit is %s'%FDMF

@@ -50,10 +50,10 @@ def azi_to_location_digits(azi):
     return str(int(azi)).zfill(3)
 
 
-def find_matching_traces(reference_pile, test_pile):
+def find_matching_traces(reference_pile, test_list):
     """
     :param reference_pile:
-    :param test_pile:
+    :param test_list:
     :return: list of sets, each containing two matching traces
     :rtype : list
     """
@@ -61,14 +61,15 @@ def find_matching_traces(reference_pile, test_pile):
     num_matched = 0
     num_unmatched = 0
     for ref_trace in reference_pile:
+
     #for ref_trace in reference_pile.iter_traces(load_data=True):
 
         # !!!MUSS!!! hier test_pile.all() sein, weil traces mit pile.add hinzugefuegt wurden!!!
         # Es sei denn, pile mit make_pile erstellt, wie im Test!!!
         # Dann muss es iter_traces(load_data=True) sein ................
         #for test_trace in test_pile.all(include_last=True):
-
-        for test_trace in test_pile:
+        print ref_trace
+        for test_trace in test_list:
 
             #TODO: was wenn location auch mit angegeben? Wird von seismosizer auf synthetics gesetzt.
             if util.match_nslc('%s.[0-9]*%s.*.%s' % (ref_trace.network,
@@ -80,7 +81,7 @@ def find_matching_traces(reference_pile, test_pile):
                 #TODO: evtl. copy entfernen, damit Speicher nicht volllaeuft und anders machen
                 trace_list.append([ref_trace, test_trace])
                 num_matched += 1
-            else:                
+            else:
                 continue
                 num_unmatched += 1
                 logger.warning('No matching trace found for reference trace: %s'%ref_trace)
