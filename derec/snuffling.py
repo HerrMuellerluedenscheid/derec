@@ -1,6 +1,6 @@
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import cake, util
+from pyrocko import cake, util, model
 from tunguska import gfdb, receiver, seismosizer, source
 import fishsod_utils as fs
 
@@ -38,14 +38,14 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
 
     def setup(self):
-        
+
         # Give the snuffling a name:
         self.set_name('Fishsod')
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # GIVE THE GFDB DEFAULT DIRECTORY HERE:'
         gfdb_dir = 'fomostos/local1/local1'
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         
+
         try:
             self.db = gfdb.Gfdb(gfdb_dir)
             gfdb_max_range=self.db.nx*self.db.dx-self.db.dx
@@ -97,47 +97,35 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         probe_depths = [3000, 4000]
 
-        receivers = []
-
         _model = cake.load_model()
-        wanted_phases = []
-        wanted_phases.extend(cake.PhaseDef.classic('p'))
-        phase_marker = []
-        for active_station in active_stations:
-            r = receiver.Receiver(lat=active_station.lat,
-                                  lon=active_station.lon,
-                                  depth=active_station.depth,
+
+        receivers = map(lambda a_s:
+            receiver.Receiver(lat=a_s.lat,
+                                  lon=a_s.lon,
+                                  depth=a_s.depth,
                                   components='neu',
-                                  name='%s.%s.%s' % (active_station.network,
-                                                     active_station.station,
-                                                     active_station.location))
+                                  name='%s.%s.%s' % (a_s.network,
+                                                     a_s.station,
+                                                     a_s.location))
 
-            receivers.append(r)
+            ,active_stations)
 
-            rays = _model.arrivals(distances=[active_station.dist_deg],
-                                   phases=wanted_phases,
-                                   zstart=active_event.depth)
-            for ray in rays:
-                m = PhaseMarker(nslc_ids=[(active_station.network,
-                                           active_station.station,
-                                           '*',
-                                           '*')],
-                                tmin=active_event.time+ray.t+self.global_time_shift,
-                                tmax=active_event.time+ray.t+self.global_time_shift+self.t_spread,
-                                kind=1,
-                                event=active_event,
-                                incidence_angle=ray.incidence_angle(),
-                                takeoff_angle=ray.takeoff_angle(),
-                                phasename=ray.given_phase().definition())
-                m.set_selected(True)
-                phase_marker.append(m)
-                self.add_marker(m)
-                self.viewer.update()
-        print m
-        reference_pile = self.get_pile()
+        phase_marker = fs.phase_ranges(_model,
+                                       active_stations,
+                                       active_event,
+                                       self.global_time_shift,
+                                       self.t_spread)
 
+        self.add_markers(phase_marker)
+        self.viewer.update()
         test_index = 0
         for z in probe_depths:
+
+            probe_event = model.Event(lat=float(active_event.lat),
+                                      lon=float(active_event.lon),
+                                      depth=z,
+                                      time=active_event.time,
+                                      name='Test Event i=%s, z=%s' % (test_index, z))
 
             test_list = []
             s = self.setup_source(receivers=receivers,
@@ -146,48 +134,38 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                   otime=active_event.time,
                                   source_depth=z)
             self.seis.set_source(s)
+
             try:
                 recs = self.seis.get_receivers_snapshot(which_seismograms=('syn',),
                                                         which_spectra=(),
                                                         which_processing='tapered')
-
             except:
                 print "Could not get receivers snapshot at z=%s"%z
-
-            #probe_event = model.Event(lat=float(active_event.lat),
-            #                          lon=float(active_event.lon),
-            #                          depth=z,
-            #                          time=active_event.time,
-            #                          name='Test Event i=%s, z=%s' % (test_index, z))
 
             traces_to_add = []
             for rec in recs:
                 for trace in rec.get_traces():
                     trace.set_codes(station='%s-%s' % (test_index, trace.station))
-
-                    if self.show_test_traces:
-                        traces_to_add.append(trace)
-
                     test_list.append(trace)
 
-            #for m in self.viewer.selected_markers():
-            #    print 'selected markers: ',m
-            #    print m.nslc_ids
-            #    chopped_reference_pile = reference_pile.chop(load_data=True,
-            #                        tmin=m.tmin,
-            #                        tmax=m.tmax,
-            #                        trace_selector=(lambda tr: tr.nslc_id in self.viewer.selected_markers() ))
-            #    print 'done'
+            if self.show_test_traces:
+                self.add_traces(test_list)
 
+            probe_phase_marker = fs.phase_ranges(_model,
+                                                 active_stations,
+                                                 probe_event,
+                                                 self.global_time_shift,
+                                                 self.t_spread,
+                                                 station_pref='%s-'%test_index)
 
-            chopped_reference_pile = self.chopper_selected_traces()
-            print 'I chopped it ', chopped_reference_pile
+            chopped_traces_groups = self.chopper_selected_traces()
 
-            #for s in chopped_reference_pile:
-            #    print s
-            #TODO traces_file_objects notwendiger weise laden mit chop in 2. dim
-            #chopped_test_list = [tl. for tl in test_list]
-            TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_pile,
+            if self.show_test_traces:
+                self.add_traces(traces_to_add)
+                self.add_markers(probe_phase_marker)
+                self.viewer.update()
+
+            TDMF = fs.time_domain_misfit(reference_pile=chopped_traces_groups,
                                          test_list=test_list,
                                          square=True)
 
@@ -198,9 +176,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             print 'frequency domain misfit is %s'%FDMF
 
             test_index += 1
-
-        if self.show_test_traces:
-            self.add_traces(traces_to_add)
 
 
 def __snufflings__():

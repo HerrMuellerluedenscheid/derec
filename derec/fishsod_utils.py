@@ -1,5 +1,7 @@
 from numpy.core.umath import square
-from pyrocko import pile, trace, util
+from pyrocko import pile, trace, util, cake
+from pyrocko.gui_util import PhaseMarker
+from tunguska import receiver
 from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
@@ -43,7 +45,6 @@ def x_to_station_digits(x):
 
 def azi_to_location_digits(azi):
     """
-
     :param azi:
     :return:
     """
@@ -60,37 +61,28 @@ def find_matching_traces(reference_pile, test_list):
     trace_list = []
     num_matched = 0
     num_unmatched = 0
-    for ref_trace in reference_pile:
+    for traces_group in reference_pile:
+        for ref_trace in traces_group:
+            for test_trace in test_list:
 
-    #for ref_trace in reference_pile.iter_traces(load_data=True):
+                if util.match_nslc('%s.[0-9]*%s.*.%s' % (ref_trace.network,
+                                                        ref_trace.station,
+                                                        ref_trace.channel),
+                                                        (test_trace.nslc_id)):
 
-        # !!!MUSS!!! hier test_pile.all() sein, weil traces mit pile.add hinzugefuegt wurden!!!
-        # Es sei denn, pile mit make_pile erstellt, wie im Test!!!
-        # Dann muss es iter_traces(load_data=True) sein ................
-        #for test_trace in test_pile.all(include_last=True):
-        print ref_trace
-        for test_trace in test_list:
-
-            #TODO: was wenn location auch mit angegeben? Wird von seismosizer auf synthetics gesetzt.
-            if util.match_nslc('%s.[0-9]*%s.*.%s' % (ref_trace.network,
-                                                    ref_trace.station,
-                                                    ref_trace.channel),
-                                                    (test_trace.nslc_id)):
-
-                logger.info('Found matching traces: %s \n %s'%(ref_trace, test_trace))
-                #TODO: evtl. copy entfernen, damit Speicher nicht volllaeuft und anders machen
-                trace_list.append([ref_trace, test_trace])
-                num_matched += 1
-            else:
-                continue
-                num_unmatched += 1
-                logger.warning('No matching trace found for reference trace: %s'%ref_trace)
-    if num_matched is 0:
-        raise NoMatchingTraces()
-    if num_unmatched is 0:
-        logger.info('All traces found matching trace')
-    else:
-        logger.warning('%s of %s traces unmatched' % (num_unmatched, num_matched))
+                    logger.info('Found matching traces: %s \n %s'%(ref_trace, test_trace))
+                    trace_list.append([ref_trace, test_trace])
+                    num_matched += 1
+                else:
+                    continue
+                    num_unmatched += 1
+                    logger.warning('No matching trace found for reference trace: %s'%ref_trace)
+        if num_matched is 0:
+            raise NoMatchingTraces()
+        if num_unmatched is 0:
+            logger.info('All traces found matching trace')
+        else:
+            logger.warning('%s of %s traces unmatched' % (num_unmatched, num_matched))
 
     return trace_list
 
@@ -158,3 +150,34 @@ def time_domain_misfit(reference_pile, test_list, square=False):
         data_sets.append(np.array((traces_set[0].ydata, traces_set[1].ydata)))
         #map(lambda (x,y): [x.ydata, y.ydata], traces_sets)
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
+
+
+def phase_ranges(model, active_stations, active_event, global_time_shift, t_spread, station_pref=''):
+    phase_marker = []
+    wanted_phases = []
+    wanted_phases.extend(cake.PhaseDef.classic('p'))
+    for active_station in active_stations:
+
+        rays = model.arrivals(distances=[active_station.dist_deg],
+                               phases=wanted_phases,
+                               zstart=active_event.depth)
+        for ray in rays:
+            m = PhaseMarker(nslc_ids=[(active_station.network,
+                                       station_pref+active_station.station,
+                                       '*',
+                                       '*')],
+                            tmin=active_event.time+ray.t+global_time_shift,
+                            tmax=active_event.time+ray.t+global_time_shift+t_spread,
+                            kind=1,
+                            event=active_event,
+                            incidence_angle=ray.incidence_angle(),
+                            takeoff_angle=ray.takeoff_angle(),
+                            phasename=ray.given_phase().definition())
+            m.set_selected(True)
+
+            if station_pref:
+                m.set_kind(2)
+
+            phase_marker.append(m)
+
+    return phase_marker
