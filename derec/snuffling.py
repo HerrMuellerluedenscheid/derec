@@ -158,19 +158,35 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                                  self.t_spread,
                                                  station_pref='%s-'%test_index)
 
-            chopped_traces_groups = self.chopper_selected_traces()
+
+            chopped_test_list = []
+            for t in fs.chop_using_markers(traces=test_list, markers=probe_phase_marker):
+                chopped_test_list.append(t)
+
+            ref_selector = lambda m: m.kind == 1
+            chopped_traces_groups = self.chopper_selected_traces(marker_selector=ref_selector)
+            for trs in chopped_traces_groups:
+                print trs
+
+                for tr in trs:
+                    print 'asdf'
+                    print tr.location
+                    tr.set_network('a')
+                    tr.set_station('%s-%s'%(test_index, tr.station))
+                    self.add_trace(tr)
 
             if self.show_test_traces:
                 self.add_traces(traces_to_add)
                 self.add_markers(probe_phase_marker)
                 self.viewer.update()
 
+            # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
             TDMF = fs.time_domain_misfit(reference_pile=chopped_traces_groups,
-                                         test_list=test_list,
+                                         test_list=chopped_test_list,
                                          square=True)
 
-            FDMF = fs.frequency_domain_misfit(reference_pile=chopped_reference_pile,
-                                              test_list=test_list,
+            FDMF = fs.frequency_domain_misfit(reference_pile=chopped_traces_groups,
+                                              test_list=chopped_test_list,
                                               square=True)
             print 'time domain misfit is %s'%TDMF
             print 'frequency domain misfit is %s'%FDMF
