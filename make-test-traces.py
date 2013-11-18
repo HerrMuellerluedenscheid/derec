@@ -43,7 +43,7 @@ class MakeTestTraces:
 
         # The gfdb can be chosen within snuffler.
         # This refers to the 'add_parameter' method.
-        db = gfdb.Gfdb('/data/share/u253/wegener/local2/gfdb_prem_0.05s/db')
+        db = gfdb.Gfdb('fomostos/local1/local1')
         #db = gfdb.Gfdb('fomostos/qseis/traces')
 
         seis = seismosizer.Seismosizer(hosts=['localhost'])
