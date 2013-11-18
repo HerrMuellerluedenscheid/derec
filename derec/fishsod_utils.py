@@ -181,3 +181,13 @@ def phase_ranges(model, active_stations, active_event, global_time_shift, t_spre
             phase_marker.append(m)
 
     return phase_marker
+
+
+def chop_using_markers(traces, markers, *args, **kwargs):
+    for marker in markers:
+        for trs in traces:
+            if marker.match_nslc(trs.nslc_id):
+                trs.chop(tmin = marker.tmin,
+                tmax = marker.tmax)
+
+            yield trs
