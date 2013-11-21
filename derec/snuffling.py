@@ -142,14 +142,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             except:
                 print "Could not get receivers snapshot at z=%s"%z
 
-            traces_to_add = []
             for rec in recs:
                 for trace in rec.get_traces():
                     trace.set_codes(station='%s-%s' % (test_index, trace.station))
                     test_list.append(trace)
-
-            if self.show_test_traces:
-                self.add_traces(test_list)
 
             probe_phase_marker = fs.phase_ranges(_model,
                                                  active_stations,
@@ -158,25 +154,21 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                                  self.t_spread,
                                                  station_pref='%s-'%test_index)
 
-
             chopped_test_list = []
             for t in fs.chop_using_markers(traces=test_list, markers=probe_phase_marker):
                 chopped_test_list.append(t)
 
             ref_selector = lambda m: m.kind == 1
             chopped_traces_groups = self.chopper_selected_traces(marker_selector=ref_selector)
-            for trs in chopped_traces_groups:
-                print trs
 
+            for trs in chopped_traces_groups:
                 for tr in trs:
-                    print 'asdf'
-                    print tr.location
                     tr.set_network('a')
                     tr.set_station('%s-%s'%(test_index, tr.station))
                     self.add_trace(tr)
 
             if self.show_test_traces:
-                self.add_traces(traces_to_add)
+                self.add_traces(chopped_test_list)
                 self.add_markers(probe_phase_marker)
                 self.viewer.update()
 
