@@ -1,6 +1,6 @@
 # Snuffler Markers File Version 0.2
-event: 1986-08-22 07:00:00.000  0 10pzmoya8w4bf          52.0          9.0       3000.0 None None  'Reference Event' None
-phase: 1986-08-22 07:00:10.496  1 .HH1.sy.*       10pzmoya8w4bf  1986-08-22   07:00:00.000 P        None False
-phase: 1986-08-22 07:00:10.496  1 .HH2.sy.*       10pzmoya8w4bf  1986-08-22   07:00:00.000 P        None False
-phase: 1986-08-22 07:00:10.659  1 .HH3.sy.*       10pzmoya8w4bf  1986-08-22   07:00:00.000 P        None False
-phase: 1986-08-22 07:00:10.659  1 .HH4.sy.*       10pzmoya8w4bf  1986-08-22   07:00:00.000 P        None False
+event: 1986-08-22 07:00:00.000  1 10pzmoya8w4bf          52.0          9.0       3000.0 None None  'Reference Event' None
+phase: 1986-08-22 07:00:11.298  1 .HH2.*.*        10pzmoya8w4bf  1986-08-22   07:00:00.000 p        None None
+phase: 1986-08-22 07:00:11.298  1 .HH3.*.*        10pzmoya8w4bf  1986-08-22   07:00:00.000 p        None None
+phase: 1986-08-22 07:00:11.264  1 .HH1.*.*        10pzmoya8w4bf  1986-08-22   07:00:00.000 p        None None
+phase: 1986-08-22 07:00:11.264  1 .HH4.*.*        10pzmoya8w4bf  1986-08-22   07:00:00.000 p        None None

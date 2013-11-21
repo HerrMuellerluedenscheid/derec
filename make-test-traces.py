@@ -90,7 +90,10 @@ class MakeTestTraces:
         
         trs = []
         for rec in recs:
-            trs.extend(rec.get_traces())
+            for t in rec.get_traces():
+                t.shift(rise_time*0.5)
+                trs.append(t)
+
         io.save(trs, 'mseeds/%(network)s_%(station)s_%(location)s_%(channel)s.mseed')
 
         # Create event:
