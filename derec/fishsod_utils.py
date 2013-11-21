@@ -1,5 +1,5 @@
 from numpy.core.umath import square
-from pyrocko import pile, trace, util, cake
+from pyrocko import pile, trace, util, cake, gui_util
 from pyrocko.gui_util import PhaseMarker
 from tunguska import receiver
 from math import radians, acos, sin, cos, degrees, asin, pi
@@ -65,12 +65,12 @@ def find_matching_traces(reference_pile, test_list):
         for ref_trace in traces_group:
             for test_trace in test_list:
 
-                if util.match_nslc('%s.[0-9]*%s.*.%s' % (ref_trace.network,
+                if util.match_nslc('[0-9]*%s.%s.*.%s' % (ref_trace.network,
                                                         ref_trace.station,
                                                         ref_trace.channel),
                                                         (test_trace.nslc_id)):
 
-                    logger.info('Found matching traces: %s \n %s'%(ref_trace, test_trace))
+                    logger.info('Found matching traces: %s \n %s' % (ref_trace, test_trace))
                     trace_list.append([ref_trace, test_trace])
                     num_matched += 1
                 else:
@@ -152,7 +152,7 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
-def phase_ranges(model, active_stations, active_event, global_time_shift, t_spread, station_pref=''):
+def phase_ranges(model, active_stations, active_event, global_time_shift, t_spread, network_pref=''):
     phase_marker = []
     wanted_phases = []
     wanted_phases.extend(cake.PhaseDef.classic('p'))
@@ -162,8 +162,8 @@ def phase_ranges(model, active_stations, active_event, global_time_shift, t_spre
                                phases=wanted_phases,
                                zstart=active_event.depth)
         for ray in rays:
-            m = PhaseMarker(nslc_ids=[(active_station.network,
-                                       station_pref+active_station.station,
+            m = PhaseMarker(nslc_ids=[(network_pref+active_station.network,
+                                       active_station.station,
                                        '*',
                                        '*')],
                             tmin=active_event.time+ray.t+global_time_shift,
@@ -175,7 +175,7 @@ def phase_ranges(model, active_stations, active_event, global_time_shift, t_spre
                             phasename=ray.given_phase().definition())
             m.set_selected(True)
 
-            if station_pref:
+            if network_pref:
                 m.set_kind(2)
 
             phase_marker.append(m)
@@ -184,6 +184,9 @@ def phase_ranges(model, active_stations, active_event, global_time_shift, t_spre
 
 
 def chop_using_markers(traces, markers, *args, **kwargs):
+    '''
+    Chop a list of traces using a list of markers.
+    '''
     for marker in markers:
         for trs in traces:
             if marker.match_nslc(trs.nslc_id):
@@ -191,3 +194,17 @@ def chop_using_markers(traces, markers, *args, **kwargs):
                 tmax = marker.tmax)
 
             yield trs
+
+
+def extend_phase_markers(markers, scaling_factor=1):
+    '''
+    Extend phase markers to fixed length proportional to time lag between
+    phase markers tmin and event tmin.
+    '''
+    extended_markers = []
+    for marker in markers:
+        if isinstance(marker, gui_util.PhaseMarker):
+            t_event = marker.get_event().time
+            marker.tmax = marker.get_tmin()+(marker.get_tmin()-t_event)*0.33*scaling_factor
+            extended_markers.append(marker)
+    return extended_markers

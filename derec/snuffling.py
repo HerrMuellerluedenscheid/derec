@@ -1,6 +1,6 @@
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import cake, util, model
+from pyrocko import cake, util, model, gui_util
 from tunguska import gfdb, receiver, seismosizer, source
 import fishsod_utils as fs
 
@@ -20,7 +20,6 @@ class ExtendedSnuffling(Snuffling):
             self.my_del()
         except AttributeError:
             pass
-
 
 class FindShallowSourceDepth(ExtendedSnuffling):
     """
@@ -110,13 +109,12 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
             ,active_stations)
 
-        phase_marker = fs.phase_ranges(_model,
-                                       active_stations,
-                                       active_event,
-                                       self.global_time_shift,
-                                       self.t_spread)
-
-        self.add_markers(phase_marker)
+        #phase_marker = fs.phase_ranges(_model, active_stations, active_event, self.global_time_shift, self.t_spread)
+        print 'asdf'
+        print self.viewer.markers
+        fs.extend_phase_markers(self.viewer.markers)
+        print 'lkjlkj'
+        #self.add_markers(phase_marker)
         self.viewer.update()
         test_index = 0
         for z in probe_depths:
@@ -144,31 +142,26 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
             for rec in recs:
                 for trace in rec.get_traces():
-                    trace.set_codes(station='%s-%s' % (test_index, trace.station))
+                    trace.set_codes(network='%s-%s' % (test_index, trace.network))
                     test_list.append(trace)
 
-            probe_phase_marker = fs.phase_ranges(_model,
-                                                 active_stations,
-                                                 probe_event,
-                                                 self.global_time_shift,
-                                                 self.t_spread,
-                                                 station_pref='%s-'%test_index)
+            probe_phase_marker = fs.phase_ranges(_model, active_stations, probe_event, self.global_time_shift,
+                                                 self.t_spread, network_pref='%s-' % test_index)
 
             chopped_test_list = []
             for t in fs.chop_using_markers(traces=test_list, markers=probe_phase_marker):
                 chopped_test_list.append(t)
 
-            ref_selector = lambda m: m.kind == 1
-            chopped_traces_groups = self.chopper_selected_traces(marker_selector=ref_selector)
+            chopped_traces_groups = self.chopper_selected_traces()
 
             for trs in chopped_traces_groups:
                 for tr in trs:
-                    tr.set_network('a')
-                    tr.set_station('%s-%s'%(test_index, tr.station))
+                    #tr.set_station('%s-%s'%(test_index, tr.station))
                     self.add_trace(tr)
 
             if self.show_test_traces:
-                self.add_traces(chopped_test_list)
+                #self.add_traces(chopped_test_list)
+                self.add_traces(test_list)
                 self.add_markers(probe_phase_marker)
                 self.viewer.update()
 
@@ -180,6 +173,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             FDMF = fs.frequency_domain_misfit(reference_pile=chopped_traces_groups,
                                               test_list=chopped_test_list,
                                               square=True)
+
             print 'time domain misfit is %s'%TDMF
             print 'frequency domain misfit is %s'%FDMF
 
