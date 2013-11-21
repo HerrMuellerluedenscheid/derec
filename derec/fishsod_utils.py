@@ -102,6 +102,14 @@ def misfit_by_samples(data_set, square=False):
     else: 
         exp = 1
 
+    t1 = data_set[0]
+    t2 = data_set[1]
+    if np.shape(t1) > np.shape(t2):
+        np.resize(t1, np.shape(t2))
+
+    elif np.shape(t1) < np.shape(t2):
+        np.resize(t2, np.shape(t1))
+
     return np.sum(abs(pow(data_set[0], exp)-pow(data_set[1], exp)))
 
 
@@ -152,7 +160,7 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
-def phase_ranges(model, active_stations, active_event, global_time_shift, t_spread, network_pref=''):
+def phase_ranges(model, active_stations, active_event, t_spread, network_pref=''):
     phase_marker = []
     wanted_phases = []
     wanted_phases.extend(cake.PhaseDef.classic('p'))
@@ -166,8 +174,8 @@ def phase_ranges(model, active_stations, active_event, global_time_shift, t_spre
                                        active_station.station,
                                        '*',
                                        '*')],
-                            tmin=active_event.time+ray.t+global_time_shift,
-                            tmax=active_event.time+ray.t+global_time_shift+t_spread,
+                            tmin=active_event.time+ray.t,
+                            tmax=active_event.time+ray.t+t_spread,
                             kind=1,
                             event=active_event,
                             incidence_angle=ray.incidence_angle(),
@@ -187,13 +195,15 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     '''
     Chop a list of traces using a list of markers.
     '''
+    chopped_test_list = []
     for marker in markers:
         for trs in traces:
             if marker.match_nslc(trs.nslc_id):
                 trs.chop(tmin = marker.tmin,
                 tmax = marker.tmax)
 
-            yield trs
+            chopped_test_list.append(trs)
+    return chopped_test_list
 
 
 def extend_phase_markers(markers, scaling_factor=1):

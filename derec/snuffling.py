@@ -60,7 +60,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         self.add_parameter(Param('Myz [Nm]', 'myz', 1., -1., 1.))
         self.add_parameter(Param('Mxz [Nm]', 'mxz', 1., -1., 1.))
         self.add_parameter(Param('Spreading Time', 't_spread', 3., 0., 10.))
-        self.add_parameter(Param('Global Time Shift', 'global_time_shift', self.rise_time/2, -1., 1.))
+        #self.add_parameter(Param('Global Time Shift', 'global_time_shift', self.rise_time/2, -1., 1.))
         self.add_parameter(Switch('Show Test Traces', 'show_test_traces', False))
         self.set_live_update(False)
 
@@ -99,23 +99,20 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         _model = cake.load_model()
 
         receivers = map(lambda a_s:
-            receiver.Receiver(lat=a_s.lat,
-                                  lon=a_s.lon,
-                                  depth=a_s.depth,
-                                  components='neu',
-                                  name='%s.%s.%s' % (a_s.network,
-                                                     a_s.station,
-                                                     a_s.location))
+                        receiver.Receiver(lat=a_s.lat,
+                                          lon=a_s.lon,
+                                          depth=a_s.depth,
+                                          components='neu',
+                                          name='%s.%s.%s' % (a_s.network,
+                                                             a_s.station,
+                                                             a_s.location))
 
             ,active_stations)
 
-        #phase_marker = fs.phase_ranges(_model, active_stations, active_event, self.global_time_shift, self.t_spread)
-        print 'asdf'
-        print self.viewer.markers
         fs.extend_phase_markers(self.viewer.markers)
-        print 'lkjlkj'
-        #self.add_markers(phase_marker)
         self.viewer.update()
+        chopped_reference_groups = self.chopper_selected_traces()
+
         test_index = 0
         for z in probe_depths:
 
@@ -140,37 +137,36 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             except:
                 print "Could not get receivers snapshot at z=%s"%z
 
+            test_list = []
             for rec in recs:
                 for trace in rec.get_traces():
-                    trace.set_codes(network='%s-%s' % (test_index, trace.network))
+                    trace.shift(self.rise_time*0.5)
+                    trace.set_codes(network='%s-%s' % (test_index, trace.network),
+                                    location='sym')
                     test_list.append(trace)
 
-            probe_phase_marker = fs.phase_ranges(_model, active_stations, probe_event, self.global_time_shift,
-                                                 self.t_spread, network_pref='%s-' % test_index)
-
-            chopped_test_list = []
-            for t in fs.chop_using_markers(traces=test_list, markers=probe_phase_marker):
-                chopped_test_list.append(t)
-
-            chopped_traces_groups = self.chopper_selected_traces()
-
-            for trs in chopped_traces_groups:
-                for tr in trs:
-                    #tr.set_station('%s-%s'%(test_index, tr.station))
-                    self.add_trace(tr)
+            probe_phase_marker = fs.phase_ranges(_model, active_stations, probe_event, self.t_spread,
+                                                 network_pref='%s-' % test_index)
+            for m in self.viewer.get_markers():
+                print m
+            chopped_test_list = fs.chop_using_markers(traces=test_list, markers=probe_phase_marker)
 
             if self.show_test_traces:
-                #self.add_traces(chopped_test_list)
-                self.add_traces(test_list)
+
+                for trs in chopped_reference_groups:
+                    for tr in trs:
+                        self.add_trace(tr)
+
+                self.add_traces(chopped_test_list)
                 self.add_markers(probe_phase_marker)
                 self.viewer.update()
 
             # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
-            TDMF = fs.time_domain_misfit(reference_pile=chopped_traces_groups,
+            TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_groups,
                                          test_list=chopped_test_list,
                                          square=True)
 
-            FDMF = fs.frequency_domain_misfit(reference_pile=chopped_traces_groups,
+            FDMF = fs.frequency_domain_misfit(reference_pile=chopped_reference_groups,
                                               test_list=chopped_test_list,
                                               square=True)
 
