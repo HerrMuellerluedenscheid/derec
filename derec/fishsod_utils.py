@@ -1,4 +1,4 @@
-from pyrocko import pile, util, cake, gui_util
+from pyrocko import pile, util, cake, gui_util, trace
 from pyrocko.gui_util import PhaseMarker
 from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
@@ -143,13 +143,12 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     :type reference_pile: pile.Pile
     :param reference_pile:
     """
-    #print type(reference_pile)
-    #print type(test_pile)
     #assert isinstance(reference_pile, pile.Pile)
     #assert isinstance(test_pile, pile.Pile)
 
     traces_sets = find_matching_traces(reference_pile, test_list)
-    print traces_sets
+    downsample_if_needed(traces_sets)
+
     data_sets = []
     for traces_set in traces_sets:
         data_sets.append(np.array((traces_set[0].ydata, traces_set[1].ydata)))
@@ -225,3 +224,18 @@ def extend_phase_markers(markers, scaling_factor=1):
             marker.tmax = marker.get_tmin()+(marker.get_tmin()-t_event)*0.33*scaling_factor
             extended_markers.append(marker)
     return extended_markers
+
+
+def downsample_if_needed(trace_pairs):
+    '''
+    Downsample high frequency trace of traces pairs to the lower of both sampling rates.
+    :param trace_pairs:
+    :return:
+
+
+    !!! resample ist problematisch, wenn die Frequenzen zu weit auseinanderliegen.
+    '''
+
+    for trace_pair in trace_pairs:
+        trace_pair.sort(key=lambda x: x.deltat)
+        trace_pair[0].resample(trace_pair[1].deltat)
