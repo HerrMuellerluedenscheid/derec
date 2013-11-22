@@ -1,8 +1,6 @@
 from pyrocko import util, gui_util, model, io
 from tunguska import gfdb, receiver, seismosizer, source
-from numpy import array, pi, savetxt, complex, ones
 import sys
-
 
 
 def receivers_to_stations(receivers):
@@ -44,14 +42,13 @@ class MakeTestTraces:
         # The gfdb can be chosen within snuffler.
         # This refers to the 'add_parameter' method.
         db = gfdb.Gfdb('fomostos/local1/local1')
-        #db = gfdb.Gfdb('fomostos/qseis/traces')
 
         seis = seismosizer.Seismosizer(hosts=['localhost'])
         seis.set_database(db)
         seis.set_effective_dt(db.dt)
         seis.set_local_interpolation('bilinear')
         seis.set_receivers(receivers)
-        seis.set_source_location( self.olat, self.olon, self.otime)
+        seis.set_source_location(self.olat, self.olon, self.otime)
         seis.set_source_constraints(0, 0, 0, 0, 0, -1)
         self.seis = seis
 
@@ -61,23 +58,23 @@ class MakeTestTraces:
     def __call__(self):
 
         # Change strike within Snuffler with the added scroll bar.
-        strike = 0
-        dip = 90
-        rake = 0
-        moment = 7.00e20
+        #strike = 0
+        #dip = 90
+        #rake = 0
+        #moment = 7.00e20
         depth = 3000
         rise_time = 1
         scale = 1E21
-        mxx=1.*scale
-        mxy=1.*scale
-        myz=1.*scale
-        mxz=1.*scale
+        mxx = 1.*scale
+        mxy = 1.*scale
+        myz = 1.*scale
+        mxz = 1.*scale
 
         #explosion source
         source_params = dict(zip(['mxx', 'myy', 'mzz', 'mxy', 'mxz',
-                                 'myz', 'depth', 'rise-time'],
-                                [mxx, mxx, mxx, mxy, mxz, myz,
-                                depth, rise_time]))
+                                  'myz', 'depth', 'rise-time'],
+                                 [mxx, mxx, mxx, mxy, mxz, myz,
+                                  depth, rise_time]))
 
         s = source.Source(sourcetype='moment_tensor', sourceparams=source_params)
 
@@ -86,7 +83,9 @@ class MakeTestTraces:
         #sourceparams_str ='0 0 0 %g %g %g %g %g 0 0 0 0 1 %g' % (depth, moment, strike, dip, rake, rise_time))
 
         self.seis.set_source(s)
-        recs = self.seis.get_receivers_snapshot( which_seismograms = ('syn',), which_spectra=(), which_processing='tapered')
+        recs = self.seis.get_receivers_snapshot(which_seismograms=('syn',),
+                                                which_spectra=(),
+                                                which_processing='tapered')
         
         trs = []
         for rec in recs:
