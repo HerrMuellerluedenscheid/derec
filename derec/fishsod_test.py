@@ -32,14 +32,17 @@ class TestFSU(unittest.TestCase):
     ttrace_2 = trace.Trace(network='2', station='TEST', channel='z', deltat=0.5, ydata=data2)
 
     def test_make_pile(self):
-        test_pile_4 = pile.make_pile('testFiles/', show_progress=False)
+        test_pile_4 = pile.make_pile('../mseeds/testFiles/', show_progress=False)
         self.assertNotEqual(test_pile_4, self.tpile_1,
                             'Test Piles from different directories are equal.')
         self.assertNotEqual(test_pile_4.all()[0].get_ydata(), None,
                             'Data of first trace is None.')
 
     def test_misfit_by_samples(self):
-        equal_traces_list = [self.traces[1].get_ydata(), self.traces[1].get_ydata()]
+        data = np.random.random(100)
+        ttrace = trace.Trace(network='1', station='T1', channel='z', deltat=0.5, ydata=data)
+
+        equal_traces_list = [ttrace.get_ydata(), ttrace.get_ydata()]
         self.assertEqual(misfit_by_samples( equal_traces_list ), 0,
                          'misfit of same traces is zero')
 
@@ -48,50 +51,62 @@ class TestFSU(unittest.TestCase):
         self.assertEqual(misfit_by_samples( eqal_neg_traces_list, square=True), 0,
                          'misfit of squared traces is zero if one trace is negative of the other')
 
-    def test_find_matching_traces(self):
-        self.assertEqual(len(find_matching_traces(self.tpile_1, self.tpile_2)), 12,
-                         'did not find all 12 of 12 pairs of traces')
+    #def test_find_matching_traces(self):
+    #    self.assertEqual(len(find_matching_traces(self.tpile_1, self.tpile_2)), 12,
+    #                     'did not find all 12 of 12 pairs of traces')
+    #
+    #def test_time_domain_misfit_equal_piles(self):
+    #    self.assertTrue(noDatalessTracesInPile(self.tpile_1),
+    #                    'Dataless traces in pile found')
+    #    self.assertTrue(noDatalessTracesInPile(self.tpile_2),
+    #                    'Dataless traces in pile found')
+    #    self.assertEqual(time_domain_misfit(self.tpile_1, self.tpile_2), 0,
+    #                     'Time Domain Misfit of equal piles is not 0!')
+    #
+    #def test_frequency_domain_misfit_equal_piles(self):
+    #    # evtl muss da getapert werden.
+    #    self.assertTrue(noDatalessTracesInPile(self.tpile_1),
+    #                    'Dataless traces in pile found')
+    #    self.assertTrue(noDatalessTracesInPile(self.tpile_2),
+    #                    'Dataless traces in pile found')
+    #    self.assertEqual(frequency_domain_misfit(self.tpile_1, self.tpile_2), 0,
+    #                     'Frequency Domain Misfit of equal test_piles is NOT 0')
 
-    def test_time_domain_misfit_equal_piles(self):
-        self.assertTrue(noDatalessTracesInPile(self.tpile_1),
-                        'Dataless traces in pile found')
-        self.assertTrue(noDatalessTracesInPile(self.tpile_2),
-                        'Dataless traces in pile found')
-        self.assertEqual(time_domain_misfit(self.tpile_1, self.tpile_2), 0,
-                         'Time Domain Misfit of equal piles is not 0!')
+    #def test_time_domain_misfit_of_random_traces(self):
+    #    random_pile_test = pile.make_pile('../mseeds/testRandomTestFiles/', show_progress=False)
+    #    random_pile2_reference = pile.make_pile('../mseeds/referenceRandomTestFiles/', show_progress=False)
+    #
+    #    random_list_test=[tr for tr in random_pile_test.iter_traces(load_data=True)]
+    #    self.assertNotEqual(time_domain_misfit(reference_pile=random_pile2_reference,
+    #                                           test_list=random_list_test), 0,
+    #                        'MF of 2piles with random traces is 0, should not be 0')
+    #
+    #def test_time_domain_misfit_UNequal_piles(self):
+    #    self.assertNotEqual(time_domain_misfit(self.random_pile_reference, self.random_pile_test), 0,
+    #                        'Time Domain Misfit of UNequal traces is not 0')
+    #
+    #def test_frequency_domain_misfit_UNequal_piles(self):
+    #    # evtl muss da getapert werden.
+    #    test_list = []
+    #    for t in self.random_pile_test.all():
+    #        test_list.append(t)
+    #    self.assertNotEqual(frequency_domain_misfit(self.random_pile_reference, test_list), 0,
+    #                        'Freq Dom Misfit of unequal piles is 0 but should not be 0')
 
-    def test_frequency_domain_misfit_equal_piles(self):
-        # evtl muss da getapert werden.
-        self.assertTrue(noDatalessTracesInPile(self.tpile_1),
-                        'Dataless traces in pile found')
-        self.assertTrue(noDatalessTracesInPile(self.tpile_2),
-                        'Dataless traces in pile found')
-        self.assertEqual(frequency_domain_misfit(self.tpile_1, self.tpile_2), 0,
-                         'Frequency Domain Misfit of equal test_piles is NOT 0')
-
-    def test_time_domain_misfit_of_random_traces(self):
-        random_pile_test = pile.make_pile('mseeds/testRandomTestFiles/', show_progress=False)
-        random_pile2_reference = pile.make_pile('mseeds/referenceRandomTestFiles/', show_progress=False)
-
-        random_list_test=[tr for tr in random_pile_test.iter_traces(load_data=True)]
-        self.assertNotEqual(time_domain_misfit(reference_pile=random_pile2_reference,
-                                               test_list=random_list_test), 0,
-                            'MF of 2piles with random traces is 0, should not be 0')
-
-    def test_time_domain_misfit_UNequal_piles(self):
-        self.assertNotEqual(time_domain_misfit(self.random_pile_reference, self.random_pile_test), 0,
-                            'Time Domain Misfit of UNequal traces is not 0')
-
-    def test_frequency_domain_misfit_UNequal_piles(self):
-        # evtl muss da getapert werden.
-        self.assertNotEqual(frequency_domain_misfit(self.random_pile_reference, self.random_pile_test), 0,
-                            'Freq Dom Misfit of unequal piles is 0 but should not be 0')
-
+    def test_equalize_sampling_rate(self):
+        data1 = np.random.random(100)
+        data2 = np.random.random(100)
+        ttrace_1 = trace.Trace(network='1', station='T1', channel='z', deltat=0.5, ydata=data1)
+        ttrace_2 = trace.Trace(network='1', station='T2', channel='z', deltat=0.6, ydata=data2)
+        downsample_if_needed([[ttrace_1, ttrace_2]])
+        self.assertEqual(ttrace_1.deltat, ttrace_2.deltat, 'Equalization of sampling rates unsuccessful!')
+        self.assertEqual(ttrace_1.deltat, 0.6, 'new sampling rate of ttrace_1 wrong')
+        self.assertEqual(ttrace_2.deltat, 0.6, 'new sampling rate of ttrace_2 wrong')
 
 class TestPyrocko(unittest.TestCase):
     def setUp(self):
-        self.tpile_1 = pile.make_pile('testFiles', show_progress=False)
-        self.tpile_2 = pile.make_pile('testFiles', show_progress=False)
+        self.tpile_1 = pile.make_pile('../mseeds/testFiles', show_progress=False)
+        self.tpile_2 = pile.make_pile('../mseeds/testFiles', show_progress=False)
 
 
     def test_data_in_both_piles(self):
