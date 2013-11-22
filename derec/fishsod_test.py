@@ -47,8 +47,8 @@ class TestFSU(unittest.TestCase):
                          'misfit of same traces is zero')
 
     def test_misfit_by_samples_squared(self):
-        eqal_neg_traces_list = [self.ttrace_1.get_ydata(), self.ttrace_2.get_ydata()]
-        self.assertEqual(misfit_by_samples( eqal_neg_traces_list, square=True), 0,
+        equal_neg_traces_list = [self.ttrace_1.get_ydata(), self.ttrace_2.get_ydata()]
+        self.assertEqual(misfit_by_samples( equal_neg_traces_list, square=True), 0,
                          'misfit of squared traces is zero if one trace is negative of the other')
 
     #def test_find_matching_traces(self):
@@ -94,10 +94,14 @@ class TestFSU(unittest.TestCase):
     #                        'Freq Dom Misfit of unequal piles is 0 but should not be 0')
 
     def test_equalize_sampling_rate(self):
+        '''
+
+        :return:
+        '''
         data1 = np.random.random(100)
         data2 = np.random.random(100)
         ttrace_1 = trace.Trace(network='1', station='T1', channel='z', deltat=0.5, ydata=data1)
-        ttrace_2 = trace.Trace(network='1', station='T2', channel='z', deltat=0.6, ydata=data2)
+        ttrace_2 = trace.Trace(network='1', station='T2', channel='z', deltat=0.01, ydata=data2)
         downsample_if_needed([[ttrace_1, ttrace_2]])
         self.assertEqual(ttrace_1.deltat, ttrace_2.deltat, 'Equalization of sampling rates unsuccessful!')
         self.assertEqual(ttrace_1.deltat, 0.6, 'new sampling rate of ttrace_1 wrong')
