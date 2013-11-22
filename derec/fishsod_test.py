@@ -107,6 +107,13 @@ class TestFSU(unittest.TestCase):
         self.assertEqual(ttrace_1.deltat, 0.6, 'new sampling rate of ttrace_1 wrong')
         self.assertEqual(ttrace_2.deltat, 0.6, 'new sampling rate of ttrace_2 wrong')
 
+    def test_chop_to_same_sample_length(self):
+        data1 = np.random.random(100)
+        data2 = np.random.random(80)
+        [data1, data2] = chop_longer_samples([data1, data2])
+        self.assertEqual(np.shape(data1), np.shape(data2), 'shape after chopping not equal')
+
+
 class TestPyrocko(unittest.TestCase):
     def setUp(self):
         self.tpile_1 = pile.make_pile('../mseeds/testFiles', show_progress=False)

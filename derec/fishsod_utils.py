@@ -87,6 +87,17 @@ def find_matching_traces(reference_pile, test_list):
     return trace_list
 
 
+def chop_longer_samples(data_set):
+    t1 = data_set[0]
+    t2 = data_set[1]
+    if np.shape(t1) > np.shape(t2):
+        t1 = np.resize(t1, np.shape(t2))
+
+    elif np.shape(t1) < np.shape(t2):
+        t2 = np.resize(t2, np.shape(t1))
+
+    return [t1, t2]
+
 def misfit_by_samples(data_set, square=False):
     """ 
     Calculate misfit from a set of two 1 dimensional arrays 
@@ -102,13 +113,7 @@ def misfit_by_samples(data_set, square=False):
     else: 
         exp = 1
 
-    t1 = data_set[0]
-    t2 = data_set[1]
-    if np.shape(t1) > np.shape(t2):
-        np.resize(t1, np.shape(t2))
-
-    elif np.shape(t1) < np.shape(t2):
-        np.resize(t2, np.shape(t1))
+    data_set = chop_longer_samples(data_set)
 
     return np.sum(abs(pow(data_set[0], exp)-pow(data_set[1], exp)))
 
