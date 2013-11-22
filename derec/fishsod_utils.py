@@ -1,13 +1,12 @@
-from numpy.core.umath import square
-from pyrocko import pile, trace, util, cake, gui_util
+from pyrocko import pile, util, cake, gui_util
 from pyrocko.gui_util import PhaseMarker
-from tunguska import receiver
 from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
 
 
 logger = logging.getLogger('fishsod_utils')
+
 
 class NoMatchingTraces(Exception):
     def __str__(self):
@@ -53,10 +52,11 @@ def azi_to_location_digits(azi):
 
 def find_matching_traces(reference_pile, test_list):
     """
+    Find matching pairs of traces for later Verwurstung.
     :param reference_pile:
     :param test_list:
     :return: list of sets, each containing two matching traces
-    :rtype : list
+    :rtype : list of sets of traces [(tr1, tr1_test) ,(tr2, tr2_test), (...),...]
     """
     trace_list = []
     num_matched = 0
@@ -64,19 +64,19 @@ def find_matching_traces(reference_pile, test_list):
     for traces_group in reference_pile:
         for ref_trace in traces_group:
             for test_trace in test_list:
-
-                if util.match_nslc('[0-9]*%s.%s.*.%s' % (ref_trace.network,
-                                                        ref_trace.station,
-                                                        ref_trace.channel),
-                                                        (test_trace.nslc_id)):
-
+                if util.match_nslc('[0-9]-%s.%s.*.%s' % (ref_trace.network,
+                                                         ref_trace.station,
+                                                         ref_trace.channel),
+                                   test_trace.nslc_id):
                     logger.info('Found matching traces: %s \n %s' % (ref_trace, test_trace))
                     trace_list.append([ref_trace, test_trace])
                     num_matched += 1
+                    break
                 else:
                     continue
-                    num_unmatched += 1
-                    logger.warning('No matching trace found for reference trace: %s'%ref_trace)
+            else:
+                num_unmatched += 1
+                logger.warning('No matching trace found for reference trace: %s' % ref_trace)
         if num_matched is 0:
             raise NoMatchingTraces()
         if num_unmatched is 0:
@@ -138,21 +138,18 @@ def frequency_domain_misfit(reference_pile, test_list, square=False):
 
 def time_domain_misfit(reference_pile, test_list, square=False):
     """
-
     :param test_list:
     :param square:
     :type reference_pile: pile.Pile
     :param reference_pile:
     """
-    # TODO: Das ist jetzt ein tupel nach dem choppen...... Warum?
     #print type(reference_pile)
     #print type(test_pile)
     #assert isinstance(reference_pile, pile.Pile)
     #assert isinstance(test_pile, pile.Pile)
 
     traces_sets = find_matching_traces(reference_pile, test_list)
-
-    #TODO: change to numpy array
+    print traces_sets
     data_sets = []
     for traces_set in traces_sets:
         data_sets.append(np.array((traces_set[0].ydata, traces_set[1].ydata)))
@@ -161,14 +158,23 @@ def time_domain_misfit(reference_pile, test_list, square=False):
 
 
 def phase_ranges(model, active_stations, active_event, t_spread, network_pref=''):
+    '''
+    Create extended phase markers as preparation for chopping.
+    :param model:
+    :param active_stations:
+    :param active_event:
+    :param t_spread:
+    :param network_pref:
+    :return:
+    '''
     phase_marker = []
     wanted_phases = []
     wanted_phases.extend(cake.PhaseDef.classic('p'))
     for active_station in active_stations:
 
         rays = model.arrivals(distances=[active_station.dist_deg],
-                               phases=wanted_phases,
-                               zstart=active_event.depth)
+                              phases=wanted_phases,
+                              zstart=active_event.depth)
         for ray in rays:
             m = PhaseMarker(nslc_ids=[(network_pref+active_station.network,
                                        active_station.station,
@@ -194,13 +200,14 @@ def phase_ranges(model, active_stations, active_event, t_spread, network_pref=''
 def chop_using_markers(traces, markers, *args, **kwargs):
     '''
     Chop a list of traces using a list of markers.
+    :rtype : list
     '''
     chopped_test_list = []
     for marker in markers:
         for trs in traces:
             if marker.match_nslc(trs.nslc_id):
-                trs.chop(tmin = marker.tmin,
-                tmax = marker.tmax)
+                trs.chop(tmin=marker.tmin,
+                         tmax=marker.tmax)
 
             chopped_test_list.append(trs)
     return chopped_test_list

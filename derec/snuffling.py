@@ -1,6 +1,5 @@
-from pyrocko.gui_util import PhaseMarker
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import cake, util, model, gui_util
+from pyrocko import cake,  model
 from tunguska import gfdb, receiver, seismosizer, source
 import fishsod_utils as fs
 
@@ -21,6 +20,7 @@ class ExtendedSnuffling(Snuffling):
         except AttributeError:
             pass
 
+
 class FindShallowSourceDepth(ExtendedSnuffling):
     """
        Find Source Depth
@@ -34,8 +34,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         if self.seis is not None:
             self.seis.close()
 
-
-
     def setup(self):
 
         # Give the snuffling a name:
@@ -47,13 +45,13 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         try:
             self.db = gfdb.Gfdb(gfdb_dir)
-            gfdb_max_range=self.db.nx*self.db.dx-self.db.dx
-            gfdb_min_range=self.db.firstx
+            #gfdb_max_range=self.db.nx*self.db.dx-self.db.dx
+            #gfdb_min_range=self.db.firstx
         except OSError:
             print 'OSError: probably kiwi-tools need to be installed'
             raise
         except SystemExit:
-            self.fail('Could not find Greens Functions Database at %s'%gfdb_dir)
+            self.fail('Could not find Greens Functions Database at %s' % gfdb_dir)
 
         self.add_parameter(Param('Mxx=Myy=Mzz [Nm]', 'mxx', 1., -1., 1.))
         self.add_parameter(Param('Mxy [Nm]', 'mxy', 1., -1., 1.))
@@ -72,18 +70,18 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         seis.set_effective_dt(db.dt)
         seis.set_local_interpolation('bilinear')
         seis.set_receivers(kwargs['receivers'])
-        seis.set_source_location( kwargs['origin_lat'],
-                                  kwargs['origin_lon'],
-                                  kwargs['otime'])
+        seis.set_source_location(kwargs['origin_lat'],
+                                 kwargs['origin_lon'],
+                                 kwargs['otime'])
         seis.set_source_constraints(0, 0, 0, 0, 0, -1)
         self.seis = seis
         seis = None
         scale = 1E21
         source_params = dict(zip(['mxx', 'myy', 'mzz', 'mxy', 'mxz',
-                                 'myz', 'depth', 'rise-time'],
-                                [self.mxx*scale, self.mxx*scale, self.mxx*scale,
-                                self.mxy*scale, self.mxz*scale, self.myz*scale,
-                                kwargs['source_depth'], self.rise_time]))
+                                  'myz', 'depth', 'rise-time'],
+                                 [self.mxx*scale, self.mxx*scale, self.mxx*scale,
+                                  self.mxy*scale, self.mxz*scale, self.myz*scale,
+                                  kwargs['source_depth'], self.rise_time]))
 
         s = source.Source(sourcetype='moment_tensor', sourceparams=source_params)
         return s
@@ -92,9 +90,9 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         active_event, active_stations = self.get_active_event_and_stations()
         self.cleanup()
 
-        self.viewer = self.get_viewer()
+        viewer = self.get_viewer()
 
-        probe_depths = [3000, 4000]
+        probe_depths = [4000]
 
         _model = cake.load_model()
 
@@ -107,10 +105,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                                              a_s.station,
                                                              a_s.location))
 
-            ,active_stations)
+                        , active_stations)
 
-        fs.extend_phase_markers(self.viewer.markers)
-        self.viewer.update()
+        fs.extend_phase_markers(viewer.markers)
+        viewer.update()
         chopped_reference_groups = self.chopper_selected_traces()
 
         test_index = 0
@@ -122,7 +120,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                       time=active_event.time,
                                       name='Test Event i=%s, z=%s' % (test_index, z))
 
-            test_list = []
             s = self.setup_source(receivers=receivers,
                                   origin_lat=active_event.lat,
                                   origin_lon=active_event.lon,
@@ -134,8 +131,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                 recs = self.seis.get_receivers_snapshot(which_seismograms=('syn',),
                                                         which_spectra=(),
                                                         which_processing='tapered')
+            #TODO: logger warning abfangen.
             except:
-                print "Could not get receivers snapshot at z=%s"%z
+                print "Could not get receivers snapshot at z=%s" % z
+                raise
 
             test_list = []
             for rec in recs:
@@ -147,8 +146,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
             probe_phase_marker = fs.phase_ranges(_model, active_stations, probe_event, self.t_spread,
                                                  network_pref='%s-' % test_index)
-            for m in self.viewer.get_markers():
-                print m
+
             chopped_test_list = fs.chop_using_markers(traces=test_list, markers=probe_phase_marker)
 
             if self.show_test_traces:
@@ -159,7 +157,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
                 self.add_traces(chopped_test_list)
                 self.add_markers(probe_phase_marker)
-                self.viewer.update()
+                viewer.update()
 
             # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
             TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_groups,
@@ -170,8 +168,8 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                               test_list=chopped_test_list,
                                               square=True)
 
-            print 'time domain misfit is %s'%TDMF
-            print 'frequency domain misfit is %s'%FDMF
+            print 'time domain misfit is %s' % TDMF
+            print 'frequency domain misfit is %s' % FDMF
 
             test_index += 1
 
