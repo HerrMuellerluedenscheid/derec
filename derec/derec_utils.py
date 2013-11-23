@@ -1,8 +1,10 @@
-from pyrocko import pile, util, cake, gui_util, trace
-from pyrocko.gui_util import PhaseMarker
 from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
+import subprocess
+
+from pyrocko import pile, util, cake, gui_util
+from pyrocko.gui_util import PhaseMarker
 
 
 logger = logging.getLogger('fishsod_utils')
@@ -180,7 +182,7 @@ def phase_ranges(model, active_stations, active_event, t_spread, network_pref=''
                               phases=wanted_phases,
                               zstart=active_event.depth)
         for ray in rays:
-            m = PhaseMarker(nslc_ids=[(network_pref+active_station.network,
+            m = PhaseMarker(nslc_ids=[(network_pref + active_station.network,
                                        active_station.station,
                                        '*',
                                        '*')],
@@ -211,7 +213,9 @@ def chop_using_markers(traces, markers, *args, **kwargs):
         for trs in traces:
             if marker.match_nslc(trs.nslc_id):
                 trs.chop(tmin=marker.tmin,
-                         tmax=marker.tmax)
+                         tmax=marker.tmax,
+                         *args,
+                         **kwargs)
 
             chopped_test_list.append(trs)
     return chopped_test_list
@@ -226,7 +230,7 @@ def extend_phase_markers(markers, scaling_factor=1):
     for marker in markers:
         if isinstance(marker, gui_util.PhaseMarker):
             t_event = marker.get_event().time
-            marker.tmax = marker.get_tmin()+(marker.get_tmin()-t_event)*0.33*scaling_factor
+            marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event) * 0.33 * scaling_factor
             extended_markers.append(marker)
     return extended_markers
 
@@ -237,10 +241,17 @@ def downsample_if_needed(trace_pairs):
     :param trace_pairs:
     :return:
 
-
     !!! resample ist problematisch, wenn die Frequenzen zu weit auseinanderliegen.
     '''
 
     for trace_pair in trace_pairs:
         trace_pair.sort(key=lambda x: x.deltat)
         trace_pair[0].resample(trace_pair[1].deltat)
+
+
+def request_in_gfdb_range(request, gfdb):
+    '''
+    Verify, that no depth in requested depths is out of range covered by the gfdb.
+    '''
+    if min(request) >= gfdb.firstz and max(request) <= gfdb.firstz + gfdb.nz * gfdb.dz:
+        return True

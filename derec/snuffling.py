@@ -1,7 +1,7 @@
 from pyrocko.snuffling import Param, Snuffling, Switch
 from pyrocko import cake,  model
 from tunguska import gfdb, receiver, seismosizer, source
-import fishsod_utils as fs
+import derec_utils as fs
 
 
 class ExtendedSnuffling(Snuffling):
@@ -37,7 +37,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
     def setup(self):
 
         # Give the snuffling a name:
-        self.set_name('Fishsod')
+        self.set_name('Derec')
         #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         # GIVE THE GFDB DEFAULT DIRECTORY HERE:'
         gfdb_dir = 'fomostos/local1/local1'
@@ -92,7 +92,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         viewer = self.get_viewer()
 
-        probe_depths = [4000]
+        probe_depths = [2000, 3000, 4000, 5000]
+
+        if not fs.request_in_gfdb_range(probe_depths, self.db):
+            self.fail('GFDB doesn\'t cover requested depth range.')
 
         _model = cake.load_model()
 
@@ -119,7 +122,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                       depth=z,
                                       time=active_event.time,
                                       name='Test Event i=%s, z=%s' % (test_index, z))
-
+            self.add_marker(probe_event)
             s = self.setup_source(receivers=receivers,
                                   origin_lat=active_event.lat,
                                   origin_lon=active_event.lon,
