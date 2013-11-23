@@ -1,13 +1,12 @@
 from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
-import subprocess
 
 from pyrocko import pile, util, cake, gui_util
 from pyrocko.gui_util import PhaseMarker
 
 
-logger = logging.getLogger('fishsod_utils')
+logger = logging.getLogger('derec_utils')
 
 
 class NoMatchingTraces(Exception):
@@ -90,6 +89,9 @@ def find_matching_traces(reference_pile, test_list):
 
 
 def chop_longer_samples(data_set):
+    """
+    chop both samples to the same length
+    """
     t1 = data_set[0]
     t2 = data_set[1]
     if np.shape(t1) > np.shape(t2):
@@ -249,7 +251,7 @@ def downsample_if_needed(trace_pairs):
         trace_pair[0].resample(trace_pair[1].deltat)
 
 
-def request_in_gfdb_range(request, gfdb):
+def requests_in_gfdb_range(request, gfdb):
     '''
     Verify, that no depth in requested depths is out of range covered by the gfdb.
     '''

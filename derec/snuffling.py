@@ -1,5 +1,5 @@
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import cake,  model
+from pyrocko import cake, model
 from tunguska import gfdb, receiver, seismosizer, source
 import derec_utils as fs
 
@@ -14,7 +14,7 @@ class ExtendedSnuffling(Snuffling):
         self.cleanup()
         if self._tempdir is not None:
             import shutil
-            shutil.rmtree(self._tempdir)  
+            shutil.rmtree(self._tempdir)
         try:
             self.my_del()
         except AttributeError:
@@ -45,8 +45,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         try:
             self.db = gfdb.Gfdb(gfdb_dir)
-            #gfdb_max_range=self.db.nx*self.db.dx-self.db.dx
-            #gfdb_min_range=self.db.firstx
         except OSError:
             print 'OSError: probably kiwi-tools need to be installed'
             raise
@@ -87,14 +85,14 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         return s
 
     def call(self):
-        active_event, active_stations = self.get_active_event_and_stations()
-        self.cleanup()
 
+        self.cleanup()
+        active_event, active_stations = self.get_active_event_and_stations()
         viewer = self.get_viewer()
 
         probe_depths = [2000, 3000, 4000, 5000]
 
-        if not fs.request_in_gfdb_range(probe_depths, self.db):
+        if not fs.requests_in_gfdb_range(probe_depths, self.db):
             self.fail('GFDB doesn\'t cover requested depth range.')
 
         _model = cake.load_model()
@@ -122,7 +120,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                       depth=z,
                                       time=active_event.time,
                                       name='Test Event i=%s, z=%s' % (test_index, z))
-            self.add_marker(probe_event)
+
             s = self.setup_source(receivers=receivers,
                                   origin_lat=active_event.lat,
                                   origin_lon=active_event.lon,
@@ -142,7 +140,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
             test_list = []
             for rec in recs:
                 for trace in rec.get_traces():
-                    trace.shift(self.rise_time*0.5)
+                    trace.shift(self.rise_time * 0.5)
                     trace.set_codes(network='%s-%s' % (test_index, trace.network),
                                     location='sym')
                     test_list.append(trace)
@@ -161,6 +159,11 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                 self.add_traces(chopped_test_list)
                 self.add_markers(probe_phase_marker)
                 viewer.update()
+
+            print chopped_reference_groups
+            print dir(chopped_reference_groups)
+            for t in chopped_reference_groups:
+                print t
 
             # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
             TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_groups,
