@@ -110,7 +110,9 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
         fs.extend_phase_markers(viewer.markers)
         viewer.update()
-        chopped_reference_groups = self.chopper_selected_traces()
+
+        # Oder mit itertools.tee()?! mal schauen...
+        chopped_reference_groups = list(self.chopper_selected_traces())
 
         test_index = 0
         for z in probe_depths:
@@ -159,11 +161,6 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                 self.add_traces(chopped_test_list)
                 self.add_markers(probe_phase_marker)
                 viewer.update()
-
-            print chopped_reference_groups
-            print dir(chopped_reference_groups)
-            for t in chopped_reference_groups:
-                print t
 
             # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
             TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_groups,
