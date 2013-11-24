@@ -122,13 +122,11 @@ def misfit_by_samples(data_set, square=False):
     return np.sum(abs(pow(data_set[0], exp)-pow(data_set[1], exp)))
 
 
-def frequency_domain_misfit(reference_pile, test_list, square=False):
+def frequency_domain_misfit(reference_pile, test_list, square=False, **kwargs):
     """ 
 
     :param reference_pile: 
     :param test_list:
-    :param t_min: 
-    :param t_max: 
     :return: 
     """ 
     #assert isinstance(reference_pile, pile.Pile)
@@ -139,7 +137,8 @@ def frequency_domain_misfit(reference_pile, test_list, square=False):
     spectra_sets = []
     for tr1, tr2 in traces_sets:
         # ignore fx-data
-        spectra_sets.append(np.array((tr1.spectrum()[1], tr2.spectrum()[1])))
+        spectra_sets.append(np.array((tr1.spectrum()[1],
+                                      tr2.spectrum()[1])))
     #map(lambda x,y:(x.spectrum(),y.spectrum()), traces_sets[0], traces_sets[1])    
     
     return sum(map(lambda x: misfit_by_samples(x, square=square), spectra_sets))

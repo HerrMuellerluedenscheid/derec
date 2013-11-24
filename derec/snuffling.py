@@ -1,7 +1,8 @@
 from pyrocko.snuffling import Param, Snuffling, Switch
-from pyrocko import cake, model
+from pyrocko import cake, model, mopad
 from tunguska import gfdb, receiver, seismosizer, source
 import derec_utils as fs
+import matplotlib.pyplot as plt
 
 
 class ExtendedSnuffling(Snuffling):
@@ -90,7 +91,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         active_event, active_stations = self.get_active_event_and_stations()
         viewer = self.get_viewer()
 
-        probe_depths = [1000,2000,3000,4000,5000,6000,7000,8000,9000,10000]
+        probe_depths = [2000,2500, 3000, 3500 ,4000,5000]
         results = {}
         TDMF = []
         FDMF = []
@@ -109,7 +110,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                                              a_s.station,
                                                              a_s.location))
 
-                        , active_stations)
+            , active_stations)
 
         fs.extend_phase_markers(viewer.markers)
         viewer.update()
@@ -167,21 +168,34 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
             # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
             TDMF.append(fs.time_domain_misfit(reference_pile=chopped_reference_groups,
-                                         test_list=chopped_test_list,
-                                         square=True))
-
-            FDMF.append(fs.frequency_domain_misfit(reference_pile=chopped_reference_groups,
                                               test_list=chopped_test_list,
                                               square=True))
+
+            FDMF.append(fs.frequency_domain_misfit(reference_pile=chopped_reference_groups,
+                                                   test_list=chopped_test_list,
+                                                   square=True))
 
             test_index += 1
 
         results['tdmf'] = TDMF
         results['fdmf'] = FDMF
 
-        from matplotlib.pyplot import plot, show
-        plot(results['tdmf'])
-        show()
+        #fig =self.figure(name='asdf')
+        #fig = self.pylab(get='figure')
+        plt.figure()
+        plt.subplot(211)
+        plt.plot(probe_depths, results['tdmf'], '-o')
+        plt.title('Time Domain')
+        plt.xlabel('Depth')
+        plt.subplot(212)
+        plt.plot(probe_depths, results['fdmf'], '-o')
+        plt.title('Frequency Domain')
+        plt.xlabel('Depth')
+
+        #M = mopad.MomentTensor([1,1,1,1,1,1])
+        #bb = mopad.BeachBall(M)
+        #bb.ploBB({})
+        plt.show()
 
 def __snufflings__():
     return [FindShallowSourceDepth()]
