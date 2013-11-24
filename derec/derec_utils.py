@@ -237,6 +237,13 @@ def extend_phase_markers(markers, scaling_factor=1):
     return extended_markers
 
 
+def sampling_rate_similar(t1, t2):
+    '''
+    returns True, if the difference in sampling rates is bigger than 1.0% of t1's sampling rate
+    '''
+    return abs(t1.deltat - t2.deltat) <= t1.deltat / 100
+
+
 def downsample_if_needed(trace_pairs):
     '''
     Downsample high frequency trace of traces pairs to the lower of both sampling rates.
@@ -245,7 +252,8 @@ def downsample_if_needed(trace_pairs):
 
     !!! resample ist problematisch, wenn die Frequenzen zu weit auseinanderliegen.
     '''
-    ts = filter(lambda x: x[0].deltat != x[1].deltat, trace_pairs)
+
+    ts = filter(lambda x: not sampling_rate_similar(x[0], x[1]), trace_pairs)
     for trace_pair in ts:
         trace_pair.sort(key=lambda x: x.deltat)
         trace_pair[0].resample(trace_pair[1].deltat)
