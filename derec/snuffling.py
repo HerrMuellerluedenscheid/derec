@@ -90,7 +90,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         active_event, active_stations = self.get_active_event_and_stations()
         viewer = self.get_viewer()
 
-        probe_depths = [2000, 3000, 4000, 5000]
+        probe_depths = [1000,2000,3000,4000,5000,6000,7000,8000,9000,10000]
+        results = {}
+        TDMF = []
+        FDMF = []
 
         if not fs.requests_in_gfdb_range(probe_depths, self.db):
             self.fail('GFDB doesn\'t cover requested depth range.')
@@ -163,19 +166,22 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                 viewer.update()
 
             # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
-            TDMF = fs.time_domain_misfit(reference_pile=chopped_reference_groups,
+            TDMF.append(fs.time_domain_misfit(reference_pile=chopped_reference_groups,
                                          test_list=chopped_test_list,
-                                         square=True)
+                                         square=True))
 
-            FDMF = fs.frequency_domain_misfit(reference_pile=chopped_reference_groups,
+            FDMF.append(fs.frequency_domain_misfit(reference_pile=chopped_reference_groups,
                                               test_list=chopped_test_list,
-                                              square=True)
-
-            print 'time domain misfit is %s' % TDMF
-            print 'frequency domain misfit is %s' % FDMF
+                                              square=True))
 
             test_index += 1
 
+        results['tdmf'] = TDMF
+        results['fdmf'] = FDMF
+
+        from matplotlib.pyplot import plot, show
+        plot(results['tdmf'])
+        show()
 
 def __snufflings__():
     return [FindShallowSourceDepth()]
