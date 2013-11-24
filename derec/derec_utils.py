@@ -90,7 +90,7 @@ def find_matching_traces(reference_pile, test_list):
 
 def chop_longer_samples(data_set):
     """
-    chop both samples to the same length
+    chop both samples to the same length.
     """
     t1 = data_set[0]
     t2 = data_set[1]
@@ -245,8 +245,8 @@ def downsample_if_needed(trace_pairs):
 
     !!! resample ist problematisch, wenn die Frequenzen zu weit auseinanderliegen.
     '''
-
-    for trace_pair in trace_pairs:
+    ts = filter(lambda x: x[0].deltat != x[1].deltat, trace_pairs)
+    for trace_pair in ts:
         trace_pair.sort(key=lambda x: x.deltat)
         trace_pair[0].resample(trace_pair[1].deltat)
 
