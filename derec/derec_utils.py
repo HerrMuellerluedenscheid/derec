@@ -1,11 +1,12 @@
-from pyrocko import pile, util, cake, gui_util, trace
-from pyrocko.gui_util import PhaseMarker
 from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
 
+from pyrocko import pile, util, cake, gui_util
+from pyrocko.gui_util import PhaseMarker
 
-logger = logging.getLogger('fishsod_utils')
+
+logger = logging.getLogger('derec_utils')
 
 
 class NoMatchingTraces(Exception):
@@ -88,6 +89,9 @@ def find_matching_traces(reference_pile, test_list):
 
 
 def chop_longer_samples(data_set):
+    """
+    chop both samples to the same length.
+    """
     t1 = data_set[0]
     t2 = data_set[1]
     if np.shape(t1) > np.shape(t2):
@@ -118,13 +122,11 @@ def misfit_by_samples(data_set, square=False):
     return np.sum(abs(pow(data_set[0], exp)-pow(data_set[1], exp)))
 
 
-def frequency_domain_misfit(reference_pile, test_list, square=False):
+def frequency_domain_misfit(reference_pile, test_list, square=False, **kwargs):
     """ 
 
     :param reference_pile: 
     :param test_list:
-    :param t_min: 
-    :param t_max: 
     :return: 
     """ 
     #assert isinstance(reference_pile, pile.Pile)
@@ -135,7 +137,8 @@ def frequency_domain_misfit(reference_pile, test_list, square=False):
     spectra_sets = []
     for tr1, tr2 in traces_sets:
         # ignore fx-data
-        spectra_sets.append(np.array((tr1.spectrum()[1], tr2.spectrum()[1])))
+        spectra_sets.append(np.array((tr1.spectrum()[1],
+                                      tr2.spectrum()[1])))
     #map(lambda x,y:(x.spectrum(),y.spectrum()), traces_sets[0], traces_sets[1])    
     
     return sum(map(lambda x: misfit_by_samples(x, square=square), spectra_sets))
@@ -180,7 +183,7 @@ def phase_ranges(model, active_stations, active_event, t_spread, network_pref=''
                               phases=wanted_phases,
                               zstart=active_event.depth)
         for ray in rays:
-            m = PhaseMarker(nslc_ids=[(network_pref+active_station.network,
+            m = PhaseMarker(nslc_ids=[(network_pref + active_station.network,
                                        active_station.station,
                                        '*',
                                        '*')],
@@ -211,7 +214,9 @@ def chop_using_markers(traces, markers, *args, **kwargs):
         for trs in traces:
             if marker.match_nslc(trs.nslc_id):
                 trs.chop(tmin=marker.tmin,
-                         tmax=marker.tmax)
+                         tmax=marker.tmax,
+                         *args,
+                         **kwargs)
 
             chopped_test_list.append(trs)
     return chopped_test_list
@@ -226,9 +231,16 @@ def extend_phase_markers(markers, scaling_factor=1):
     for marker in markers:
         if isinstance(marker, gui_util.PhaseMarker):
             t_event = marker.get_event().time
-            marker.tmax = marker.get_tmin()+(marker.get_tmin()-t_event)*0.33*scaling_factor
+            marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event) * 0.33 * scaling_factor
             extended_markers.append(marker)
     return extended_markers
+
+
+def sampling_rate_similar(t1, t2):
+    '''
+    returns True, if the difference in sampling rates is bigger than 1.0% of t1's sampling rate
+    '''
+    return abs(t1.deltat - t2.deltat) <= t1.deltat / 100
 
 
 def downsample_if_needed(trace_pairs):
@@ -237,10 +249,18 @@ def downsample_if_needed(trace_pairs):
     :param trace_pairs:
     :return:
 
-
     !!! resample ist problematisch, wenn die Frequenzen zu weit auseinanderliegen.
     '''
 
-    for trace_pair in trace_pairs:
+    ts = filter(lambda x: not sampling_rate_similar(x[0], x[1]), trace_pairs)
+    for trace_pair in ts:
         trace_pair.sort(key=lambda x: x.deltat)
         trace_pair[0].resample(trace_pair[1].deltat)
+
+
+def requests_in_gfdb_range(request, gfdb):
+    '''
+    Verify, that no depth in requested depths is out of range covered by the gfdb.
+    '''
+    if min(request) >= gfdb.firstz and max(request) <= gfdb.firstz + gfdb.nz * gfdb.dz:
+        return True
