@@ -1,7 +1,7 @@
 from pyrocko.snuffling import Param, Snuffling, Switch
 from pyrocko import cake, model, mopad
 from tunguska import gfdb, receiver, seismosizer, source
-import derec_utils as fs
+import derec_utils as du
 import matplotlib.pyplot as plt
 
 
@@ -96,7 +96,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
         TDMF = []
         FDMF = []
 
-        if not fs.requests_in_gfdb_range(probe_depths, self.db):
+        if not du.requests_in_gfdb_range(probe_depths, self.db):
             self.fail('GFDB doesn\'t cover requested depth range.')
 
         _model = cake.load_model()
@@ -112,7 +112,7 @@ class FindShallowSourceDepth(ExtendedSnuffling):
 
             , active_stations)
 
-        fs.extend_phase_markers(viewer.markers)
+        du.extend_phase_markers(viewer.markers)
         viewer.update()
 
         # Oder mit itertools.tee()?! mal schauen...
@@ -151,10 +151,10 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                     location='sym')
                     test_list.append(trace)
 
-            probe_phase_marker = fs.phase_ranges(_model, active_stations, probe_event, self.t_spread,
+            probe_phase_marker = du.phase_ranges(_model, active_stations, probe_event, self.t_spread,
                                                  network_pref='%s-' % test_index)
 
-            chopped_test_list = fs.chop_using_markers(traces=test_list, markers=probe_phase_marker)
+            chopped_test_list = du.chop_using_markers(traces=test_list, markers=probe_phase_marker)
 
             if self.show_test_traces:
 
@@ -167,11 +167,11 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                 viewer.update()
 
             # TODO: Evtl. unterschiedliche Samplingraten beruecksichtigen!!!
-            TDMF.append(fs.time_domain_misfit(reference_pile=chopped_reference_groups,
+            TDMF.append(du.time_domain_misfit(reference_pile=chopped_reference_groups,
                                               test_list=chopped_test_list,
                                               square=True))
 
-            FDMF.append(fs.frequency_domain_misfit(reference_pile=chopped_reference_groups,
+            FDMF.append(du.frequency_domain_misfit(reference_pile=chopped_reference_groups,
                                                    test_list=chopped_test_list,
                                                    square=True))
 

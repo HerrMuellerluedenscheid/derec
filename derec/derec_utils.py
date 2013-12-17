@@ -222,17 +222,34 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     return chopped_test_list
 
 
-def extend_phase_markers(markers, scaling_factor=1):
+def extend_phase_markers(markers, scaling_factor=1, event=None, phase='', model=None):
     '''
     Extend phase markers to fixed length proportional to time lag between
     phase markers tmin and event tmin.
+
+    :param phase: cake.phasedef ...
     '''
     extended_markers = []
-    for marker in markers:
-        if isinstance(marker, gui_util.PhaseMarker):
-            t_event = marker.get_event().time
-            marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event) * 0.33 * scaling_factor
-            extended_markers.append(marker)
+
+    if event and phase and model:
+        for m in markers:
+            dist = 
+            print dir(event)
+            print phase
+            print dir(phase)
+            for arrivals in model.arrivals(dist,
+                                           phases=phase,
+                                           zstart=sdepth):
+                m.tmax = arrival.t
+            extended_markers.append(m)
+
+    else:
+        for marker in markers:
+            if isinstance(marker, gui_util.PhaseMarker):
+                t_event = marker.get_event().time
+                marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event) * 0.33 * scaling_factor
+                extended_markers.append(marker)
+
     return extended_markers
 
 
