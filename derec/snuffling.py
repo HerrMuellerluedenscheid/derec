@@ -151,8 +151,8 @@ class FindShallowSourceDepth(ExtendedSnuffling):
                                     location='sym')
                     test_list.append(trace)
 
-            probe_phase_marker = du.phase_ranges(_model, active_stations, probe_event, self.t_spread,
-                                                 network_pref='%s-' % test_index)
+            probe_phase_marker = du.chop_ranges(_model, active_stations, probe_event, self.t_spread,
+                                                t_spread='%s-' % test_index)
 
             chopped_test_list = du.chop_using_markers(traces=test_list, markers=probe_phase_marker)
 

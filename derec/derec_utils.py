@@ -2,7 +2,7 @@ from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
 
-from pyrocko import pile, util, cake, gui_util
+from pyrocko import pile, util, cake, gui_util, orthodrome
 from pyrocko.gui_util import PhaseMarker
 
 
@@ -65,9 +65,10 @@ def find_matching_traces(reference_pile, test_list):
     for traces_group in reference_pile:
         for ref_trace in traces_group:
             for test_trace in test_list:
-                if util.match_nslc('[0-9]-%s.%s.*.%s' % (ref_trace.network,
-                                                         ref_trace.station,
-                                                         ref_trace.channel),
+                if util.match_nslc('%s.%s.[0-9]-%s.%s' % (ref_trace.network,
+                                                          ref_trace.station,
+                                                          ref_trace.location,
+                                                          ref_trace.channel),
                                    test_trace.nslc_id):
                     logger.info('Found matching traces: %s \n %s' % (ref_trace, test_trace))
                     trace_list.append([ref_trace, test_trace])
@@ -129,18 +130,13 @@ def frequency_domain_misfit(reference_pile, test_list, square=False, **kwargs):
     :param test_list:
     :return: 
     """ 
-    #assert isinstance(reference_pile, pile.Pile)
-    #assert isinstance(test_pile, pile.Pile)
-    # convert to amp spectra:
-
     traces_sets = find_matching_traces(reference_pile, test_list)
     spectra_sets = []
     for tr1, tr2 in traces_sets:
         # ignore fx-data
         spectra_sets.append(np.array((tr1.spectrum()[1],
                                       tr2.spectrum()[1])))
-    #map(lambda x,y:(x.spectrum(),y.spectrum()), traces_sets[0], traces_sets[1])    
-    
+
     return sum(map(lambda x: misfit_by_samples(x, square=square), spectra_sets))
 
 
@@ -151,9 +147,6 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     :type reference_pile: pile.Pile
     :param reference_pile:
     """
-    #assert isinstance(reference_pile, pile.Pile)
-    #assert isinstance(test_pile, pile.Pile)
-
     traces_sets = find_matching_traces(reference_pile, test_list)
     downsample_if_needed(traces_sets)
 
@@ -164,43 +157,45 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
-def phase_ranges(model, active_stations, active_event, t_spread, network_pref=''):
+def chop_ranges(model, stations, event, phase_start, phase_end, depths, location_pref=''):
     '''
     Create extended phase markers as preparation for chopping.
     :param model:
-    :param active_stations:
-    :param active_event:
+    :param stations:
     :param t_spread:
     :param network_pref:
     :return:
     '''
+
+
     phase_marker = []
-    wanted_phases = []
-    wanted_phases.extend(cake.PhaseDef.classic('p'))
-    for active_station in active_stations:
+    for depth in depths:
+        for station in stations:
+            rays = model.arrivals(distances=[station.dist_deg],
+                                  phases=[phase_start, phase_end],
+                                  zstart=depth,
+                                  refine=True)  # how much faster is refine = false?
+            rays.sort(key=lambda x: x.t)  # print dir(rays[0])
+            tmin = rays[0].t
+            tmax = rays[1].t
+            for ray in rays:
+                m = PhaseMarker(nslc_ids=[(station.network,
+                                           station.station,
+                                           location_pref + station.location,
+                                           '*')],
+                                tmin=tmin+event.time,
+                                tmax=tmax+event.time,
+                                kind=1,
+                                event=event,
+                                incidence_angle=ray.incidence_angle(),
+                                takeoff_angle=ray.takeoff_angle(),
+                                phasename=ray.given_phase().definition())
+                m.set_selected(True)
 
-        rays = model.arrivals(distances=[active_station.dist_deg],
-                              phases=wanted_phases,
-                              zstart=active_event.depth)
-        for ray in rays:
-            m = PhaseMarker(nslc_ids=[(network_pref + active_station.network,
-                                       active_station.station,
-                                       '*',
-                                       '*')],
-                            tmin=active_event.time+ray.t,
-                            tmax=active_event.time+ray.t+t_spread,
-                            kind=1,
-                            event=active_event,
-                            incidence_angle=ray.incidence_angle(),
-                            takeoff_angle=ray.takeoff_angle(),
-                            phasename=ray.given_phase().definition())
-            m.set_selected(True)
+                if location_pref:
+                    m.set_kind(2)
 
-            if network_pref:
-                m.set_kind(2)
-
-            phase_marker.append(m)
-
+                    phase_marker.append(m)
     return phase_marker
 
 
@@ -222,35 +217,31 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     return chopped_test_list
 
 
-def extend_phase_markers(markers, scaling_factor=1, event=None, phase='', model=None):
+def extend_phase_markers(markers=[], scaling_factor=1, stations=None, event=None, phase='', model=None, inplace=False):
     '''
     Extend phase markers to fixed length proportional to time lag between
     phase markers tmin and event tmin.
 
-    :param phase: cake.phasedef ...
+    :param phase: cake.phasedef object
     '''
-    extended_markers = []
-
+    distances = map(lambda s: s.dist_deg, stations)
     if event and phase and model:
         for m in markers:
-            dist = 
-            print dir(event)
-            print phase
-            print dir(phase)
-            for arrivals in model.arrivals(dist,
+            for arrivals in model.arrivals(distances=distances,
                                            phases=phase,
-                                           zstart=sdepth):
-                m.tmax = arrival.t
-            extended_markers.append(m)
+                                           zstart=event.depth,
+                                           refine=True):
+                if not inplace:
+                    m = m.copy()
+                m.tmax = event.time + arrivals.t
+            yield m
 
     else:
         for marker in markers:
             if isinstance(marker, gui_util.PhaseMarker):
                 t_event = marker.get_event().time
                 marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event) * 0.33 * scaling_factor
-                extended_markers.append(marker)
-
-    return extended_markers
+                yield marker
 
 
 def sampling_rate_similar(t1, t2):
