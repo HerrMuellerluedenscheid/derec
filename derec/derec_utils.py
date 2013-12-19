@@ -167,7 +167,7 @@ def chop_ranges(model, stations, event, phase_start, phase_end, depths, location
     :return:
     '''
 
-
+    phase_marker_dict = {}
     phase_marker = []
     for depth in depths:
         for station in stations:
@@ -195,8 +195,10 @@ def chop_ranges(model, stations, event, phase_start, phase_end, depths, location
                 if location_pref:
                     m.set_kind(2)
 
-                    phase_marker.append(m)
-    return phase_marker
+                phase_marker.append(m)
+
+        phase_marker_dict[depth] = phase_marker
+    return phase_marker_dict
 
 
 def chop_using_markers(traces, markers, *args, **kwargs):
