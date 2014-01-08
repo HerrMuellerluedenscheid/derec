@@ -210,6 +210,10 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     for marker in markers:
         for trs in traces:
             if marker.match_nslc(trs.nslc_id):
+                print marker.tmin
+                print marker.tmax
+                print trs.tmin
+                print trs.tmax
                 trs.chop(tmin=marker.tmin,
                          tmax=marker.tmax,
                          *args,

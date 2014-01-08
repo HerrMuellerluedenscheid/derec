@@ -38,7 +38,7 @@ class Core:
         tmpdir = tempfile.mkdtemp(prefix='derec_tmp_', suffix='test')    
 
         io.save(reference_seismograms, filename_template=pjoin(tmpdir, 'ref.mseed'))
-        test_depths = [2000, 3000]
+        test_depths = [1000, 5000, 9000]
         test_seismograms = {}
         for i, d in enumerate(test_depths):
             seismograms = []
@@ -53,7 +53,7 @@ class Core:
                                                    source_time=event.time,
                                                    net_code=stat.network,
                                                    sta_code=stat.station,
-                                                   loc_code='%s-%s' % (i, stat.location),
+                                                   loc_code=stat.location,
                                                    mnn=1.,
                                                    mee=1.,
                                                    mdd=1.,
@@ -74,14 +74,21 @@ class Core:
         # Extend P phase markers to 210 p reflection
         #latest_phase = cake.PhaseDef('pPv210p')
         latest_phase = cake.PhaseDef('s')
-        primary_phase = cake.PhaseDef('p')
+        primary_phase = cake.PhaseDef('P')
+        #primary_phase = cake.PhaseDef('p')
+
+        # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
+        
+        extended_markers = du.chop_ranges(model, stations, event, primary_phase, latest_phase, event.source_depth)
+        
         test_marker = du.chop_ranges(model, stations, event, primary_phase, latest_phase, test_depths)
 
         # extend picked markers
-        extended_markers = list(du.extend_phase_markers(markers=markers,
-                                                        phase=latest_phase,
-                                                        stations=stations,
-                                                        event=event, model=model))
+
+        #extended_markers = list(du.extend_phase_markers(markers=markers,
+        #                                                phase=latest_phase,
+        #                                                stations=stations,
+        #                                                event=event, model=model))
 
         # chop
         chopped_ref_traces = []
@@ -100,17 +107,23 @@ class Core:
                           frequency_response=fresponse)
 
         for rt in reference_seismograms:
-            for tt in test_seismograms:
-                if ..... weiter machen
+            print rt.nslc_id
+            for d,tts in test_seismograms.items():
+                for tt in tts:
+                    if rt.nslc_id==tt.nslc_id:
+                        mf=rt.misfit(candidates=[tt], setups=setup)
+                        for m,n  in mf:
+                            print m/n
+                
 
         # testweise nur element 0
-        memfile = pile.MemTracesFile(parent=None, traces=chopped_test_traces.values()[0])
-        p = pile.Pile()
-        inj = pile.Injector(p)
+        #memfile = pile.MemTracesFile(parent=None, traces=chopped_test_traces.values()[0])
+        #p = pile.Pile()
+        #inj = pile.Injector(p)
         seismograms[0].snuffle()
-        inj.inject(seismograms[0])
-        from pyrocko.snuffler import snuffle
-        snuffle(memfile)
+        #inj.inject(seismograms[0])
+        #from pyrocko.snuffler import snuffle
+        #snuffle(memfile)
 
 if __name__ ==  "__main__":
 
