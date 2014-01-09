@@ -9,6 +9,9 @@ pjoin = os.path.join
 class Core:
     def __init__(self, markers, stations):
 
+        # collect all test cases
+        self.test_cases = None
+
         store_id = 'crust2_dd'
 
         event = [m for m in markers if isinstance(m, gui_util.EventMarker)]
@@ -145,6 +148,24 @@ class Core:
         #inj.inject(seismograms[0])
         #from pyrocko.snuffler import snuffle
         #snuffle(memfile)
+
+class TestCaseBase():
+    def __init__(self):
+        pass
+
+    def set_event_data(self, event):
+        pass
+
+    def set_station_data(self, stations=[]):
+        pass
+
+    def set_refine_parameter(self, parameter='', param_range=[])
+        eval(parameter) = param_range
+
+    def request_data(self):
+        #make requests
+
+
 
 if __name__ ==  "__main__":
 
