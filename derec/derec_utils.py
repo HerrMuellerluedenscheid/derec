@@ -1,6 +1,7 @@
 from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
+import matplotlib.pyplot as plt
 
 from pyrocko import pile, util, cake, gui_util, orthodrome
 from pyrocko.gui_util import PhaseMarker
@@ -210,10 +211,6 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     for marker in markers:
         for trs in traces:
             if marker.match_nslc(trs.nslc_id):
-                print marker.tmin
-                print marker.tmax
-                print trs.tmin
-                print trs.tmax
                 trs.chop(tmin=marker.tmin,
                          tmax=marker.tmax,
                          *args,
@@ -278,3 +275,11 @@ def requests_in_gfdb_range(request, gfdb):
     '''
     if min(request) >= gfdb.firstz and max(request) <= gfdb.firstz + gfdb.nz * gfdb.dz:
         return True
+
+def plot_misfit_dict(mfdict):
+    plt.figure()
+    plt.plot(mfdict.keys(), mfdict.values(), '+')
+    plt.xlabel('Depth [m]')
+    plt.ylabel('Misfit []')
+    plt.show()
+

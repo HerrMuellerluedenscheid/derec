@@ -19,11 +19,12 @@ def receivers_to_stations(receivers):
 class MakeTestTraces:
     def __init__(self):
         # Set up receiver configuration.
+
         tab = '''
-        HH1  52.500  9.5000  0
-        HH2  51.500  9.5000  0
-        HH3  51.500  8.5000  0
-        HH4  52.500  8.5000  0
+        HH1  58.500 12.5000  0
+        HH2  48.500 12.5000  0
+        HH3  48.500  3.5000  0
+        HH4  58.500  3.5000  0
         '''.strip()
 
         receivers = []
