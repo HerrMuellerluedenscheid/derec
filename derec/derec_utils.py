@@ -158,7 +158,7 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
-def chop_ranges(model, stations, event, phase_start, depths, phase_end=None, location_pref=''):
+def chop_ranges(model, stations, event, phase_start, depths, phase_end=None, location_pref='', refine_parameter=''):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -287,4 +287,32 @@ def plot_misfit_dict(mfdict):
     plt.xlabel('Depth [m]')
     plt.ylabel('Misfit []')
     plt.show()
+
+def request_data(station, event, store_id):
+    mt = event.moment_tensor
+    mnn = mt._m[0,0]
+    mee = mt._m[1,1]
+    mdd = mt._m[2,2] 
+    mne = mt._m[0,1]
+    mnd = mt._m[0,2]
+    med = mt._m[1,2]
+
+    test_seis_req = SeismosizerRequest(store_id=store_id,
+                                eource_lat=event.lat,
+                                source_lon=event.lon,
+                                source_depth=event.depth,
+                                receiver_lat=station.lat,
+                                receiver_lon=station.lon,
+                                source_time=event.time,
+                                net_code=station.network,
+                                sta_code=station.station,
+                                loc_code=station.location,
+                                mnn=mnn,
+                                mee=mee,
+                                mdd=mdd,
+                                mne=mne,
+                                mnd=mnd,
+                                med=med)
+
+    return request_seismogram(test_seis_req).traces
 
