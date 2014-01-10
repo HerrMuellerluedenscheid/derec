@@ -158,9 +158,11 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
-def chop_ranges(model, stations, event, phase_start, phase_end, depths, location_pref=''):
+def chop_ranges(model, stations, event, phase_start, depths, phase_end=None, location_pref=''):
     '''
     Create extended phase markers as preparation for chopping.
+
+    If no phase_end value is given, takes tmax as the time of the last arriving phase of phase_start.
     :param model:
     :param stations:
     :param t_spread:
@@ -169,34 +171,37 @@ def chop_ranges(model, stations, event, phase_start, phase_end, depths, location
     '''
 
     phase_marker_dict = {}
-    phase_marker = []
+    phases = [phase_start]
+    if phase_end:
+        phases.append(phase_end)
+
     for depth in depths:
+        phase_marker = []
         for station in stations:
             rays = model.arrivals(distances=[station.dist_deg],
-                                  phases=[phase_start, phase_end],
+                                  phases=phases,
                                   zstart=depth,
                                   refine=True)  # how much faster is refine = false?
             rays.sort(key=lambda x: x.t)  # print dir(rays[0])
+
+            #tmin is the very first P arrival
             tmin = rays[0].t
-            tmax = rays[1].t
-            for ray in rays:
-                m = PhaseMarker(nslc_ids=[(station.network,
-                                           station.station,
-                                           location_pref + station.location,
-                                           '*')],
-                                tmin=tmin+event.time,
-                                tmax=tmax+event.time,
-                                kind=1,
-                                event=event,
-                                incidence_angle=ray.incidence_angle(),
-                                takeoff_angle=ray.takeoff_angle(),
-                                phasename=ray.given_phase().definition())
-                m.set_selected(True)
+            tmax = rays[len(rays)-1].t
+            m = PhaseMarker(nslc_ids=[(station.network,
+                                       station.station,
+                                       location_pref + station.location,
+                                       '*')],
+                            tmin=tmin+event.time,
+                            tmax=tmax+event.time,
+                            kind=1,
+                            event=event,
+                            phasename='%s-%s'%(rays[0].given_phase().definition(), rays[len(rays)-1].given_phase().definition()))
+            m.set_selected(True)
 
-                if location_pref:
-                    m.set_kind(2)
+            if location_pref:
+                m.set_kind(2)
 
-                phase_marker.append(m)
+            phase_marker.append(m)
 
         phase_marker_dict[depth] = phase_marker
     return phase_marker_dict
