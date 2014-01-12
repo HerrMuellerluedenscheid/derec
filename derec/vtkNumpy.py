@@ -78,6 +78,12 @@ def vtkCube(data_matrix=None):
     alphaChannelFunc.AddPoint(66, 0.1)
     alphaChannelFunc.AddPoint(100, 0.01)
 
+    # Gradient opacity
+    volumeGradientOpacity = vtk.vtkPiecewiseFunction()
+    volumeGradientOpacity.AddPoint(0,   0.0)
+    volumeGradientOpacity.AddPoint(20,  0.5)
+    volumeGradientOpacity.AddPoint(50, 1.0)
+
     # This class stores color data and can create color tables from a few color points. For this demo, we want the three cubes
     # to be of the colors red green and blue.
     colorFunc = vtk.vtkColorTransferFunction()
@@ -90,6 +96,13 @@ def vtkCube(data_matrix=None):
     volumeProperty = vtk.vtkVolumeProperty()
     volumeProperty.SetColor(colorFunc)
     volumeProperty.SetScalarOpacity(alphaChannelFunc)
+    volumeProperty.SetGradientOpacity(volumeGradientOpacity)
+    volumeProperty.SetInterpolationTypeToLinear()
+    volumeProperty.ShadeOff()
+    volumeProperty.SetAmbient(0.1)
+    volumeProperty.SetDiffuse(0.6)
+    volumeProperty.SetSpecular(0.2)
+
 
     # This class describes how the volume is rendered (through ray tracing).
     compositeFunction = vtk.vtkVolumeRayCastCompositeFunction()
