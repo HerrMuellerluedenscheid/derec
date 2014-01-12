@@ -41,7 +41,8 @@ def dict_2_3d_array(ddict):
 data_matrix = dict_2_3d_array(make_3D_pseudo_data())
 data_matrix = scale_2_int_perc(data_matrix)
 
-def vtkCube(data_matrix):
+def vtkCube(data_matrix=None):
+
     # We begin by creating the data we want to render.
     # For this tutorial, we create a 3D-image containing three overlaping cubes.
     # This data can of course easily be replaced by data from a medical CT-scan or anything else three dimensional.
@@ -102,6 +103,16 @@ def vtkCube(data_matrix):
     volume.SetMapper(volumeMapper)
     volume.SetProperty(volumeProperty)
 
+    # Text am Nullpunkt
+    atext = vtk.vtkVectorText()
+    atext.SetText("(0,0,0)")
+    textMapper = vtk.vtkPolyDataMapper()
+    textMapper.SetInputConnection(atext.GetOutputPort())
+    textActor = vtk.vtkFollower()
+    textActor.SetMapper(textMapper)
+    textActor.SetScale(10, 10, 10)
+    textActor.AddPosition(0, -0.1, 78)
+
     # With almost everything else ready, its time to initialize the renderer and window, as well as creating a method for exiting the application
     renderer = vtk.vtkRenderer()
     renderWin = vtk.vtkRenderWindow()
@@ -112,9 +123,12 @@ def vtkCube(data_matrix):
     # We add the volume to the renderer ...
     renderer.AddVolume(volume)
     # ... set background color to white ...
-    renderer.SetBackground(0,0,0)
+    renderer.SetBackground(0.7,0.7,0.7)
     # ... and set window size.
     renderWin.SetSize(400, 400)
+
+    # Fuege Text am Nullpunkt hinzu:
+    renderer.AddActor(textActor)
 
     # A simple function to be called when the user decides to quit the application.
     def exitCheck(obj, event):
@@ -128,3 +142,5 @@ def vtkCube(data_matrix):
     # Because nothing will be rendered without any input, we order the first render manually before control is handed over to the main-loop.
     renderWin.Render()
     renderInteractor.Start()
+
+vtkCube(data_matrix)
