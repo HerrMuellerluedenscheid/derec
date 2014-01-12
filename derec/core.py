@@ -160,6 +160,7 @@ class Core:
             ms = num.array(ms)
             ns = num.array(ns)
 
+            # TODO EXPONENT gleich NORM !!!!!!!!!!
             M = num.sqrt(num.sum(ms**2))
             N = num.sqrt(num.sum(ns**2))
                 
