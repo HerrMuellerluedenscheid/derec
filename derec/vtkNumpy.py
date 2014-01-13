@@ -103,7 +103,6 @@ def vtkCube(data_matrix=None):
     volumeProperty.SetDiffuse(0.6)
     volumeProperty.SetSpecular(0.2)
 
-
     # This class describes how the volume is rendered (through ray tracing).
     compositeFunction = vtk.vtkVolumeRayCastCompositeFunction()
     # We can finally create our volume. We also have to specify the data for it, as well as how the data will be rendered.
@@ -126,12 +125,33 @@ def vtkCube(data_matrix=None):
     textActor.SetScale(10, 10, 10)
     textActor.AddPosition(0, -0.1, 78)
 
+    # Cube to give some orientation 
+    # (from http://www.vtk.org/Wiki/VTK/Examples/Python/Widgets/OrientationMarkerWidget)
+
+    axesActor = vtk.vtkAnnotatedCubeActor();
+    axesActor.SetXPlusFaceText('N')
+    axesActor.SetXMinusFaceText('S')
+    axesActor.SetYMinusFaceText('W')
+    axesActor.SetYPlusFaceText('E')
+    axesActor.SetZMinusFaceText('D')
+    axesActor.SetZPlusFaceText('U')
+    axesActor.GetTextEdgesProperty().SetColor(1,1,0)
+    axesActor.GetTextEdgesProperty().SetLineWidth(2)
+    axesActor.GetCubeProperty().SetColor(0,0,1)
+
     # With almost everything else ready, its time to initialize the renderer and window, as well as creating a method for exiting the application
     renderer = vtk.vtkRenderer()
     renderWin = vtk.vtkRenderWindow()
     renderWin.AddRenderer(renderer)
     renderInteractor = vtk.vtkRenderWindowInteractor()
     renderInteractor.SetRenderWindow(renderWin)
+
+    axes = vtk.vtkOrientationMarkerWidget()
+    axes.SetOrientationMarker(axesActor)
+    axes.SetInteractor(renderInteractor)
+    axes.EnabledOn()
+    axes.InteractiveOn()
+    renderer.ResetCamera()
 
     # We add the volume to the renderer ...
     renderer.AddVolume(volume)
@@ -142,7 +162,7 @@ def vtkCube(data_matrix=None):
 
     # Fuege Text am Nullpunkt hinzu:
     renderer.AddActor(textActor)
-
+    
     # A simple function to be called when the user decides to quit the application.
     def exitCheck(obj, event):
         if obj.GetEventPending() != 0:
