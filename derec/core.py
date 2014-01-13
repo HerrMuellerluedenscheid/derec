@@ -5,19 +5,35 @@ import tempfile
 import derec_utils as du
 import numpy as num
 import copy
+import inspect
 
 pjoin = os.path.join
 
+def equal_attributes(o1, o2):
+    return o1.__dict__ == o2.__dict__
+
+def set_refine_parameter(ref_event, **kwargs):
+    events = {}
+    for k, vals in kwargs.iteritems():
+        for val in vals:
+            event_copy = copy.copy(ref_event)
+            exec('event_copy.%s=%s' % (k, val))
+            events[val]=event_copy
+
+    return events
+
+
 def generate_test_events(event, **kwargs):
     events = {}
-    assert len(kwargs.items())==1
-    for k, vals in kwargs.items():
-        assert isinstance(vals, num.ndarray)
-        for val in vals:
-            event_copy = copy.copy(event)
-            setattr(event_copy, k, val)
-            events[val] = event_copy
-    
+    for key in kwargs:
+        if not key in inspect.getargspec(model.Event.__init__).args:
+            raise Exception(''''key %s not possible to refine. Possible options 
+                    are: %s''' % (key, inspect.getargspec(model.Event.__init__).args))
+        if len(kwargs.items())>=2:
+            raise Exception('''Too many refine parameters. Give one parameter,
+                                one range''')
+        else:
+            events = set_refine_parameter(event, **kwargs)       
     return events
 
 
@@ -48,8 +64,14 @@ def make_reference_trace(event, stations, store_id='crust2_dd'):
     return reference_seismograms
 
 
+class Processor():
+    def __init__(self, test_case):
+        pass
+
+
 class Core:
     def __init__(self, markers, stations):
+        pass
 
         store_id = 'crust2_dd'
 
@@ -67,25 +89,15 @@ class Core:
 
         tmpdir = tempfile.mkdtemp(prefix='derec_tmp_', suffix='test')    
         io.save(reference_seismograms, filename_template=pjoin(tmpdir, 'ref.mseed'))
-        # collect all test cases
-        test_depths = num.arange(1000,8000,1000)
+
+        test_depths = num.arange(1000,8000,2000)
         test_events = generate_test_events(event, depth=test_depths)
-        test_case = TestCaseBase(test_events, stations)
-
-        # erzeuge test events:
-        #test_case.set_refine_parameter(source_depth=test_depths)
+        test_case = TestCase(test_events, stations)
         test_case.request_data()
-
         test_seismograms = test_case.get_seismograms()
 
-        # Check if ydata in correct depths are equal
-        #for ts in test_seismograms[event.depth]:
-        #    for rs in reference_seismograms:
-        #        if ts.nslc_id==rs.nslc_id:
-        #            assert (ts.get_ydata()==rs.get_ydata()).all()
-
         # Request earthmodel
-        model_request = request_earthmodel(store_id)
+        model_request = request_earthmodel(test_case.store_id)
         model = model_request.store_configs[0].earthmodel_1d
 
         map(lambda s: s.set_event_relative_data(event), stations)
@@ -101,23 +113,20 @@ class Core:
         # Das besser in test setup aufrufen:
         extended_test_marker = du.chop_ranges(model, 
                                               stations,
-                                              event, 
                                               primary_phase, 
-                                              test_depths)
+                                              test_events)
 
-        #extended_markers = list(du.extend_phase_markers(markers=markers,
-        #                                                phase=latest_phase,
-        #                                                stations=stations,
-        #                                                event=event, model=model))
-
-        # chop
+        # chop..........................................
+        equal_test_event = filter( lambda e: equal_attributes(e, event), test_events.values())[0]
         chopped_ref_traces = []
-        chopped_ref_traces.extend(du.chop_using_markers(reference_seismograms, extended_test_marker[event.depth]))
+        chopped_ref_traces.extend(du.chop_using_markers(reference_seismograms, extended_test_marker[equal_test_event]))
         
         chopped_test_traces = {}
-        for d in test_depths:
-            chopped_test_traces[d] = du.chop_using_markers(test_seismograms[d], extended_test_marker[d]) 
-
+        for e in test_events.values():
+            chopped_test_traces[e] = du.chop_using_markers(test_seismograms[e], extended_test_marker[e]) 
+        test_case.set_seismograms(chopped_test_traces)
+ 
+        # Misfit.........................................
         norm = 2
         taper = trace.CosFader(xfade=3)
         fresponse = trace.FrequencyResponse()
@@ -127,23 +136,20 @@ class Core:
                                   freqlimits=(1,2,20,40),
                                   frequency_response=fresponse)
         
+        test_case.set_misfit_setup(setup)
         
         total_misfit = self.calculate_group_misfit(chopped_ref_traces,
-                                     chopped_test_traces,
-                                     setup) 
+                                                   test_case)
+        
+        test_case.set_results(total_misfit)
        
         du.plot_misfit_dict(total_misfit)
 
-        # testweise nur element 0
         #memfile = pile.MemTracesFile(parent=None, traces=chopped_test_traces.values()[0])
-        #p = pile.Pile()
-        #inj = pile.Injector(p)
-        #seismograms[0].snuffle()
-        #inj.inject(seismograms[0])
-        #from pyrocko.snuffler import snuffle
-        #snuffle(memfile)
 
-    def calculate_group_misfit(self, traces, candidates, mfsetups):
+    def calculate_group_misfit(self, traces, test_case):
+        candidates = test_case.seismograms
+        mfsetups = test_case.misfit_setup
         total_misfit = {}
         for d,tts in candidates.items():
             ms = []
@@ -167,30 +173,28 @@ class Core:
             total_misfit[d] = M/N
 
         return total_misfit
-            
 
-class TestCaseBase():
+
+class TestCase():
     def __init__(self, events, stations, store_id='crust2_dd'):
         
         self.stations = stations 
         self.events = events
         self.store_id = store_id
-        #self.refine_parameter_options = dir(self.events[0])
         self.keys = {}
         self.seismograms = {}
+        self.results = None
+        self.misfit_setup = None
             
     def set_stations(self, stations=[]):
         self.stations = stations 
 
-    def set_refine_parameter(self, **kwargs): 
-        for key in kwargs:
-            if not key in dir(SeismosizerRequest):
-                raise Exception('key %s not possible to refine' % key)
-            else:
-                self.keys[key] = kwargs[key]
+    def set_misfit_setup(self, setup):
+        self.misfit_setup = setup
 
     def request_data(self):
-        for event in self.events:
+        for k, event in self.events.iteritems():
+            print 'requesting data for', event
             seismos= []
             for stat in self.stations:
                 s = du.request_data(stat, event, self.store_id)
@@ -198,59 +202,14 @@ class TestCaseBase():
 
             self.seismograms[event] = seismos
 
-
-
-        '''
-        self.traces = None
-        event = self.event
-        store_id = self.store_id
-        source_lat = event.lat
-        source_lon = event.lon
-        source_depth = event.depth
-        source_time = event.time
-
-        mt = event.moment_tensor
-        mnn = mt._m[0,0]
-        mee = mt._m[1,1]
-        mdd = mt._m[2,2] 
-        mne = mt._m[0,1]
-        mnd = mt._m[0,2]
-        med = mt._m[1,2]
-        
-        for k,values in self.keys.items():
-            for value in values:
-                exec('%s=%s'%(k, value))
-                for stat in self.stations:
-                    test_seis_req = SeismosizerRequest(store_id=store_id,
-                                                       source_lat=source_lat,
-                                                       source_lon=source_lon,
-                                                       source_depth=source_depth,
-                                                       receiver_lat=stat.lat,
-                                                       receiver_lon=stat.lon,
-                                                       source_time=source_time,
-                                                       net_code=stat.network,
-                                                       sta_code=stat.station,
-                                                       loc_code=stat.location,
-                                                       mnn=mnn,
-                                                       mee=mee,
-                                                       mdd=mdd,
-                                                       mne=mne,
-                                                       mnd=mnd,
-                                                       med=med)
-                    
-                    #try:
-                    #    self.seismograms[stat.nsl()]
-                    #except KeyError:
-                    #    self.seismograms[stat.nsl()] = []
-                    try:
-                        self.seismograms[value]
-                    except KeyError:
-                        self.seismograms[value] = []
-
-                    self.seismograms[value].extend(request_seismogram(test_seis_req).traces[:])
-    '''
     def get_seismograms(self):
         return self.seismograms
+
+    def set_seismograms(self, seismograms):
+        self.seismograms = seismograms
+
+    def set_results(self, results):
+        self.results = results
 
     def dump_requests(self):
         for r in self.requests:
@@ -258,6 +217,10 @@ class TestCaseBase():
             f = open(fn, 'w')
             f.write(r.dump())
             f.close()
+
+    def dump_pile(self, fn='test_dumped_seismograms.mseed'):
+        pile.make_pile(seismograms.values(), fn=fn)
+        
 
 
 if __name__ ==  "__main__":

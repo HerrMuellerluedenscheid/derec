@@ -4,6 +4,7 @@ import logging
 import matplotlib.pyplot as plt
 
 from pyrocko import pile, util, cake, gui_util, orthodrome
+from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
 
 
@@ -158,7 +159,7 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
-def chop_ranges(model, stations, event, phase_start, depths, phase_end=None, location_pref='', refine_parameter=''):
+def chop_ranges(model, stations, phase_start, test_events, phase_end=None, location_pref='', refine_parameter=''):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -175,12 +176,12 @@ def chop_ranges(model, stations, event, phase_start, depths, phase_end=None, loc
     if phase_end:
         phases.append(phase_end)
 
-    for depth in depths:
+    for k, e in test_events.iteritems():
         phase_marker = []
         for station in stations:
             rays = model.arrivals(distances=[station.dist_deg],
                                   phases=phases,
-                                  zstart=depth,
+                                  zstart=e.depth,
                                   refine=True)  # how much faster is refine = false?
             rays.sort(key=lambda x: x.t)  # print dir(rays[0])
 
@@ -191,19 +192,18 @@ def chop_ranges(model, stations, event, phase_start, depths, phase_end=None, loc
                                        station.station,
                                        location_pref + station.location,
                                        '*')],
-                            tmin=tmin+event.time,
-                            tmax=tmax+event.time,
+                            tmin=tmin+e.time,
+                            tmax=tmax+e.time,
                             kind=1,
-                            event=event,
+                            event=e,
                             phasename='%s-%s'%(rays[0].given_phase().definition(), rays[len(rays)-1].given_phase().definition()))
             m.set_selected(True)
-
             if location_pref:
                 m.set_kind(2)
 
             phase_marker.append(m)
 
-        phase_marker_dict[depth] = phase_marker
+        phase_marker_dict[e] = phase_marker
     return phase_marker_dict
 
 
@@ -213,15 +213,17 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     :rtype : list
     '''
     chopped_test_list = []
-    for marker in markers:
-        for trs in traces:
+
+    for trs in traces:
+        for marker in markers:
             if marker.match_nslc(trs.nslc_id):
+
                 trs.chop(tmin=marker.tmin,
                          tmax=marker.tmax,
                          *args,
                          **kwargs)
 
-            chopped_test_list.append(trs)
+                chopped_test_list.append(trs)
     return chopped_test_list
 
 
@@ -283,7 +285,8 @@ def requests_in_gfdb_range(request, gfdb):
 
 def plot_misfit_dict(mfdict):
     plt.figure()
-    plt.plot(mfdict.keys(), mfdict.values(), '+')
+    print mfdict.values()
+    plt.plot(mfdict.values(), '+')
     plt.xlabel('Depth [m]')
     plt.ylabel('Misfit []')
     plt.show()
@@ -298,7 +301,7 @@ def request_data(station, event, store_id):
     med = mt._m[1,2]
 
     test_seis_req = SeismosizerRequest(store_id=store_id,
-                                eource_lat=event.lat,
+                                source_lat=event.lat,
                                 source_lon=event.lon,
                                 source_depth=event.depth,
                                 receiver_lat=station.lat,
