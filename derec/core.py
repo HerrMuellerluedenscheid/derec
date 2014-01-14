@@ -1,5 +1,7 @@
 from pyrocko.gf.seismosizer import *
 from pyrocko import cake, model, gui_util, util, io, pile, trace, moment_tensor
+from optics import *
+
 import os
 import tempfile
 import derec_utils as du
@@ -13,9 +15,13 @@ def equal_attributes(o1, o2):
     return o1.__dict__ == o2.__dict__
 
 def set_refine_parameter(ref_event, **kwargs):
+    '''
+    Returns dict. Key is the value of **kwargs. 
+    '''
     events = {}
     for k, vals in kwargs.iteritems():
         for val in vals:
+            # mit event.copy ersetzen?
             event_copy = copy.copy(ref_event)
             exec('event_copy.%s=%s' % (k, val))
             events[val]=event_copy
@@ -24,6 +30,9 @@ def set_refine_parameter(ref_event, **kwargs):
 
 
 def generate_test_events(event, **kwargs):
+    '''
+    Returns dict with keys=z , values= event objects
+    '''
     events = {}
     for key in kwargs:
         if not key in inspect.getargspec(model.Event.__init__).args:
@@ -71,7 +80,6 @@ class Processor():
 
 class Core:
     def __init__(self, markers, stations):
-        pass
 
         store_id = 'crust2_dd'
 
@@ -88,64 +96,82 @@ class Core:
                                                      store_id='crust2_dd')
 
         tmpdir = tempfile.mkdtemp(prefix='derec_tmp_', suffix='test')    
-        io.save(reference_seismograms, filename_template=pjoin(tmpdir, 'ref.mseed'))
 
-        test_depths = num.arange(1000,8000,2000)
-        test_events = generate_test_events(event, depth=test_depths)
-        test_case = TestCase(test_events, stations)
-        test_case.request_data()
-        test_seismograms = test_case.get_seismograms()
+        # Extend P phase markers to 210 p reflection
+        primary_phase = cake.PhaseDef('P')
 
         # Request earthmodel
         model_request = request_earthmodel(test_case.store_id)
         model = model_request.store_configs[0].earthmodel_1d
 
+        #CHOP the reference seimograms once, assuming that markers of P Phases are given:
         map(lambda s: s.set_event_relative_data(event), stations)
-
-        # Extend P phase markers to 210 p reflection
-        #latest_phase = cake.PhaseDef('pPv210p')
-        #latest_phase = cake.PhaseDef('S')
-        primary_phase = cake.PhaseDef('P')
-        #primary_phase = cake.PhaseDef('p')
-
-        # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
-
-        # Das besser in test setup aufrufen:
-        extended_test_marker = du.chop_ranges(model, 
+        extended_ref_marker = du.chop_ranges(model, 
                                               stations,
                                               primary_phase, 
-                                              test_events)
+                                              event)
 
-        # chop..........................................
-        equal_test_event = filter( lambda e: equal_attributes(e, event), test_events.values())[0]
         chopped_ref_traces = []
-        chopped_ref_traces.extend(du.chop_using_markers(reference_seismograms, extended_test_marker[equal_test_event]))
-        
-        chopped_test_traces = {}
-        for e in test_events.values():
-            chopped_test_traces[e] = du.chop_using_markers(test_seismograms[e], extended_test_marker[e]) 
-        test_case.set_seismograms(chopped_test_traces)
- 
-        # Misfit.........................................
-        norm = 2
-        taper = trace.CosFader(xfade=3)
-        fresponse = trace.FrequencyResponse()
-        setup = trace.MisfitSetup(norm=norm,
-                                  taper=taper,
-                                  domain='time_domain',
-                                  freqlimits=(1,2,20,40),
-                                  frequency_response=fresponse)
-        
-        test_case.set_misfit_setup(setup)
-        
-        total_misfit = self.calculate_group_misfit(chopped_ref_traces,
-                                                   test_case)
-        
-        test_case.set_results(total_misfit)
+        chopped_ref_traces.extend(du.chop_using_markers(reference_seismograms, extended_ref_marker[event]))
+
+        io.save(reference_seismograms, filename_template=pjoin(tmpdir, 'ref.mseed'))
+
+        test_depths = num.arange(1000,8000,2000)
+        test_lats = num.arange(event.latitude-1, event.latitude+1, 0.4)
+
+        for lat in test_lats:
+            event_copy = event.copy()            
+            event_copy.latitude = lat
+            test_events = generate_test_events(event_copy, depth=test_depths)
+            test_case = TestCase(test_events, stations)
+            test_case.request_data()
+            test_seismograms = test_case.get_seismograms()
+
+            map(lambda s: s.set_event_relative_data(event), stations)
+
+
+            # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
+
+            # Das besser in test setup aufrufen:
+            extended_test_marker = du.chop_ranges(model, 
+                                                  stations,
+                                                  primary_phase, 
+                                                  test_events)
+
+            # chop..........................................
+            
+            chopped_test_traces = {}
+            for e in test_events.values():
+                chopped_test_traces[e] = du.chop_using_markers(test_seismograms[e], extended_test_marker[e]) 
+            test_case.set_seismograms(chopped_test_traces)
+     
+            # Misfit.........................................
+            norm = 2
+            taper = trace.CosFader(xfade=3)
+            fresponse = trace.FrequencyResponse()
+            setup = trace.MisfitSetup(norm=norm,
+                                      taper=taper,
+                                      domain='time_domain',
+                                      freqlimits=(1,2,20,40),
+                                      frequency_response=fresponse)
+            
+            test_case.set_misfit_setup(setup)
+            
+            total_misfit = self.calculate_group_misfit(chopped_ref_traces,
+                                                       test_case)
+            
+            test_case.set_misfit(total_misfit)
+
+
        
         du.plot_misfit_dict(total_misfit)
 
         #memfile = pile.MemTracesFile(parent=None, traces=chopped_test_traces.values()[0])
+
+
+    def test_vtk(self, test_cases):
+        op = OpticBase(test_cases)
+        op.numpyrize()
 
     def calculate_group_misfit(self, traces, test_case):
         candidates = test_case.seismograms
@@ -181,13 +207,17 @@ class TestCase():
         self.stations = stations 
         self.events = events
         self.store_id = store_id
-        self.keys = {}
+        self.key = ''
         self.seismograms = {}
         self.results = None
         self.misfit_setup = None
             
     def set_stations(self, stations=[]):
         self.stations = stations 
+
+    def set_key(self):
+        '''key is the parameter, that is varied'''
+        self.key = key
 
     def set_misfit_setup(self, setup):
         self.misfit_setup = setup
@@ -205,10 +235,18 @@ class TestCase():
     def get_seismograms(self):
         return self.seismograms
 
+    def get_misfit_array(self):
+        '''
+        Should return a numpy array containing the results, after these have 
+        been sorted by the varying parameter (key).
+        '''
+        misfit_array = num.zeros(len(self.results))
+        return num.array([sorted(self.results.keys(), key=operator.attrgetter(self.key))])
+
     def set_seismograms(self, seismograms):
         self.seismograms = seismograms
 
-    def set_results(self, results):
+    def set_misfit(self, results):
         self.results = results
 
     def dump_requests(self):
@@ -221,7 +259,10 @@ class TestCase():
     def dump_pile(self, fn='test_dumped_seismograms.mseed'):
         pile.make_pile(seismograms.values(), fn=fn)
         
-
+#class TestCase3D(TestCase):
+#    def __init__(self, events, stations, store_id='')
+#        self.super(TestCase).__init__(events, stations, store_id)
+    
 
 if __name__ ==  "__main__":
 
