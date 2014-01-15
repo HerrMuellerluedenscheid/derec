@@ -1,6 +1,6 @@
-from pyrocko.gf.seismosizer import *
+from pyrocko.gf import *
 from pyrocko import cake, model, gui_util, util, io, pile, trace, moment_tensor
-from optics import *
+#from optics import *
 
 import os
 import tempfile
@@ -11,8 +11,45 @@ import inspect
 
 pjoin = os.path.join
 
+
+def stations2targets(stations, store_id):
+    '''
+    Convert pyrockos original stations into seismosizer targets.
+    '''
+    targets = []
+    for s in stations:
+        targets.append(gf.Target(codes=(s.network,s.station,s.location,component),
+                                 lat=s.latitude,
+                                 lon=s.longitude,
+                                 store_id=store_id,
+                                 )for component in s.channels)
+    return targets
+
+
+def event2source(event, store_id):
+    '''
+    Convert pyrockos original event into seismosizer source.
+    '''
+    m = event.moment_tensor._m
+    source_event = gf.MTSource(lat=event.latitude,
+                               lon=event.longitude,
+                               depth=event.depth,
+                               magnitude=event.magnitude,
+                               mnn=m[0,0],
+                               mee=m[1,1],
+                               mdd=m[2,2],
+                               mne=m[0,1],
+                               mnd=m[0,2],
+                               med=m[1,2])
+    return source_event
+
+
 def equal_attributes(o1, o2):
+    '''
+    Return true if two objects are equal as for their attributes. 
+    '''
     return o1.__dict__ == o2.__dict__
+
 
 def set_refine_parameter(ref_event, **kwargs):
     '''
@@ -33,17 +70,19 @@ def generate_test_events(event, **kwargs):
     '''
     Returns dict with keys=z , values= event objects
     '''
-    events = {}
-    for key in kwargs:
-        if not key in inspect.getargspec(model.Event.__init__).args:
-            raise Exception(''''key %s not possible to refine. Possible options 
-                    are: %s''' % (key, inspect.getargspec(model.Event.__init__).args))
-        if len(kwargs.items())>=2:
-            raise Exception('''Too many refine parameters. Give one parameter,
-                                one range''')
-        else:
-            events = set_refine_parameter(event, **kwargs)       
-    return events
+    for key,arg in kwargs.iteritems():
+        
+    #events = {}
+    #for key in kwargs:
+    #    if not key in inspect.getargspec(model.Event.__init__).args:
+    #        raise Exception(''''key %s not possible to refine. Possible options 
+    #                are: %s''' % (key, inspect.getargspec(model.Event.__init__).args))
+    #    if len(kwargs.items())>=2:
+    #        raise Exception('''Too many refine parameters. Give one parameter,
+    #                            one range''')
+    #    else:
+    #        events = set_refine_parameter(event, **kwargs)       
+    #return events
 
 
 def make_reference_trace(event, stations, store_id='crust2_dd'):
@@ -67,8 +106,6 @@ def make_reference_trace(event, stations, store_id='crust2_dd'):
                                                 mnd=m[0,2],
                                                 med=m[1,2])
 
-
-
         reference_seismograms.extend(request_seismogram(reference_seis_req).traces)
     return reference_seismograms
 
@@ -80,18 +117,19 @@ class Processor():
 
 class Core:
     def __init__(self, markers, stations):
-
+        # Targets================================================
         store_id = 'crust2_dd'
-
+        targets = stations2targets(stations, store_id)
+        
+        # Event==================================================
         event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
         assert len(event) == 1
         event = event[0].get_event()
-
         event.moment_tensor = moment_tensor.MomentTensor(m=num.array([[1.0, 0.5, 0.0],
                                                                       [0.0, 0.5, 0.1],
                                                                       [0.0, 0.0, 0.4]]))
-        
-        reference_seismograms = make_reference_trace(event,
+
+        reference_seismograms = make_reference_trace(source,
                                                      stations,
                                                      store_id='crust2_dd')
 
@@ -119,55 +157,48 @@ class Core:
         test_depths = num.arange(1000,8000,2000)
         test_lats = num.arange(event.latitude-1, event.latitude+1, 0.4)
 
-        for lat in test_lats:
-            event_copy = event.copy()            
-            event_copy.latitude = lat
-            test_events = generate_test_events(event_copy, depth=test_depths)
-            test_case = TestCase(test_events, stations)
-            test_case.request_data()
-            test_seismograms = test_case.get_seismograms()
+        event_copy = event.copy()            
+        event_copy.latitude = lat
+        test_events = generate_test_events(event_copy, depth=test_depths)
+        test_case = TestCase(test_events, stations)
+        test_case.request_data()
+        test_seismograms = test_case.get_seismograms()
 
-            map(lambda s: s.set_event_relative_data(event), stations)
+        map(lambda s: s.set_event_relative_data(event), stations)
 
+        # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
 
-            # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
+        # Das besser in test setup aufrufen:
+        extended_test_marker = du.chop_ranges(model, 
+                                              stations,
+                                              primary_phase, 
+                                              test_events)
 
-            # Das besser in test setup aufrufen:
-            extended_test_marker = du.chop_ranges(model, 
-                                                  stations,
-                                                  primary_phase, 
-                                                  test_events)
-
-            # chop..........................................
-            
-            chopped_test_traces = {}
-            for e in test_events.values():
-                chopped_test_traces[e] = du.chop_using_markers(test_seismograms[e], extended_test_marker[e]) 
-            test_case.set_seismograms(chopped_test_traces)
-     
-            # Misfit.........................................
-            norm = 2
-            taper = trace.CosFader(xfade=3)
-            fresponse = trace.FrequencyResponse()
-            setup = trace.MisfitSetup(norm=norm,
-                                      taper=taper,
-                                      domain='time_domain',
-                                      freqlimits=(1,2,20,40),
-                                      frequency_response=fresponse)
-            
-            test_case.set_misfit_setup(setup)
-            
-            total_misfit = self.calculate_group_misfit(chopped_ref_traces,
-                                                       test_case)
-            
-            test_case.set_misfit(total_misfit)
-
-
-       
-        du.plot_misfit_dict(total_misfit)
+        # chop..........................................
+        
+        chopped_test_traces = {}
+        for e in test_events.values():
+            chopped_test_traces[e] = du.chop_using_markers(test_seismograms[e], extended_test_marker[e]) 
+        test_case.set_seismograms(chopped_test_traces)
+ 
+        # Misfit.........................................
+        norm = 2
+        taper = trace.CosFader(xfade=3)
+        fresponse = trace.FrequencyResponse()
+        setup = trace.MisfitSetup(norm=norm,
+                                  taper=taper,
+                                  domain='time_domain',
+                                  freqlimits=(1,2,20,40),
+                                  frequency_response=fresponse)
+        
+        test_case.set_misfit_setup(setup)
+        
+        total_misfit = self.calculate_group_misfit(chopped_ref_traces,
+                                                   test_case)
+        
+        test_case.set_misfit(total_misfit)
 
         #memfile = pile.MemTracesFile(parent=None, traces=chopped_test_traces.values()[0])
-
 
     def test_vtk(self, test_cases):
         op = OpticBase(test_cases)

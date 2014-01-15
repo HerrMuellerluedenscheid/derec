@@ -1,5 +1,5 @@
 --- !pyrocko.gf.meta.ConfigTypeA
-id: my_qseis_gf_store
+id: test
 modelling_code_id: qseis
 earthmodel_1d: |2
       0.             5.8            3.46           2.6         1264.           600.
