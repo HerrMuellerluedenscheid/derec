@@ -2,8 +2,10 @@ from math import radians, acos, sin, cos, degrees, asin, pi
 import numpy as np
 import logging
 import matplotlib.pyplot as plt
+import urllib
+from collections import defaultdict
 
-from pyrocko import pile, util, cake, gui_util, orthodrome
+from pyrocko import pile, util, cake, gui_util, orthodrome, trace
 from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
 
@@ -159,7 +161,7 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
-def chop_ranges(model, stations, phase_start, test_events, phase_end=None, location_pref='', refine_parameter=''):
+def chop_ranges(model, targets, phase_start, test_sources, phase_end=None, static_offset=None):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -169,41 +171,39 @@ def chop_ranges(model, stations, phase_start, test_events, phase_end=None, locat
     :param t_spread:
     :param network_pref:
     :return:
+
+    static offset soll ersetzt werden....
     '''
 
-    phase_marker_dict = {}
+    phase_marker_dict = defaultdict(dict)
     phases = [phase_start]
     if phase_end:
         phases.append(phase_end)
 
-    for k, e in test_events.iteritems():
-        phase_marker = []
-        for station in stations:
-            rays = model.arrivals(distances=[station.dist_deg],
+    for source in test_sources:
+        for target in targets:
+            dist = orthodrome.distance_accurate50m(source, target)*cake.m2d
+            rays = model.arrivals(distances=[dist],
                                   phases=phases,
-                                  zstart=e.depth,
+                                  zstart=source.depth,
                                   refine=True)  # how much faster is refine = false?
-            rays.sort(key=lambda x: x.t)  # print dir(rays[0])
+            rays.sort(key=lambda x: x.t)
 
-            #tmin is the very first P arrival
+            #tmin is the very first p arrival
             tmin = rays[0].t
-            tmax = rays[len(rays)-1].t
-            m = PhaseMarker(nslc_ids=[(station.network,
-                                       station.station,
-                                       location_pref + station.location,
-                                       '*')],
-                            tmin=tmin+e.time,
-                            tmax=tmax+e.time,
+            if static_offset:
+                tmax = tmin+static_offset
+            else:
+                tmax = rays[len(rays)-1].t
+            m = PhaseMarker(nslc_ids=target.codes,
+                            tmin=tmin+source.time,
+                            tmax=tmax+source.time,
                             kind=1,
-                            event=e,
+                            event=source,
                             phasename='%s-%s'%(rays[0].given_phase().definition(), rays[len(rays)-1].given_phase().definition()))
             m.set_selected(True)
-            if location_pref:
-                m.set_kind(2)
 
-            phase_marker.append(m)
-
-        phase_marker_dict[e] = phase_marker
+            phase_marker_dict[target][source] = m
     return phase_marker_dict
 
 
@@ -212,19 +212,19 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     Chop a list of traces using a list of markers.
     :rtype : list
     '''
-    chopped_test_list = []
+    chopped_test_traces = defaultdict(dict)
 
     for trs in traces:
-        for marker in markers:
-            if marker.match_nslc(trs.nslc_id):
+        for source, target_list in markers.items():
+            for target, marker in target_list.items(): 
+                if marker.nslc_ids==trs.nslc_id:
+                    trs.chop(tmin=marker.tmin,
+                             tmax=marker.tmax,
+                             *args,
+                             **kwargs)
 
-                trs.chop(tmin=marker.tmin,
-                         tmax=marker.tmax,
-                         *args,
-                         **kwargs)
-
-                chopped_test_list.append(trs)
-    return chopped_test_list
+                    chopped_test_traces[target][source]=trs
+    return chopped_test_traces
 
 
 def extend_phase_markers(markers=[], scaling_factor=1, stations=None, event=None, phase='', model=None, inplace=False):
@@ -291,31 +291,5 @@ def plot_misfit_dict(mfdict):
     plt.ylabel('Misfit []')
     plt.show()
 
-def request_data(station, event, store_id):
-    mt = event.moment_tensor
-    mnn = mt._m[0,0]
-    mee = mt._m[1,1]
-    mdd = mt._m[2,2] 
-    mne = mt._m[0,1]
-    mnd = mt._m[0,2]
-    med = mt._m[1,2]
-
-    test_seis_req = SeismosizerRequest(store_id=store_id,
-                                source_lat=event.lat,
-                                source_lon=event.lon,
-                                source_depth=event.depth,
-                                receiver_lat=station.lat,
-                                receiver_lon=station.lon,
-                                source_time=event.time,
-                                net_code=station.network,
-                                sta_code=station.station,
-                                loc_code=station.location,
-                                mnn=mnn,
-                                mee=mee,
-                                mdd=mdd,
-                                mne=mne,
-                                mnd=mnd,
-                                med=med)
-
-    return request_seismogram(test_seis_req).traces
-
+def request_earthmodel(engine):
+    return

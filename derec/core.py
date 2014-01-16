@@ -11,6 +11,9 @@ import inspect
 
 pjoin = os.path.join
 
+def get_earthmodel_from_engine(engine, store_id):
+    return engine.get_store(store_id).config.earthmodel_1d
+
 
 def stations2targets(stations, store_id):
     '''
@@ -18,30 +21,53 @@ def stations2targets(stations, store_id):
     '''
     targets = []
     for s in stations:
-        targets.append(gf.Target(codes=(s.network,s.station,s.location,component),
-                                 lat=s.latitude,
-                                 lon=s.longitude,
+        channels = s.get_channels()
+        if channels == []:
+            channels = 'NEZ'
+        target = [Target(codes=(s.network,s.station,s.location,component),
+                                 lat=s.lat,
+                                 lon=s.lon,
                                  store_id=store_id,
-                                 )for component in s.channels)
+                                 )for component in channels]
+        targets.extend(target)
     return targets
 
 
-def event2source(event, store_id):
+def event2source(event, source_type='MT'):
     '''
-    Convert pyrockos original event into seismosizer source.
+    Convert pyrockos original event into seismosizer MT source.
+
+    MT Source magnitude not scaled?!
+    returns list of sources
     '''
-    m = event.moment_tensor._m
-    source_event = gf.MTSource(lat=event.latitude,
-                               lon=event.longitude,
-                               depth=event.depth,
-                               magnitude=event.magnitude,
-                               mnn=m[0,0],
-                               mee=m[1,1],
-                               mdd=m[2,2],
-                               mne=m[0,1],
-                               mnd=m[0,2],
-                               med=m[1,2])
-    return source_event
+    if source_type=='MT':
+        m = event.moment_tensor._m
+        source_event = MTSource(lat=event.lat,
+                                   lon=event.lon,
+                                   depth=event.depth,
+                                   time=event.time,
+                                   mnn=float(m[0,0]),
+                                   mee=float(m[1,1]),
+                                   mdd=float(m[2,2]),
+                                   mne=float(m[0,1]),
+                                   mnd=float(m[0,2]),
+                                   med=float(m[1,2]))
+    if source_type=='DC':
+        # only one of both possible s,d,r is needed.
+        s,d,r = event.moment_tensor.both_strike_dip_rake()[0]
+        m = event.moment_tensor.moment_magnitude
+        source_event = DCSource(lat=event.lat,
+                                lon=event.lon,
+                                depth=event.depth,
+                                time=event.time,
+                                strike=s,
+                                dip=d,
+                                rake=r,
+                                magnitude=m())
+    else:
+        raise Exception('invalid source type: %s'%source_type)
+
+    return [source_event]
 
 
 def equal_attributes(o1, o2):
@@ -66,120 +92,94 @@ def set_refine_parameter(ref_event, **kwargs):
     return events
 
 
-def generate_test_events(event, **kwargs):
-    '''
-    Returns dict with keys=z , values= event objects
-    '''
-    for key,arg in kwargs.iteritems():
-        
-    #events = {}
-    #for key in kwargs:
-    #    if not key in inspect.getargspec(model.Event.__init__).args:
-    #        raise Exception(''''key %s not possible to refine. Possible options 
-    #                are: %s''' % (key, inspect.getargspec(model.Event.__init__).args))
-    #    if len(kwargs.items())>=2:
-    #        raise Exception('''Too many refine parameters. Give one parameter,
-    #                            one range''')
-    #    else:
-    #        events = set_refine_parameter(event, **kwargs)       
-    #return events
-
-
-def make_reference_trace(event, stations, store_id='crust2_dd'):
-    reference_seismograms = []
-    m = event.moment_tensor._m
-    for stat in stations:
-        reference_seis_req = SeismosizerRequest(store_id=store_id,
-                                                source_lat=event.lat,
-                                                source_lon=event.lon,
-                                                source_depth=event.depth,
-                                                receiver_lat=stat.lat,
-                                                receiver_lon=stat.lon,
-                                                source_time=event.time,
-                                                net_code=stat.network,
-                                                sta_code=stat.station,
-                                                loc_code=stat.location,
-                                                mnn=m[0,0],
-                                                mee=m[1,1],
-                                                mdd=m[2,2],
-                                                mne=m[0,1],
-                                                mnd=m[0,2],
-                                                med=m[1,2])
-
-        reference_seismograms.extend(request_seismogram(reference_seis_req).traces)
-    return reference_seismograms
-
-
-class Processor():
-    def __init__(self, test_case):
-        pass
+def make_reference_trace(source, targets, engine):
+    response = engine.process(
+            sources=source,
+            targets=targets)
+    return response.pyrocko_traces()
 
 
 class Core:
     def __init__(self, markers, stations):
         # Targets================================================
-        store_id = 'crust2_dd'
+        store_id = 'local1'
         targets = stations2targets(stations, store_id)
         
         # Event==================================================
         event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
         assert len(event) == 1
         event = event[0].get_event()
-        event.moment_tensor = moment_tensor.MomentTensor(m=num.array([[1.0, 0.5, 0.0],
-                                                                      [0.0, 0.5, 0.1],
-                                                                      [0.0, 0.0, 0.4]]))
+        event.moment_tensor = moment_tensor.MomentTensor(
+                                        m=num.array([[1.0, 0.5, 0.0],
+                                                     [0.0, 0.5, 0.1],
+                                                     [0.0, 0.0, 0.4]]))
+        source = event2source(event, 'DC')
+
+        engine = LocalEngine(store_superdirs=
+                        ['/home/zmaw/u254061/Programming/derec/fomostos'])
 
         reference_seismograms = make_reference_trace(source,
-                                                     stations,
-                                                     store_id='crust2_dd')
+                                                     targets,
+                                                     engine)
 
-        tmpdir = tempfile.mkdtemp(prefix='derec_tmp_', suffix='test')    
-
+        #TESTSOURCES===============================================
+        offset = 0.01
+        zoffset= 1000
+        print 'z: ',event.depth
+        lats=num.arange(event.lat-offset, event.lat+offset, offset/2)
+        print 'lats :',lats
+        lons=num.arange(event.lon-offset, event.lon+offset, offset/2)
+        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/2)
+        # only one of both possible s,d,r is needed.
+        strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
+        m = event.moment_tensor.moment_magnitude
+        location_test_sources = [DCSource(lat=lat,
+                           lon=lon,
+                           depth=depth,
+                           strike=strike,
+                           dip=dip,
+                           rake=rake,
+                           magnitude=m()
+                           ) for depth in depths for lat in lats for lon in lons]
+        print len(location_test_sources)
+        #==========================================================
         # Extend P phase markers to 210 p reflection
-        primary_phase = cake.PhaseDef('P')
+        #tmpdir = tempfile.mkdtemp(prefix='derec_tmp_', suffix='test')
+        primary_phase = cake.PhaseDef('p')
 
-        # Request earthmodel
-        model_request = request_earthmodel(test_case.store_id)
-        model = model_request.store_configs[0].earthmodel_1d
+        model = get_earthmodel_from_engine(engine, store_id) 
 
         #CHOP the reference seimograms once, assuming that markers of P Phases are given:
-        map(lambda s: s.set_event_relative_data(event), stations)
         extended_ref_marker = du.chop_ranges(model, 
-                                              stations,
-                                              primary_phase, 
-                                              event)
+                                             targets,
+                                             primary_phase, 
+                                             source, 
+                                             phase_end=cake.PhaseDef('s'))
+        chopped_ref_traces = du.chop_using_markers(reference_seismograms, extended_ref_marker))
 
-        chopped_ref_traces = []
-        chopped_ref_traces.extend(du.chop_using_markers(reference_seismograms, extended_ref_marker[event]))
-
-        io.save(reference_seismograms, filename_template=pjoin(tmpdir, 'ref.mseed'))
-
-        test_depths = num.arange(1000,8000,2000)
-        test_lats = num.arange(event.latitude-1, event.latitude+1, 0.4)
-
-        event_copy = event.copy()            
-        event_copy.latitude = lat
-        test_events = generate_test_events(event_copy, depth=test_depths)
-        test_case = TestCase(test_events, stations)
+        test_case = TestCase(location_test_sources, chopped_ref_traces, targets, engine,mod_parameters=['lat','lon','depth'])
         test_case.request_data()
         test_seismograms = test_case.get_seismograms()
 
-        map(lambda s: s.set_event_relative_data(event), stations)
+
+        #map(lambda s: s.set_event_relative_data(event), stations)
 
         # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
 
         # Das besser in test setup aufrufen:
+        #TODO------------------------------------------------------
+        # parallelisieren!!!!
         extended_test_marker = du.chop_ranges(model, 
-                                              stations,
+                                              targets,
                                               primary_phase, 
-                                              test_events)
+                                              location_test_sources,
+                                              phase_end=cake.PhaseDef('P'),
+                                              static_offset=8)
 
         # chop..........................................
-        
-        chopped_test_traces = {}
-        for e in test_events.values():
-            chopped_test_traces[e] = du.chop_using_markers(test_seismograms[e], extended_test_marker[e]) 
+        chopped_test_traces = du.chop_using_markers(test_seismograms, extended_test_marker) 
         test_case.set_seismograms(chopped_test_traces)
+        print chopped_test_traces
  
         # Misfit.........................................
         norm = 2
@@ -204,21 +204,28 @@ class Core:
         op = OpticBase(test_cases)
         op.numpyrize()
 
-    def calculate_group_misfit(self, traces, test_case):
+    def calculate_group_misfit(self, test_case):
         candidates = test_case.seismograms
+        references = test_case.references
         mfsetups = test_case.misfit_setup
-        total_misfit = {}
-        for d,tts in candidates.items():
-            ms = []
-            ns = []
-            for rt in traces:
-                for tt in tts:
-                    if rt.nslc_id==tt.nslc_id:
-                        # TODO: nach candidates vorsortieren.
-                        mf = rt.misfit(candidates=[tt], setups=mfsetups)
-                        for m,n in mf:
-                            ms.append(m)
-                            ns.append(n)
+        
+        # target is station
+        for target in references.keys():
+            reference_trace = references[target]
+
+
+            total_misfit = {}
+            for d,tts in candidates.items():
+                ms = []
+                ns = []
+                for rt in traces:
+                    for tt in tts:
+                        if rt.nslc_id==tt.nslc_id:
+                            # TODO: nach candidates vorsortieren.
+                            mf = rt.misfit(candidates=[tt], setups=mfsetups)
+                            for m,n in mf:
+                                ms.append(m)
+                                ns.append(n)
             
             ms = num.array(ms)
             ns = num.array(ns)
@@ -233,12 +240,16 @@ class Core:
 
 
 class TestCase():
-    def __init__(self, events, stations, store_id='crust2_dd'):
-        
-        self.stations = stations 
-        self.events = events
-        self.store_id = store_id
-        self.key = ''
+    '''
+    In one test case, up to 3 parameters can be modified
+    '''
+    def __init__(self, sources, references, targets, engine, mod_parameters):
+        self.sources = sources
+        self.engine = engine
+        self.targets = targets
+        self.mod_parameters = mod_parameters
+        self.references = references
+
         self.seismograms = {}
         self.results = None
         self.misfit_setup = None
@@ -246,22 +257,15 @@ class TestCase():
     def set_stations(self, stations=[]):
         self.stations = stations 
 
-    def set_key(self):
-        '''key is the parameter, that is varied'''
-        self.key = key
-
     def set_misfit_setup(self, setup):
         self.misfit_setup = setup
 
     def request_data(self):
-        for k, event in self.events.iteritems():
-            print 'requesting data for', event
-            seismos= []
-            for stat in self.stations:
-                s = du.request_data(stat, event, self.store_id)
-                seismos.extend(s)
-
-            self.seismograms[event] = seismos
+        print 'requesting data....'
+        response = self.engine.process(sources=self.sources,
+                targets=self.targets)
+        print 'finished'
+        self.seismograms = response.pyrocko_traces()
 
     def get_seismograms(self):
         return self.seismograms
@@ -290,16 +294,12 @@ class TestCase():
     def dump_pile(self, fn='test_dumped_seismograms.mseed'):
         pile.make_pile(seismograms.values(), fn=fn)
         
-#class TestCase3D(TestCase):
-#    def __init__(self, events, stations, store_id='')
-#        self.super(TestCase).__init__(events, stations, store_id)
-    
 
 if __name__ ==  "__main__":
 
     selfdir = pjoin(os.getcwd(), __file__.rsplit('/', 1)[0])
     selfdir = selfdir.rsplit('/')[0]
     
-    stations = model.load_stations(pjoin(selfdir, '../reference_stations.txt'))
-    markers = gui_util.Marker.load_markers(pjoin(selfdir, '../reference_marker.txt'))
+    stations = model.load_stations(pjoin(selfdir, '../reference_stations_local.txt'))
+    markers = gui_util.Marker.load_markers(pjoin(selfdir, '../reference_marker_local.txt'))
     C = Core(markers=markers, stations=stations)
