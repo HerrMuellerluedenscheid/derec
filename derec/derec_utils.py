@@ -157,7 +157,6 @@ def time_domain_misfit(reference_pile, test_list, square=False):
     data_sets = []
     for traces_set in traces_sets:
         data_sets.append(np.array((traces_set[0].ydata, traces_set[1].ydata)))
-        #map(lambda (x,y): [x.ydata, y.ydata], traces_sets)
     return sum(map(lambda x: misfit_by_samples(x, square=square), data_sets))
 
 
@@ -203,7 +202,7 @@ def chop_ranges(model, targets, phase_start, test_sources, phase_end=None, stati
                             phasename='%s-%s'%(rays[0].given_phase().definition(), rays[len(rays)-1].given_phase().definition()))
             m.set_selected(True)
 
-            phase_marker_dict[target][source] = m
+            phase_marker_dict[source][target] = m
     return phase_marker_dict
 
 
@@ -223,7 +222,7 @@ def chop_using_markers(traces, markers, *args, **kwargs):
                              *args,
                              **kwargs)
 
-                    chopped_test_traces[target][source]=trs
+                    chopped_test_traces[source][target]=trs
     return chopped_test_traces
 
 

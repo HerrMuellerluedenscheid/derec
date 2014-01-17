@@ -2,6 +2,7 @@ from pyrocko.gf import *
 from pyrocko import cake, model, gui_util, util, io, pile, trace, moment_tensor
 #from optics import *
 
+import progressbar
 import os
 import tempfile
 import derec_utils as du
@@ -126,9 +127,9 @@ class Core:
         offset = 0.01
         zoffset= 1000
         print 'z: ',event.depth
-        lats=num.arange(event.lat-offset, event.lat+offset, offset/2)
-        print 'lats :',lats
-        lons=num.arange(event.lon-offset, event.lon+offset, offset/2)
+        lats=num.arange(event.lat-offset, event.lat+offset, offset/2) 
+        print 'lats :',lats 
+        lons=num.arange(event.lon-offset, event.lon+offset, offset/1)
         depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/2)
         # only one of both possible s,d,r is needed.
         strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
@@ -136,6 +137,7 @@ class Core:
         location_test_sources = [DCSource(lat=lat,
                            lon=lon,
                            depth=depth,
+                           time=event.time,
                            strike=strike,
                            dip=dip,
                            rake=rake,
@@ -155,14 +157,11 @@ class Core:
                                              primary_phase, 
                                              source, 
                                              phase_end=cake.PhaseDef('s'))
-        chopped_ref_traces = du.chop_using_markers(reference_seismograms, extended_ref_marker))
+        chopped_ref_traces = du.chop_using_markers(reference_seismograms, extended_ref_marker)
 
         test_case = TestCase(location_test_sources, chopped_ref_traces, targets, engine,mod_parameters=['lat','lon','depth'])
         test_case.request_data()
         test_seismograms = test_case.get_seismograms()
-
-
-        #map(lambda s: s.set_event_relative_data(event), stations)
 
         # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
 
@@ -179,7 +178,6 @@ class Core:
         # chop..........................................
         chopped_test_traces = du.chop_using_markers(test_seismograms, extended_test_marker) 
         test_case.set_seismograms(chopped_test_traces)
-        print chopped_test_traces
  
         # Misfit.........................................
         norm = 2
@@ -193,8 +191,7 @@ class Core:
         
         test_case.set_misfit_setup(setup)
         
-        total_misfit = self.calculate_group_misfit(chopped_ref_traces,
-                                                   test_case)
+        total_misfit = self.calculate_group_misfit(test_case)
         
         test_case.set_misfit(total_misfit)
 
@@ -208,33 +205,32 @@ class Core:
         candidates = test_case.seismograms
         references = test_case.references
         mfsetups = test_case.misfit_setup
-        
+        assert len(references.keys())==1
+        import pdb; pdb.set_trace()
         # target is station
-        for target in references.keys():
-            reference_trace = references[target]
+        for source, cand in candidates.items():
+            for target, trace in cand.items():
 
-
-            total_misfit = {}
-            for d,tts in candidates.items():
+                total_misfit = {}
                 ms = []
                 ns = []
-                for rt in traces:
-                    for tt in tts:
-                        if rt.nslc_id==tt.nslc_id:
-                            # TODO: nach candidates vorsortieren.
-                            mf = rt.misfit(candidates=[tt], setups=mfsetups)
-                            for m,n in mf:
-                                ms.append(m)
-                                ns.append(n)
+                rt = references.values()[0][target]
+
+                # TODO: nach candidates vorsortieren.
+                mf = rt.misfit(candidates=[trace], setups=mfsetups)
+                for m,n in mf:
+                    ms.append(m)
+                    ns.append(n)
             
             ms = num.array(ms)
             ns = num.array(ns)
 
             # TODO EXPONENT gleich NORM !!!!!!!!!!
-            M = num.sqrt(num.sum(ms**2))
-            N = num.sqrt(num.sum(ns**2))
+            norm = mfsetups.norm
+            M = num.sum(ms**norm)**1/norm
+            N = num.sum(ns**norm)**1/norm
                 
-            total_misfit[d] = M/N
+            total_misfit[source] = M/N
 
         return total_misfit
 
@@ -262,7 +258,7 @@ class TestCase():
 
     def request_data(self):
         print 'requesting data....'
-        response = self.engine.process(sources=self.sources,
+        response = self.engine.process(status_callback=self.update_progressbar, sources=self.sources,
                 targets=self.targets)
         print 'finished'
         self.seismograms = response.pyrocko_traces()
@@ -290,6 +286,13 @@ class TestCase():
             f = open(fn, 'w')
             f.write(r.dump())
             f.close()
+
+    def update_progressbar(self, a, b):
+        try:
+            self.progressbar.update(b)
+        except AttributeError:
+            self.progressbar = progressbar.ProgressBar(maxval=a).start()
+            self.progressbar.update(b)
 
     def dump_pile(self, fn='test_dumped_seismograms.mseed'):
         pile.make_pile(seismograms.values(), fn=fn)

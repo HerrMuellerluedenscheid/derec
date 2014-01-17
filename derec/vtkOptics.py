@@ -38,15 +38,17 @@ def dict_2_3d_array(ddict):
         cube.append(slice)
     return array(cube)
 
-data_matrix = dict_2_3d_array(make_3D_pseudo_data())
-data_matrix = scale_2_int_perc(data_matrix)
+#data_matrix = dict_2_3d_array(make_3D_pseudo_data())
+#data_matrix = scale_2_int_perc(data_matrix)
+
+
 class OpticBase():
-    def __init__(self, test_cases, keys={}):
+    def __init__(self, test_cases):
 
         assert len(keys <= 2)
         assert map(lambda x: x.key==self.test_cases[0].key, self.test_cases)
-        self.test_cases = test_cases
-        self.plot_keys = keys
+        self.test_cases = [test_cases]
+        self.plot_keys = test_cases.mod_parameters 
         self.dimensions = defaultdict(list)
         self.update_dimensions()
 
