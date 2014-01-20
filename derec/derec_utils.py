@@ -3,6 +3,7 @@ import numpy as np
 import logging
 import matplotlib.pyplot as plt
 import urllib
+import types 
 from collections import defaultdict
 
 from pyrocko import pile, util, cake, gui_util, orthodrome, trace
@@ -102,21 +103,32 @@ def chop_ranges(model, targets, phase_start, test_sources, phase_end=None, stati
 
 def chop_using_markers(traces, markers, *args, **kwargs):
     '''
-    Chop a list of traces using a list of markers.
+    Chop a list of traces or generator of traces using a list of markers.
     :rtype : list
     '''
     chopped_test_traces = defaultdict(dict)
+    
+    if isinstance(traces, types.GeneratorType):
+        for s, t, tr in traces:
+            m = markers[s][t]
+            tr.chop(tmin=m.tmin,
+                     tmax=m.tmax,
+                     *args,
+                     **kwargs)
+            chopped_test_traces[s][t] = tr
 
-    for trs in traces:
-        for source, target_list in markers.items():
-            for target, marker in target_list.items(): 
-                if marker.nslc_ids==trs.nslc_id:
-                    trs.chop(tmin=marker.tmin,
-                             tmax=marker.tmax,
-                             *args,
-                             **kwargs)
+    else:
+        for trs in traces:
+            for source, target_list in markers.items():
+                for target, marker in target_list.items(): 
+                    if marker.nslc_ids==trs.nslc_id:
+                        trs.chop(tmin=marker.tmin,
+                                 tmax=marker.tmax,
+                                 *args,
+                                 **kwargs)
 
-                    chopped_test_traces[source][target]=trs
+                        chopped_test_traces[source][target]=trs
+
     return chopped_test_traces
 
 

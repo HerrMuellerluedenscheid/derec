@@ -1,7 +1,9 @@
 from pyrocko.gf import *
 from pyrocko import cake, model, gui_util, util, io, pile, trace, moment_tensor
 #from optics import *
+from collections import defaultdict
 
+import os
 import progressbar
 import os
 import tempfile
@@ -115,14 +117,12 @@ class Core:
                                                      [0.0, 0.5, 0.1],
                                                      [0.0, 0.0, 0.4]]))
         source = event2source(event, 'DC')
+        derec_home = os.environ["DEREC_HOME"]
+        store_dirs = [derec_home + '/fomostos']
 
-        engine = LocalEngine(store_superdirs=
-                        ['/home/zmaw/u254061/Programming/derec/fomostos'])
+        engine = LocalEngine(store_superdirs=store_dirs)
 
-        reference_seismograms = make_reference_trace(source,
-                                                     targets,
-                                                     engine)
-
+        reference_seismograms = make_reference_trace(source, targets, engine)
         #TESTSOURCES===============================================
         offset = 0.01
         zoffset= 1000
@@ -161,7 +161,6 @@ class Core:
 
         test_case = TestCase(location_test_sources, chopped_ref_traces, targets, engine,mod_parameters=['lat','lon','depth'])
         test_case.request_data()
-        test_seismograms = test_case.get_seismograms()
 
         # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
 
@@ -176,8 +175,7 @@ class Core:
                                               static_offset=8)
 
         # chop..........................................
-        chopped_test_traces = du.chop_using_markers(test_seismograms, extended_test_marker) 
-        test_case.set_seismograms(chopped_test_traces)
+        chopped_test_traces = du.chop_using_markers(test_case.response.iter_results(), extended_test_marker) 
  
         # Misfit.........................................
         norm = 2
@@ -194,6 +192,7 @@ class Core:
         total_misfit = self.calculate_group_misfit(test_case)
         
         test_case.set_misfit(total_misfit)
+        print total_misfit
 
         #memfile = pile.MemTracesFile(parent=None, traces=chopped_test_traces.values()[0])
 
@@ -202,25 +201,23 @@ class Core:
         op.numpyrize()
 
     def calculate_group_misfit(self, test_case):
+        # zyklische abhaengigkeit beseitigen!
         candidates = test_case.seismograms
         references = test_case.references
         mfsetups = test_case.misfit_setup
-        assert len(references.keys())==1
-        import pdb; pdb.set_trace()
-        # target is station
-        for source, cand in candidates.items():
-            for target, trace in cand.items():
+        total_misfit = defaultdict(dict)
 
-                total_misfit = {}
-                ms = []
-                ns = []
+        for source in test_case.sources:
+            ms = []
+            ns = []
+            for target in test_case.targets:
                 rt = references.values()[0][target]
-
-                # TODO: nach candidates vorsortieren.
-                mf = rt.misfit(candidates=[trace], setups=mfsetups)
+                
+                mf = rt.misfit(candidates=candidates[source].values(), setups=mfsetups)
                 for m,n in mf:
                     ms.append(m)
                     ns.append(n)
+                print mf
             
             ms = num.array(ms)
             ns = num.array(ns)
@@ -258,10 +255,9 @@ class TestCase():
 
     def request_data(self):
         print 'requesting data....'
-        response = self.engine.process(status_callback=self.update_progressbar, sources=self.sources,
+        self.response = self.engine.process(status_callback=self.update_progressbar, sources=self.sources,
                 targets=self.targets)
         print 'finished'
-        self.seismograms = response.pyrocko_traces()
 
     def get_seismograms(self):
         return self.seismograms
