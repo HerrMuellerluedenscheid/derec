@@ -68,7 +68,7 @@ def chop_ranges(model, targets, phase_start, test_sources, phase_end=None, stati
 
     static offset soll ersetzt werden....
     '''
-
+    
     phase_marker_dict = defaultdict(dict)
     phases = [phase_start]
     if phase_end:

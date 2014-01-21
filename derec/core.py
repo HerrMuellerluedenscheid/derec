@@ -126,29 +126,22 @@ class Core:
         #TESTSOURCES===============================================
         offset = 0.01
         zoffset= 1000
-        print 'z: ',event.depth
         lats=num.arange(event.lat-offset, event.lat+offset, offset/2) 
-        print 'lats :',lats 
         lons=num.arange(event.lon-offset, event.lon+offset, offset/1)
         depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/2)
-        # only one of both possible s,d,r is needed.
         strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
         m = event.moment_tensor.moment_magnitude
         location_test_sources = [DCSource(lat=lat,
-                           lon=lon,
-                           depth=depth,
-                           time=event.time,
-                           strike=strike,
-                           dip=dip,
-                           rake=rake,
-                           magnitude=m()
-                           ) for depth in depths for lat in lats for lon in lons]
-        print len(location_test_sources)
+                               lon=lon,
+                               depth=depth,
+                               time=event.time,
+                               strike=strike,
+                               dip=dip,
+                               rake=rake,
+                               magnitude=m()
+                               ) for depth in depths for lat in lats for lon in lons]
         #==========================================================
-        # Extend P phase markers to 210 p reflection
-        #tmpdir = tempfile.mkdtemp(prefix='derec_tmp_', suffix='test')
         primary_phase = cake.PhaseDef('p')
-
         model = get_earthmodel_from_engine(engine, store_id) 
 
         #CHOP the reference seimograms once, assuming that markers of P Phases are given:
@@ -159,8 +152,9 @@ class Core:
                                              phase_end=cake.PhaseDef('s'))
         chopped_ref_traces = du.chop_using_markers(reference_seismograms, extended_ref_marker)
 
-        test_case = TestCase(location_test_sources, chopped_ref_traces, targets, engine,mod_parameters=['lat','lon','depth'])
+        test_case = TestCase(location_test_sources, chopped_ref_traces, targets, engine, store_id, mod_parameters=['lat','lon','depth'])
         test_case.request_data()
+        test_case.ttts()
 
         # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
 
@@ -168,15 +162,16 @@ class Core:
         #TODO------------------------------------------------------
         # parallelisieren!!!!
         extended_test_marker = du.chop_ranges(model, 
-                                              targets,
-                                              primary_phase, 
-                                              location_test_sources,
-                                              phase_end=cake.PhaseDef('P'),
-                                              static_offset=8)
+                                             targets,
+                                             primary_phase, 
+                                             location_test_sources,
+                                             phase_end=cake.PhaseDef('P'),
+                                             static_offset=8)
+
 
         # chop..........................................
-        chopped_test_traces = du.chop_using_markers(test_case.response.iter_results(), extended_test_marker) 
- 
+        test_case.seismograms = du.chop_using_markers(test_case.response.iter_results(), extended_test_marker) 
+
         # Misfit.........................................
         norm = 2
         taper = trace.CosFader(xfade=3)
@@ -194,11 +189,11 @@ class Core:
         test_case.set_misfit(total_misfit)
         print total_misfit
 
-        #memfile = pile.MemTracesFile(parent=None, traces=chopped_test_traces.values()[0])
 
     def test_vtk(self, test_cases):
         op = OpticBase(test_cases)
         op.numpyrize()
+
 
     def calculate_group_misfit(self, test_case):
         # zyklische abhaengigkeit beseitigen!
@@ -212,8 +207,7 @@ class Core:
             ns = []
             for target in test_case.targets:
                 rt = references.values()[0][target]
-                
-                mf = rt.misfit(candidates=candidates[source].values(), setups=mfsetups)
+                mf = rt.misfit(candidates=[candidates[source][target]], setups=mfsetups)
                 for m,n in mf:
                     ms.append(m)
                     ns.append(n)
@@ -236,12 +230,13 @@ class TestCase():
     '''
     In one test case, up to 3 parameters can be modified
     '''
-    def __init__(self, sources, references, targets, engine, mod_parameters):
+    def __init__(self, sources, references, targets, engine, store_id, mod_parameters ):
         self.sources = sources
         self.engine = engine
         self.targets = targets
         self.mod_parameters = mod_parameters
         self.references = references
+        self.store_id = store_id
 
         self.seismograms = {}
         self.results = None
@@ -293,6 +288,9 @@ class TestCase():
     def dump_pile(self, fn='test_dumped_seismograms.mseed'):
         pile.make_pile(seismograms.values(), fn=fn)
         
+    def ttts(self):
+        store = self.engine.get_store(self.store_id)
+        store.t('s', (20000,200000))
 
 if __name__ ==  "__main__":
 
