@@ -55,46 +55,39 @@ def azi_to_location_digits(azi):
     """
     return str(int(azi)).zfill(3)
 
-def chop_ranges(model, targets, phase_start, test_sources, phase_end=None, static_offset=None):
+def chop_ranges(test_case, phase_ids_start,  phase_ids_end, static_offset=None):
     '''
     Create extended phase markers as preparation for chopping.
 
     If no phase_end value is given, takes tmax as the time of the last arriving phase of phase_start.
-    :param model:
-    :param stations:
-    :param t_spread:
-    :param network_pref:
     :return:
 
     static offset soll ersetzt werden....
     '''
     
+    sources = test_case.sources
+    targets = test_case.targets
+    
     phase_marker_dict = defaultdict(dict)
-    phases = [phase_start]
-    if phase_end:
-        phases.append(phase_end)
 
-    for source in test_sources:
+    for source in sources:
         for target in targets:
-            dist = orthodrome.distance_accurate50m(source, target)*cake.m2d
-            rays = model.arrivals(distances=[dist],
-                                  phases=phases,
-                                  zstart=source.depth,
-                                  refine=True)  # how much faster is refine = false?
-            rays.sort(key=lambda x: x.t)
+            dist = orthodrome.distance_accurate50m(source, target)
+            args = (source.depth, dist)
+            tmin = test_case.store.t('first(%s)'%phase_ids_start, args)+source.time
 
-            #tmin is the very first p arrival
-            tmin = rays[0].t
             if static_offset:
                 tmax = tmin+static_offset
             else:
-                tmax = rays[len(rays)-1].t
+                tmax = test_case.store.t('first(%s)'%phase_ids_end, args)+source.time
+
             m = PhaseMarker(nslc_ids=target.codes,
-                            tmin=tmin+source.time,
-                            tmax=tmax+source.time,
+                            tmin=tmin,
+                            tmax=tmax,
                             kind=1,
                             event=source,
-                            phasename='%s-%s'%(rays[0].given_phase().definition(), rays[len(rays)-1].given_phase().definition()))
+                            phasename='p-s')
+
             m.set_selected(True)
 
             phase_marker_dict[source][target] = m

@@ -1,8 +1,9 @@
 # An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
 
 import vtk
-from numpy import *
+import numpy as num
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
 def make_3D_pseudo_data():
     n_samples = 75
@@ -11,7 +12,7 @@ def make_3D_pseudo_data():
     D3_data = {}
 
     for i in range(n_samples):
-        D2_data[i] = array(random.random(n_samples))
+        D2_data[i] = num.array(num.random.random(n_samples))
 
     for i in range(n_samples):
         D2_data[i] *= i
@@ -23,8 +24,8 @@ def scale_2_int_perc(a):
     '''
     Scale entire matrix to range between 0 and 100 uint8.
     '''
-    anew = uint8( (a / amax(a))*1e2)
-    return anew
+    return num.uint8((a / num.amax(a))*1e2)
+
 
 def dict_2_3d_array(ddict):
     '''
@@ -36,29 +37,25 @@ def dict_2_3d_array(ddict):
         for k_2, val_2 in val_1.iteritems():
             slice.append(val_2) 
         cube.append(slice)
-    return array(cube)
+    return num.array(cube)
 
-#data_matrix = dict_2_3d_array(make_3D_pseudo_data())
-#data_matrix = scale_2_int_perc(data_matrix)
 
 
 class OpticBase():
-    def __init__(self, test_cases):
+    def __init__(self, test_tin):
 
-        assert len(keys <= 2)
-        assert map(lambda x: x.key==self.test_cases[0].key, self.test_cases)
-        self.test_cases = [test_cases]
-        self.plot_keys = test_cases.mod_parameters 
+        self.test_tin = test_tin
+        self.test_parameters = self.test_tin.test_parameters 
         self.dimensions = defaultdict(list)
         self.update_dimensions()
 
     def numpyrize(self):
         '''
-        Transform self.test_cases into a 2-/3-dimensional numpy array.
+        Transform self.test_tin into a 2-/3-dimensional numpy array.
         '''
         A = num.zeros(self.dimensions)
         y = 0
-        for case in self.test_cases:
+        for case in self.test_tin:
             x_val = getatr(case.event, x)
             x = self.value_to_index(self.plot_keys[x], x_val)
             
@@ -69,25 +66,37 @@ class OpticBase():
             A[x,y,:] = case.get_misfit_array()
 
     def update_dimensions(self, new_cases=None):
-        if new_cases:
-            cs = new_cases
-        else: 
-            cs = self.test_cases
-        
-        dim_mapper = defaultdict(set)
-
-        for k in self.plot_keys: 
-            for c in cs:
-                dim_mapper[k].add(getatr(c,k))
-            dim_mapper[k]=list(dim_mapper[k])
+        pass
 
     def value_to_index(k, val):
         return self.dim_mapper[k].index(val)
 
     def add_cases(self, cases):
-        self.test_cases.extend(cases)
+        self.test_tin.extend(cases)
         self.update_dimensions(cases)
 
+ 
+    def plot_1d(self, fix_parameters={}):
+        '''
+        fix parameters is a dict, e.g. {lat:10, lon:10}
+        '''
+        x, y = self.test_tin.numpyrize_1d(fix_parameters)
+        plt.plot(x,y, 'o')
+        plt.show()
+
+
+    def plot_2d(self, fix_parameters={}):
+        '''
+        fix parameters is a dict, e.g. {lat:10, lon:10}
+        '''
+        x, y = self.test_tin.numpyrize_2d(fix_parameters)
+        plt.plot(x,y, 'o')
+        plt.show()
+
+    def assertEquallySpaced(self):
+        # assertion needed for vtk 3d cube
+        pass
+ 
 
 def vtkCube(data_matrix=None):
 
@@ -224,4 +233,9 @@ def vtkCube(data_matrix=None):
     renderWin.Render()
     renderInteractor.Start()
 
-vtkCube(data_matrix)
+
+if __name__=='__main__':
+    data_matrix = dict_2_3d_array(make_3D_pseudo_data())
+
+    data_matrix = scale_2_int_perc(data_matrix)
+    vtkCube(data_matrix)
