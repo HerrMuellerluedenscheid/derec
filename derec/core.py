@@ -15,7 +15,6 @@ import inspect
 
 pjoin = os.path.join
 
-
 def get_earthmodel_from_engine(engine, store_id):
     return engine.get_store(store_id).config.earthmodel_1d
 
@@ -57,7 +56,8 @@ def event2source(event, source_type='MT'):
                                    mne=float(m[0,1]),
                                    mnd=float(m[0,2]),
                                    med=float(m[1,2]))
-    if source_type=='DC':
+
+    elif source_type=='DC':
         # only one of both possible s,d,r is needed.
         s,d,r = event.moment_tensor.both_strike_dip_rake()[0]
         m = event.moment_tensor.moment_magnitude
@@ -102,7 +102,7 @@ def make_reference_trace(source, targets, engine):
             sources=source,
             targets=targets)
     return response.pyrocko_traces()
-
+    
 
 def make_reference_markers(source, targets, model):
     
@@ -157,7 +157,7 @@ class Core:
                                         m=num.array([[1.0, 0.5, 0.0],
                                                      [0.0, 0.5, 0.1],
                                                      [0.0, 0.0, 0.4]]))
-
+    
         source = list(event2source(event, 'DC'))
 
         derec_home = os.environ["DEREC_HOME"]
@@ -168,7 +168,7 @@ class Core:
 
         extended_ref_marker = make_reference_markers(source, targets, model)
         reference_seismograms = make_reference_trace(source, targets, engine)
-        
+        #chopped_ref_traces = du.chop_using_markers(reference_seismograms, extended_ref_marker)
         #TESTSOURCES===============================================
         offset = 0.00
         zoffset= 1000
@@ -176,7 +176,7 @@ class Core:
         #lons=num.arange(event.lon-offset, event.lon+offset, offset/1)
         lat = event.lat
         lon = event.lon
-        
+        depth = event.depth
         depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/5)
         strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
         m = event.moment_tensor.moment_magnitude
@@ -187,39 +187,34 @@ class Core:
                                strike=strike,
                                dip=dip,
                                rake=rake,
-                               magnitude=m()
-                               ) for depth in depths ]
+                               magnitude=m()) for depth in depths]
+        
                                #) for depth in depths for lat in lats for lon in lons]
         #==========================================================
 
-        chopped_ref_traces = du.chop_using_markers(reference_seismograms, extended_ref_marker)
-
-        #test_case = TestCase(location_test_sources, chopped_ref_traces, targets, engine, store_id, test_parameters=['lat','lon','depth'])
         test_case = TestCase(location_test_sources, 
-                             chopped_ref_traces,
                              targets, 
                              engine, 
                              store_id, 
                              test_parameters=['depth'])
 
         test_case.request_data()
-
-        # markers hier ueberschreiben. Eigentlich sollen hier die gepicketn Marker verwendet werden. 
-
-        extended_test_marker = du.chop_ranges(test_case, 'p', 's')
+        extended_test_marker = du.chop_ranges(test_case, 'p|P', 's|S')
+        test_case.references = du.chop_using_markers(reference_seismograms, extended_ref_marker)
 
         # chop..........................................
         test_case.seismograms = du.chop_using_markers(test_case.response.iter_results(), extended_test_marker) 
 
         # Misfit.........................................
         norm = 2
-        taper = trace.CosFader(xfade=3)
+        taper = trace.CosFader(xfade=3) # Seconds or samples?
         fresponse = trace.FrequencyResponse()
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
                                   domain='time_domain',
-                                  freqlimits=(1,2,20,40),
-                                  frequency_response=fresponse)
+                                  freqlimits=(2,4,20,40),
+                                  frequency_response=fresponse,
+                                  overlap_handler='chop')
         
         test_case.set_misfit_setup(setup)
         total_misfit = self.calculate_group_misfit(test_case)
@@ -239,9 +234,12 @@ class Core:
         mfsetups = test_case.misfit_setup
         total_misfit = defaultdict(dict)
 
+        import pdb 
+        pdb.set_trace()
         for source in test_case.sources:
             ms = []
             ns = []
+
             
             #print 'new_source'
             for target in test_case.targets:
@@ -250,10 +248,7 @@ class Core:
                 for m,n in mf:
                     ms.append(m)
                     ns.append(n)
-                    #print m/n
                 
-                #print mf
-            
             ms = num.array(ms)
             ns = num.array(ns)
 
@@ -355,12 +350,11 @@ class TestCase():
     '''
     In one test case, up to 3 parameters can be modified
     '''
-    def __init__(self, sources, references, targets, engine, store_id, test_parameters):
+    def __init__(self, sources, targets, engine, store_id, test_parameters):
         self.sources = sources
         self.engine = engine
         self.targets = targets
         self.test_parameters = test_parameters 
-        self.references = references
         self.store_id = store_id
 
         self.seismograms = {}
@@ -412,6 +406,9 @@ class TestCase():
 
     def dump_pile(self, fn='test_dumped_seismograms.mseed'):
         pile.make_pile(seismograms.values(), fn=fn)
+
+    def snuffle(self):
+        trace.snuffle(self.seismograms)
         
     @property
     def store(self):

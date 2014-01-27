@@ -79,7 +79,7 @@ def chop_ranges(test_case, phase_ids_start,  phase_ids_end, static_offset=None):
             if static_offset:
                 tmax = tmin+static_offset
             else:
-                tmax = test_case.store.t('first(%s)'%phase_ids_end, args)+source.time
+                tmax = test_case.store.t('last(%s)'%phase_ids_end, args)+source.time
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
