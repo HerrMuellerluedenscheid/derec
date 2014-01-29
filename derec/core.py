@@ -68,7 +68,15 @@ def event2source(event, source_type='MT'):
                                 strike=s,
                                 dip=d,
                                 rake=r,
-                                magnitude=m())
+                                magnitude=5)
+
+    elif source_type=='EX':
+        m = event.moment_tensor.moment_magnitude
+        source_event = ExplosionSource(lat=event.lat,
+                                       lon=event.lon,
+                                       depth=event.depth,
+                                       time=event.time,
+                                       magnitude=5)
     else:
         raise Exception('invalid source type: %s'%source_type)
 
@@ -154,9 +162,9 @@ class Core:
         assert len(event) == 1
         event = event[0].get_event()
         event.moment_tensor = moment_tensor.MomentTensor(
-                                        m=num.array([[1.0, 0.5, 0.0],
-                                                     [0.0, 0.5, 0.1],
-                                                     [0.0, 0.0, 0.4]]))
+                                        m=num.array([[1.0, 0.0, 0.0],
+                                                     [0.0, 1.0, 0.0],
+                                                     [0.0, 0.0, 1.]]))
     
         source = list(event2source(event, 'DC'))
 
@@ -168,17 +176,14 @@ class Core:
 
         extended_ref_marker = make_reference_markers(source, targets, model)
         reference_seismograms = make_reference_trace(source, targets, engine)
-        #chopped_ref_traces = du.chop_using_markers(reference_seismograms, extended_ref_marker)
+        
         #TESTSOURCES===============================================
-        offset = 0.00
-        zoffset= 1000
-        #lats=num.arange(event.lat-offset, event.lat+offset, offset/2) 
-        #lons=num.arange(event.lon-offset, event.lon+offset, offset/1)
-        lat = event.lat
-        lon = event.lon
-        depth = event.depth
+        offset = 0.1
+        zoffset= 10000.
+        lats=num.arange(event.lat-offset, event.lat+offset, offset/3) 
+        lons=num.arange(event.lon-offset, event.lon+offset, offset/3)
         depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/5)
-        strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
+        strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[1]
         m = event.moment_tensor.moment_magnitude
         location_test_sources = [DCSource(lat=lat,
                                lon=lon,
@@ -187,34 +192,33 @@ class Core:
                                strike=strike,
                                dip=dip,
                                rake=rake,
-                               magnitude=m()) for depth in depths]
+                               magnitude=5) for depth in depths for lat in lats for lon in lons]
         
-                               #) for depth in depths for lat in lats for lon in lons]
         #==========================================================
 
         test_case = TestCase(location_test_sources, 
                              targets, 
                              engine, 
                              store_id, 
-                             test_parameters=['depth'])
+                             test_parameters={'depth':depths, 'lat':lats, 'lon':lons})
 
         test_case.request_data()
-        extended_test_marker = du.chop_ranges(test_case, 'p|P', 's|S')
+        extended_test_marker = du.chop_ranges(test_case, 'p|P|Pv_35p', 's|S|Sv_35s', t_start_shift=-2, t_end_shift=-2)
         test_case.references = du.chop_using_markers(reference_seismograms, extended_ref_marker)
 
         # chop..........................................
         test_case.seismograms = du.chop_using_markers(test_case.response.iter_results(), extended_test_marker) 
 
         # Misfit.........................................
-        norm = 2
+        norm = 2.
         taper = trace.CosFader(xfade=3) # Seconds or samples?
         fresponse = trace.FrequencyResponse()
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='time_domain',
+                                  domain='frequency_domain',
                                   freqlimits=(2,4,20,40),
-                                  frequency_response=fresponse,
-                                  overlap_handler='chop')
+                                  frequency_response=fresponse)
+                                  #overlap_handler='extend')
         
         test_case.set_misfit_setup(setup)
         total_misfit = self.calculate_group_misfit(test_case)
@@ -222,7 +226,7 @@ class Core:
 
         test_tin = TestTin([test_case])
         optics = OpticBase(test_tin)
-        optics.plot_1d()
+        optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
 
 
     def calculate_group_misfit(self, test_case):
@@ -234,12 +238,9 @@ class Core:
         mfsetups = test_case.misfit_setup
         total_misfit = defaultdict(dict)
 
-        import pdb 
-        pdb.set_trace()
         for source in test_case.sources:
             ms = []
             ns = []
-
             
             #print 'new_source'
             for target in test_case.targets:
@@ -254,8 +255,10 @@ class Core:
 
             # TODO EXPONENT gleich NORM !!!!!!!!!!
             norm = mfsetups.norm
-            M = num.sum(ms**norm)**1/norm
-            N = num.sum(ns**norm)**1/norm
+            M = num.sum(ms)
+            N = num.sum(ns)
+            #M = num.power(num.sum(num.power(ms, norm)), 1./norm)
+            #N = num.power(num.sum(num.power(ns, norm)), 1./norm)
                 
             total_misfit[source] = M/N
 
@@ -267,10 +270,15 @@ class TestTin():
         self.assertSameParameters(test_cases)
         self.test_cases = test_cases
         self.test_parameters = self.test_cases[0].test_parameters
+        self.update_dimensions(self.test_cases)
+        self.x_range = None
+        self.y_range = None
+        self.z_range = None
 
     def add_test_case(test_case):
         self.assertSameParameters(test_case)
         self.test_cases.extend(test_case)
+        self.update_dimensions([test_case])
 
     def numpyrize_1d(self, fix_parameters={}):
         '''Make 1dimensional numpy array
@@ -292,17 +300,12 @@ class TestTin():
         for tc in self.test_cases:
             misfits = tc.misfits
             for source in tc.sources:
-                for p,v in fix_parameters.items():
-                    if not getattr(source, p)==v :
-                        print 'tmp: breaking loop in numpyrize_1d. Check that breaks right! '
-                        break
-                    else:
-                        continue
-
-                x.append(getattr(source, x_key))
-                y.append(misfits[source])
-
-        return x, y
+                if all(getattr(source, k)==v for k,v in fix_parameters.items()):
+                    x.append(getattr(source, x_key))
+                    y.append(misfits[source])
+                else:
+                    continue
+        return num.array(x), num.array(y)
 
     def numpyrize_2d(self, fix_parameters={}):
         '''Make 1dimensional numpy array
@@ -317,6 +320,8 @@ class TestTin():
         if not len(fix_parameters.keys())==len(self.test_parameters)-1:
             raise Exception('Expected %s fix_parameters, got %s' % (len(self.test_parameters)-1, len(fix_parameters.keys())))
 
+        data = num.ndarray(shape=(len(tc),len()))
+
         x = []
         y = []
         z = []
@@ -327,23 +332,24 @@ class TestTin():
         for tc in self.test_cases:
             misfits = tc.misfits
             for source in tc.sources:
-                for p,v in fix_parameters.items():
-                    if not getattr(source, p)==v :
-                        print 'tmp: breaking loop in numpyrize_2d. Check that breaks right! '
-                        break
-                    else:
-                        continue
-
-                x.append(getattr(source, x_key))
-                y.append(misfits[source])
+                if all(getattr(source, k)==v for k,v in fix_parameters.items()):
+                    D[getattr(source, xkey)][getattr(source,ykey)]=misfits[source]
 
         return x, y
+
+    def update_dimensions(self, test_cases):
+        for tc in test_cases:
+            self.x_range = num.union1d(self.x_range, tc.test_parameters.items()[0].values())
+            self.y_range = num.union1d(self.y_range, tc.test_parameters.items()[1].values())
+            self.z_range = num.union1d(self.z_range, tc.test_parameters.items()[2].values())
+
 
     def assertSameParameters(self, test_cases):
         if not isinstance(test_cases, list):
             test_cases = list(test_cases)
 
         assert all(set(x.test_parameters)==set(test_cases[0].test_parameters) for x in test_cases)
+
 
 
 class TestCase():

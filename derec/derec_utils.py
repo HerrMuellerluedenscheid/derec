@@ -55,7 +55,7 @@ def azi_to_location_digits(azi):
     """
     return str(int(azi)).zfill(3)
 
-def chop_ranges(test_case, phase_ids_start,  phase_ids_end, static_offset=None):
+def chop_ranges(test_case, phase_ids_start,  phase_ids_end, static_offset=None, t_start_shift=0, t_end_shift=0):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -74,12 +74,12 @@ def chop_ranges(test_case, phase_ids_start,  phase_ids_end, static_offset=None):
         for target in targets:
             dist = orthodrome.distance_accurate50m(source, target)
             args = (source.depth, dist)
-            tmin = test_case.store.t('first(%s)'%phase_ids_start, args)+source.time
+            tmin = test_case.store.t('first(%s)'%phase_ids_start, args)+source.time+t_start_shift
 
             if static_offset:
                 tmax = tmin+static_offset
             else:
-                tmax = test_case.store.t('last(%s)'%phase_ids_end, args)+source.time
+                tmax = test_case.store.t('last(%s)'%phase_ids_end, args)+source.time+t_end_shift
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
