@@ -3,6 +3,8 @@ from pyrocko import cake, model, gui_util, util, io, pile, trace, moment_tensor
 from pyrocko import orthodrome
 from vtkOptics import *
 from collections import defaultdict
+from matplotlib import cm
+from gmtpy import griddata_auto
 
 import os
 import progressbar
@@ -147,7 +149,7 @@ def make_reference_markers(source, targets, model):
                                     event=source,
                                     phasename='range')
 
-            ref_marker[s][target]=m
+            ref_marker[s][target] = m
     return ref_marker
 
 
@@ -180,9 +182,16 @@ class Core:
         #TESTSOURCES===============================================
         offset = 0.1
         zoffset= 10000.
-        lats=num.arange(event.lat-offset, event.lat+offset, offset/3) 
-        lons=num.arange(event.lon-offset, event.lon+offset, offset/3)
-        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/5)
+
+        lats=num.arange(event.lat-0.5*offset, event.lat+0.5*offset, offset/1) 
+        lons=num.arange(event.lon-0.5*offset, event.lon+0.5*offset, offset/1)
+        #lons=[event.lon]
+        #lats=[event.lat]
+        #depths = [event.depth]
+        
+        print lats, lons, '<- lats, lons'
+
+        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/3)
         strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[1]
         m = event.moment_tensor.moment_magnitude
         location_test_sources = [DCSource(lat=lat,
@@ -215,19 +224,19 @@ class Core:
         fresponse = trace.FrequencyResponse()
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='frequency_domain',
+                                  domain='time_domain',
                                   freqlimits=(2,4,20,40),
                                   frequency_response=fresponse)
-                                  #overlap_handler='extend')
         
         test_case.set_misfit_setup(setup)
         total_misfit = self.calculate_group_misfit(test_case)
         test_case.set_misfit(total_misfit)
+        #test_case.plot1d()
+        test_case.contourf()
 
         test_tin = TestTin([test_case])
         optics = OpticBase(test_tin)
-        optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
-
+        #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
 
     def calculate_group_misfit(self, test_case):
         # zyklische abhaengigkeit beseitigen!
@@ -357,6 +366,7 @@ class TestCase():
     In one test case, up to 3 parameters can be modified
     '''
     def __init__(self, sources, targets, engine, store_id, test_parameters):
+        self.test_grid = None
         self.sources = sources
         self.engine = engine
         self.targets = targets
@@ -381,14 +391,6 @@ class TestCase():
 
     def get_seismograms(self):
         return self.seismograms
-
-    def get_misfit_array(self):
-        '''
-        Should return a numpy array containing the misfits, after these have 
-        been sorted by the varying parameter (key).
-        '''
-        misfit_array = num.zeros(len(self.misfits))
-        return num.array([sorted(self.misfits.keys(), key=operator.attrgetter(self.key))])
 
     def set_seismograms(self, seismograms):
         self.seismograms = seismograms
@@ -415,10 +417,56 @@ class TestCase():
 
     def snuffle(self):
         trace.snuffle(self.seismograms)
+
+    def numpy_it(self, **kwargs):
+        '''
+        Irgendwann muss ein ordering mit angegeben werden. Dicts sind ungeordnet.
+        '''
+        if kwargs.get('order', False):
+            self.xkey, self.ykey, self.zkey = kwargs['order']
+        else:
+            self.xkey, self.ykey, self.zkey = self.test_parameters.keys()
+
+        self.num_array = num.empty(shape=(len(self.sources), 4))
+        self.num_array[:] = num.NAN
+
+        for i, s in enumerate(self.sources):
+            self.num_array[i] = num.array([getattr(s, self.xkey),
+                                           getattr(s, self.ykey),
+                                           getattr(s, self.zkey),
+                                           self.misfits[s]])
+
+        self.num_array = self.num_array.T
+
+    def plot1d(self):
+        self.numpy_it()
+        plt.plot(self.num_array[1], self.num_array[3])
+        plt.show()
+
+    def contourf(self):
         
+        import pdb
+        pdb.set_trace()
+        self.numpy_it(order=['lat', 'lon','depth'])
+
+        x=self.num_array[0]
+        y=self.num_array[1]
+        z=self.num_array[2]
+        v=self.num_array[3]
+
+        X,Y,Z = griddata_auto(x,y,v)
+        plt.contourf(X,Y, Z, cmap=cm.bone_r)
+        plt.xlabel(self.xkey)
+        plt.ylabel(self.ykey)
+        cbar = plt.colorbar()
+        cbar.ax.set_ylabel('L%s misfit'%int(self.misfit_setup.norm))
+
+        plt.show()
+
     @property
     def store(self):
         return self.engine.get_store(self.store_id)
+
 
 if __name__ ==  "__main__":
 
