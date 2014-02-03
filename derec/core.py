@@ -226,7 +226,7 @@ class Core:
                                   taper=taper,
                                   domain='time_domain',
                                   freqlimits=(2,4,20,40),
-                                  frequency_response=fresponse)
+                                  filter=fresponse)
         
         test_case.set_misfit_setup(setup)
         total_misfit = self.calculate_group_misfit(test_case)

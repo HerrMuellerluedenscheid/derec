@@ -49,22 +49,6 @@ class OpticBase():
         self.dimensions = defaultdict(list)
         self.update_dimensions()
 
-    def numpyrize(self):
-        '''
-        Transform self.test_tin into a 2-/3-dimensional numpy array.
-        '''
-        A = num.zeros(self.dimensions)
-        y = 0
-        for case in self.test_tin:
-            x_val = getatr(case.event, x)
-            x = self.value_to_index(self.plot_keys[x], x_val)
-            
-            if not y == '':
-                y_val = getatr(case.event, y)
-                y = self.value_to_index(self.plot_keys[y], y_val)
-            
-            A[x,y,:] = case.get_misfit_array()
-
     def update_dimensions(self, new_cases=None):
         pass
 
