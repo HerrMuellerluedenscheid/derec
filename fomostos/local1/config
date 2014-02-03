@@ -48,6 +48,12 @@ tabulated_phases:
   id: end
   definition: '2.5'
 - !pyrocko.gf.meta.TPDef
+  id: Sv_35s
+  definition: 'Sv_(cmb)s'
+- !pyrocko.gf.meta.TPDef
+  id: Pv_35p
+  definition: 'Pv_(cmb)p'
+- !pyrocko.gf.meta.TPDef
   id: P
   definition: '!P'
 - !pyrocko.gf.meta.TPDef
