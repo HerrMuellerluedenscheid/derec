@@ -183,11 +183,8 @@ class Core:
         offset = 0.1
         zoffset= 10000.
 
-        lats=num.arange(event.lat-0.5*offset, event.lat+0.5*offset, offset/1) 
-        lons=num.arange(event.lon-0.5*offset, event.lon+0.5*offset, offset/1)
-        #lons=[event.lon]
-        #lats=[event.lat]
-        #depths = [event.depth]
+        lats=num.arange(event.lat-0.5*offset, event.lat+0.5*offset, offset/3) 
+        lons=num.arange(event.lon-0.5*offset, event.lon+0.5*offset, offset/3)
         
         print lats, lons, '<- lats, lons'
 
@@ -215,17 +212,25 @@ class Core:
         extended_test_marker = du.chop_ranges(test_case, 'p|P|Pv_35p', 's|S|Sv_35s', t_start_shift=-2, t_end_shift=-2)
         test_case.references = du.chop_using_markers(reference_seismograms, extended_ref_marker)
 
+
         # chop..........................................
         test_case.seismograms = du.chop_using_markers(test_case.response.iter_results(), extended_test_marker) 
+
+        # Try envelope:
+        #test_case.use_envelope()
+
+        # Try positive:
+        #test_case.use_positive()
+        
 
         # Misfit.........................................
         norm = 2.
         taper = trace.CosFader(xfade=3) # Seconds or samples?
-        fresponse = trace.FrequencyResponse()
+        freqlimits=(0.1,0.2,2.,4.)
+        fresponse = trace.FrequencyResponse(freqs=freqlimits)
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
                                   domain='time_domain',
-                                  freqlimits=(2,4,20,40),
                                   filter=fresponse)
         
         test_case.set_misfit_setup(setup)
@@ -251,7 +256,6 @@ class Core:
             ms = []
             ns = []
             
-            #print 'new_source'
             for target in test_case.targets:
                 rt = references.values()[0][target]
                 mf = rt.misfit(candidates=[candidates[source][target]], setups=mfsetups)
@@ -407,10 +411,10 @@ class TestCase():
 
     def update_progressbar(self, a, b):
         try:
-            self.progressbar.update(b)
+            self.progressbar.update(a)
         except AttributeError:
-            self.progressbar = progressbar.ProgressBar(maxval=a).start()
-            self.progressbar.update(b)
+            self.progressbar = progressbar.ProgressBar(maxval=b).start()
+            self.progressbar.update(a)
 
     def dump_pile(self, fn='test_dumped_seismograms.mseed'):
         pile.make_pile(seismograms.values(), fn=fn)
@@ -438,6 +442,22 @@ class TestCase():
 
         self.num_array = self.num_array.T
 
+    def use_envelope(self):
+        for s in self.seismograms.values():
+            map(lambda x: x.envelope(), s.values())
+
+        asdf = []
+        for s in self.seismograms.values():
+            asdf.extend(s.values())
+        trace.snuffle(asdf)
+
+    def use_positive(self):
+        '''
+        Hier muss aufgepasst werden mit dem taper und filtern. 
+        '''
+        for s in self.seismograms.values():
+            map(lambda x: x.envelope(), s.values())
+
     def plot1d(self):
         self.numpy_it()
         plt.plot(self.num_array[1], self.num_array[3])
@@ -445,8 +465,6 @@ class TestCase():
 
     def contourf(self):
         
-        import pdb
-        pdb.set_trace()
         self.numpy_it(order=['lat', 'lon','depth'])
 
         x=self.num_array[0]
