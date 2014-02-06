@@ -167,3 +167,5 @@ def plot_misfit_dict(mfdict):
     plt.ylabel('Misfit []')
     plt.show()
 
+
+

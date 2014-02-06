@@ -5,6 +5,7 @@ from vtkOptics import *
 from collections import defaultdict
 from matplotlib import cm
 from gmtpy import griddata_auto
+from scipy.signal import butter
 
 import os
 import progressbar
@@ -227,7 +228,11 @@ class Core:
         norm = 2.
         taper = trace.CosFader(xfade=3) # Seconds or samples?
         freqlimits=(0.1,0.2,2.,4.)
-        fresponse = trace.FrequencyResponse(freqs=freqlimits)
+        
+        # Filter mit drittel vom store sampling:
+        z, p, k = butter(4, 1.333, 'low', output='zpk')
+        fresponse = trace.PoleZeroResponse(z,p,k)
+
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
                                   domain='time_domain',
@@ -389,8 +394,9 @@ class TestCase():
 
     def request_data(self):
         print 'requesting data....'
-        self.response = self.engine.process(status_callback=self.update_progressbar, sources=self.sources,
-                targets=self.targets)
+        self.response = self.engine.process(status_callback=self.update_progressbar, 
+                                sources=self.sources,
+                                targets=self.targets)
         print 'finished'
 
     def get_seismograms(self):
@@ -445,11 +451,6 @@ class TestCase():
     def use_envelope(self):
         for s in self.seismograms.values():
             map(lambda x: x.envelope(), s.values())
-
-        asdf = []
-        for s in self.seismograms.values():
-            asdf.extend(s.values())
-        trace.snuffle(asdf)
 
     def use_positive(self):
         '''
