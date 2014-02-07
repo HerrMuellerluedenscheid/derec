@@ -211,35 +211,25 @@ class Core:
 
         test_case.request_data()
         extended_test_marker = du.chop_ranges(test_case, 'p|P|Pv_35p', 's|S|Sv_35s', t_start_shift=-2, t_end_shift=-2)
-        test_case.references = du.chop_using_markers(reference_seismograms, extended_ref_marker)
+        test_case.references = du.chop_using_markers(reference_seismograms,
+                                                     extended_ref_marker)
+        test_case.seismograms = du.chop_using_markers(test_case.response.iter_results(),
+                                                     extended_test_marker) 
 
-
-        # chop..........................................
-        test_case.seismograms = du.chop_using_markers(test_case.response.iter_results(), extended_test_marker) 
-
-        # Try envelope:
-        #test_case.use_envelope()
-
-        # Try positive:
-        #test_case.use_positive()
-        
-
-        # Misfit.........................................
         norm = 2.
         taper = trace.CosFader(xfade=3) # Seconds or samples?
-        freqlimits=(0.1,0.2,2.,4.)
         
         # Filter mit drittel vom store sampling:
-        z, p, k = butter(4, 1.333, 'low', output='zpk')
+        z, p, k = butter(4, 1.3*num.pi*2, 'low', analog=True, output='zpk')
         fresponse = trace.PoleZeroResponse(z,p,k)
 
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='time_domain',
+                                  domain='frequency_domain',
                                   filter=fresponse)
         
         test_case.set_misfit_setup(setup)
-        total_misfit = self.calculate_group_misfit(test_case)
+        total_misfit = du.calculate_misfit(test_case, mode='positive')
         test_case.set_misfit(total_misfit)
         #test_case.plot1d()
         test_case.contourf()
@@ -248,39 +238,6 @@ class Core:
         optics = OpticBase(test_tin)
         #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
 
-    def calculate_group_misfit(self, test_case):
-        # zyklische abhaengigkeit beseitigen!
-        candidates = test_case.seismograms
-        references = test_case.references
-        assert len(references.items())==1
-
-        mfsetups = test_case.misfit_setup
-        total_misfit = defaultdict(dict)
-
-        for source in test_case.sources:
-            ms = []
-            ns = []
-            
-            for target in test_case.targets:
-                rt = references.values()[0][target]
-                mf = rt.misfit(candidates=[candidates[source][target]], setups=mfsetups)
-                for m,n in mf:
-                    ms.append(m)
-                    ns.append(n)
-                
-            ms = num.array(ms)
-            ns = num.array(ns)
-
-            # TODO EXPONENT gleich NORM !!!!!!!!!!
-            norm = mfsetups.norm
-            M = num.sum(ms)
-            N = num.sum(ns)
-            #M = num.power(num.sum(num.power(ms, norm)), 1./norm)
-            #N = num.power(num.sum(num.power(ns, norm)), 1./norm)
-                
-            total_misfit[source] = M/N
-
-        return total_misfit
 
 
 class TestTin():
@@ -374,13 +331,14 @@ class TestCase():
     '''
     In one test case, up to 3 parameters can be modified
     '''
-    def __init__(self, sources, targets, engine, store_id, test_parameters):
+    def __init__(self, sources, targets, engine, store_id, test_parameters, use_envelope=False):
         self.test_grid = None
         self.sources = sources
         self.engine = engine
         self.targets = targets
         self.test_parameters = test_parameters 
         self.store_id = store_id
+        self.use_envelope = use_envelope
 
         self.seismograms = {}
         self.misfits = None
@@ -401,6 +359,7 @@ class TestCase():
 
     def get_seismograms(self):
         return self.seismograms
+
 
     def set_seismograms(self, seismograms):
         self.seismograms = seismograms
@@ -447,17 +406,6 @@ class TestCase():
                                            self.misfits[s]])
 
         self.num_array = self.num_array.T
-
-    def use_envelope(self):
-        for s in self.seismograms.values():
-            map(lambda x: x.envelope(), s.values())
-
-    def use_positive(self):
-        '''
-        Hier muss aufgepasst werden mit dem taper und filtern. 
-        '''
-        for s in self.seismograms.values():
-            map(lambda x: x.envelope(), s.values())
 
     def plot1d(self):
         self.numpy_it()

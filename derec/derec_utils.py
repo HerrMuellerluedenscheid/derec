@@ -1,5 +1,5 @@
 from math import radians, acos, sin, cos, degrees, asin, pi
-import numpy as np
+import numpy as num
 import logging
 import matplotlib.pyplot as plt
 import urllib
@@ -168,4 +168,111 @@ def plot_misfit_dict(mfdict):
     plt.show()
 
 
+def filter_traces_dict(self, traces_dict, tfade, freqlimits):
+    for s in traces_dict.values():
+        map(lambda x: x.transfer(tfade, freqlimits), s.values())
 
+
+def calculate_misfit(test_case, mode='waveform', **kwargs):
+    sources = test_case.sources
+    targets = test_case.targets
+    candidates = test_case.seismograms
+    references = test_case.references
+    assert len(references.items())==1
+    total_misfit = defaultdict()
+
+    cached_ref= {}
+
+
+    mfsetup = test_case.misfit_setup
+
+    for source in sources:
+        ms = []
+        ns = []
+        
+        for target in targets:
+            reft = references.values()[0][target]
+            if mode=='waveform':
+                # hier kann man auch candidates[source].values() benutzen. geht 
+                # schneller! Dafuer muessen aber erst alle candidates umsortiert werden. 
+                mf = reft.misfit(candidates=[candidates[source][target]], 
+                                            setups=mfsetup)
+
+                for m,n in mf:
+                    ms.append(m)
+                    ns.append(n)
+
+            else: 
+                cand = candidates[source][target]
+                cand.snap()
+                reft.snap()
+
+                try:
+                    reft = cached_ref[(target, cand.tmin, cand.tmax, cand.deltat)]
+                    print 'success... using a cached one '
+                except KeyError:
+                    max_deltat = max(cand.deltat, reft.deltat)
+                    
+                    if abs(reft.deltat - max_deltat) / reft.deltat > 1e-6:
+                        reft.downsample_to(max_deltat, snap=True)
+                    else:
+                        reft.snap()
+
+                    wanted_tmin = min(cand.tmin, reft.tmin) - max_deltat*0.5
+                    wanted_tmax = max(cand.tmax, reft.tmax) + max_deltat*0.5
+
+                    reft.extend(tmin=wanted_tmin, 
+                                tmax=wanted_tmax, 
+                                fillmethod='repeat')
+
+                    
+                    if kwargs.get('tfade', False):
+                        tfade = kwargs[tfade]
+                    else:
+                        tfade = 0.0
+
+                    if kwargs.get('freqlimits', False):
+                        freqlimits = kwargs[freqlimits]
+                    else:
+                        freqlimits=(0.01, 0.02, 50., 100.)
+                    
+                    reft.transfer(tfade=tfade, 
+                                  freqlimits=freqlimits, 
+                                  transfer_function=mfsetup.filter)
+
+                    if mode=='envelope':
+                        reft.envelope()
+
+                    elif mode=='positive':
+                        reft.set_ydata(abs(reft.ydata))
+
+                    cached_ref[(target, wanted_tmin, wanted_tmax, max_deltat)] =\
+                                                                            reft
+                if abs(reft.deltat - max_deltat) / reft.deltat > 1e-6:
+                    cand.downsample_to(max_deltat, snap=True)
+
+                cand.extend(tmin=wanted_tmin, tmax=wanted_tmax)
+                cand.transfer(tfade=tfade,
+                              freqlimits=freqlimits,
+                              transfer_function=mfsetup.filter)
+                
+                if mode=='envelope':
+                    cand.envelope()
+
+                elif mode=='positive':
+                    cand.set_ydata(abs(cand.ydata))
+
+                mtmp, ntmp = trace.Lx_norm(reft.ydata, cand.ydata)
+                ms.append(mtmp)
+                ns.append(ntmp)
+        
+        ms = num.array(ms)
+        ns = num.array(ns)
+
+        norm = mfsetup.norm
+        M = num.power(num.sum(num.power(ms, norm)), 1./norm)
+        N = num.power(num.sum(num.power(ns, norm)), 1./norm)
+            
+        total_misfit[source] = M/N
+
+    return total_misfit
