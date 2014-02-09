@@ -15,6 +15,7 @@ import derec_utils as du
 import numpy as num
 import copy
 import inspect
+import ctypes
 
 pjoin = os.path.join
 
@@ -185,11 +186,11 @@ class Core:
         zoffset= 10000.
 
         lats=num.arange(event.lat-0.5*offset, event.lat+0.5*offset, offset/3) 
-        lons=num.arange(event.lon-0.5*offset, event.lon+0.5*offset, offset/3)
+        lons=num.arange(event.lon-0.5*offset, event.lon+0.5*offset, offset/1)
         
         print lats, lons, '<- lats, lons'
 
-        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/3)
+        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/1)
         strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[1]
         m = event.moment_tensor.moment_magnitude
         location_test_sources = [DCSource(lat=lat,

@@ -4,6 +4,7 @@ import logging
 import matplotlib.pyplot as plt
 import urllib
 import types 
+import ctypes 
 from collections import defaultdict
 
 from pyrocko import pile, util, cake, gui_util, orthodrome, trace
@@ -183,14 +184,20 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
 
     cached_ref= {}
 
+    # c stuff
+    lx_norm_c = ctypes.cdll.LoadLibrary('./liblxnorm.so')
+    lx_norm_c.lxnorm_n.restype = ctypes.c_double
+    lx_norm_c.lxnorm_m.restype = ctypes.c_double
+    # eo c stuff
 
     mfsetup = test_case.misfit_setup
+    norm = mfsetup.norm
 
     for source in sources:
-        ms = []
-        ns = []
+        ms = num.empty([len(targets)], dtype=float)
+        ns = num.empty([len(targets)], dtype=float)
         
-        for target in targets:
+        for ti, target in enumerate(targets):
             reft = references.values()[0][target]
             if mode=='waveform':
                 # hier kann man auch candidates[source].values() benutzen. geht 
@@ -199,8 +206,8 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                                             setups=mfsetup)
 
                 for m,n in mf:
-                    ms.append(m)
-                    ns.append(n)
+                    ms[ti] = m
+                    ns[ti] = n
 
             else: 
                 cand = candidates[source][target]
@@ -223,7 +230,7 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
 
                     reft.extend(tmin=wanted_tmin, 
                                 tmax=wanted_tmax, 
-                                fillmethod='repeat')
+                                fillmethod='zeros')
 
                     
                     if kwargs.get('tfade', False):
@@ -262,14 +269,34 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                 elif mode=='positive':
                     cand.set_ydata(abs(cand.ydata))
 
-                mtmp, ntmp = trace.Lx_norm(reft.ydata, cand.ydata)
-                ms.append(mtmp)
-                ns.append(ntmp)
-        
-        ms = num.array(ms)
-        ns = num.array(ns)
+                # wichtig!
+                if reft.ydata.shape != cand.ydata.shape:
+                    raise Exception('shapes are different: %s, %s'%\
+                            (reft.ydata.shape, cand.ydata.shape))
 
-        norm = mfsetup.norm
+                #vydata = cand.ydata
+                #uydata = reft.ydata
+                vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                uydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                
+                v_c = vydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                u_c = uydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                print v_c
+                print u_c
+                norm_c = ctypes.c_double(norm)
+
+                print len(reft.ydata)
+                print reft.ydata.shape
+                print reft.nslc_id
+                print reft.ydata
+                size_c = ctypes.c_int(len(reft.ydata))
+                ms[ti] = lx_norm_c.lxnorm_m(v_c, u_c, norm_c, size_c)
+                ns[ti] = lx_norm_c.lxnorm_n(v_c, norm_c, size_c)
+                print 'C: ', ms[ti]/ns[ti]
+                ms[ti], ns[ti] = trace.Lx_norm(vydata, uydata, norm)
+                #ms[ti], ns[ti] = trace.Lx_norm(reft.ydata, cand.ydata, norm)
+                print 'P: ', ms[ti]/ns[ti]
+        
         M = num.power(num.sum(num.power(ms, norm)), 1./norm)
         N = num.power(num.sum(num.power(ns, norm)), 1./norm)
             

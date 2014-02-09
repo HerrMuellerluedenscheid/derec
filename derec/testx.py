@@ -7,8 +7,8 @@ import time
 fun=ctypes.cdll.LoadLibrary('./liblxnorm.so')
 size = 500
 norm = 2
-u = num.random.random(size)
-v = num.random.random(size)
+u = num.random.uniform(-1e21, 1e21,size)
+v = num.random.uniform(-1e21, 1e21,size)
 
 loops = 10000
 
@@ -26,7 +26,7 @@ for i in range(loops):
 
 t2 = time.time()
 print t2-t1
-print m,n
+print m, n
 
 
 t1 = time.time()
@@ -35,4 +35,4 @@ for i in range(loops):
 
 t2 = time.time()
 print t2-t1
-print m,n
+print m, n
