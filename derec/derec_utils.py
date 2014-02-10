@@ -7,7 +7,7 @@ import types
 import ctypes 
 from collections import defaultdict
 
-from pyrocko import pile, util, cake, gui_util, orthodrome, trace
+from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model
 from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
 
@@ -39,6 +39,35 @@ def lat_lon_from_dist_azi(olat, olon, dist, azim):
     a = acos(cos(b)*cos(pi/2-olat)+sin(pi/2-olat)*sin(b)*cos(azi))
     B = asin(sin(b)*sin(azi)/sin(a))
     return 90-degrees(a), degrees(B)+degrees(olon)
+
+def station_distribution(origin, rings, **kwargs):
+    '''
+    origin is a tuple with (lat, lon).
+    rings is a list of lists with [radius, n stations].
+    '''
+    rotate = {}
+    if kwargs.get('rotate', False):
+        rotate = kwargs['rotate']
+
+    stations = []
+    olat, olon = origin
+    for radius, N in rings:
+        azis = [360.*(n+1)/N for n in range(N)]
+
+        try:
+            azis = [azi + rotate[radius] for azi in azis]
+            map((lambda x: x%360), azis)
+        except KeyError:
+            pass
+
+        for azi in azis:
+            lat, lon = lat_lon_from_dist_azi(olat, olon, radius, azi)
+            stations.append(model.Station(network=azi_to_location_digits(azi), 
+                                          station=x_to_station_digits(radius),
+                                          lat=lat, 
+                                          lon=lon))
+            
+    return stations
 
 
 def z_to_network_digits(z):
