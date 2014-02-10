@@ -185,12 +185,14 @@ class Core:
         offset = 0.1
         zoffset= 10000.
 
-        lats=num.arange(event.lat-0.5*offset, event.lat+0.5*offset, offset/3) 
-        lons=num.arange(event.lon-0.5*offset, event.lon+0.5*offset, offset/1)
+        lats=num.arange(event.lat-offset, event.lat+offset, offset/30) 
+        lons=num.arange(event.lon-offset, event.lon+offset, offset/30)
         
         print lats, lons, '<- lats, lons'
 
-        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/1)
+        depths = [event.depth]
+        #depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/1)
+
         strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[1]
         m = event.moment_tensor.moment_magnitude
         location_test_sources = [DCSource(lat=lat,
@@ -200,7 +202,8 @@ class Core:
                                strike=strike,
                                dip=dip,
                                rake=rake,
-                               magnitude=5) for depth in depths for lat in lats for lon in lons]
+                               magnitude=5) for depth in depths 
+                                        for lat in lats for lon in lons]
         
         #==========================================================
 
@@ -226,19 +229,18 @@ class Core:
 
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='frequency_domain',
+                                  domain='time_domain',
                                   filter=fresponse)
         
         test_case.set_misfit_setup(setup)
-        total_misfit = du.calculate_misfit(test_case, mode='positive')
+        total_misfit = du.calculate_misfit(test_case, mode='waveform')
         test_case.set_misfit(total_misfit)
         #test_case.plot1d()
         test_case.contourf()
 
-        test_tin = TestTin([test_case])
-        optics = OpticBase(test_tin)
+        #test_tin = TestTin([test_case])
+        #optics = OpticBase(test_tin)
         #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
-
 
 
 class TestTin():
@@ -315,9 +317,12 @@ class TestTin():
 
     def update_dimensions(self, test_cases):
         for tc in test_cases:
-            self.x_range = num.union1d(self.x_range, tc.test_parameters.items()[0].values())
-            self.y_range = num.union1d(self.y_range, tc.test_parameters.items()[1].values())
-            self.z_range = num.union1d(self.z_range, tc.test_parameters.items()[2].values())
+            self.x_range = num.union1d(self.x_range, 
+                            tc.test_parameters.items()[0].values())
+            self.y_range = num.union1d(self.y_range, 
+                            tc.test_parameters.items()[1].values())
+            self.z_range = num.union1d(self.z_range, 
+                            tc.test_parameters.items()[2].values())
 
 
     def assertSameParameters(self, test_cases):
@@ -325,7 +330,6 @@ class TestTin():
             test_cases = list(test_cases)
 
         assert all(set(x.test_parameters)==set(test_cases[0].test_parameters) for x in test_cases)
-
 
 
 class TestCase():
@@ -360,7 +364,6 @@ class TestCase():
 
     def get_seismograms(self):
         return self.seismograms
-
 
     def set_seismograms(self, seismograms):
         self.seismograms = seismograms

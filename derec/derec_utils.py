@@ -204,8 +204,11 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                 # schneller! Dafuer muessen aber erst alle candidates umsortiert werden. 
                 mf = reft.misfit(candidates=[candidates[source][target]], 
                                             setups=mfsetup)
+                
+                print '........'
 
                 for m,n in mf:
+                    print m,n
                     ms[ti] = m
                     ns[ti] = n
 
@@ -274,10 +277,10 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                     raise Exception('shapes are different: %s, %s'%\
                             (reft.ydata.shape, cand.ydata.shape))
 
-                #vydata = cand.ydata
-                #uydata = reft.ydata
-                vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                uydata = cand.ydata
+                vydata = reft.ydata
                 uydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
                 
                 v_c = vydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
                 u_c = uydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
@@ -293,12 +296,12 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                 ms[ti] = lx_norm_c.lxnorm_m(v_c, u_c, norm_c, size_c)
                 ns[ti] = lx_norm_c.lxnorm_n(v_c, norm_c, size_c)
                 print 'C: ', ms[ti]/ns[ti]
-                ms[ti], ns[ti] = trace.Lx_norm(vydata, uydata, norm)
+                ms[ti], ns[ti] = trace.Lx_norm(uydata, vydata, norm)
                 #ms[ti], ns[ti] = trace.Lx_norm(reft.ydata, cand.ydata, norm)
                 print 'P: ', ms[ti]/ns[ti]
         
-        M = num.power(num.sum(num.power(ms, norm)), 1./norm)
-        N = num.power(num.sum(num.power(ns, norm)), 1./norm)
+        M = num.power(num.sum(abs(num.power(ms, norm))), 1./norm)
+        N = num.power(num.sum(abs(num.power(ns, norm))), 1./norm)
             
         total_misfit[source] = M/N
 
