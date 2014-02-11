@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import urllib
 import types 
 import ctypes 
+import progressbar
 from collections import defaultdict
-
 from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model
 from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
@@ -85,31 +85,91 @@ def azi_to_location_digits(azi):
     """
     return str(int(azi)).zfill(3)
 
-def chop_ranges(test_case, phase_ids_start,  phase_ids_end, static_offset=None, t_start_shift=0, t_end_shift=0):
+def make_reference_markers_cake(source, targets, model):
+    
+    assert len(source) == 1
+    
+    ref_marker = defaultdict(dict)
+    phases_start = ['p','P']
+    phases_start = [cake.PhaseDef(ph) for ph in phases_start]
+
+    phases_end = ['s', 'S']
+    phases_end = [cake.PhaseDef(ph) for ph in phases_end]
+    
+    for s in source:
+        for target in targets:
+            dist = orthodrome.distance_accurate50m(s, target)*cake.m2d
+            tmin = min(model.arrivals([dist], 
+                                    phases_start,
+                                    zstart=s.depth,
+                                    zstop=s.depth), key=lambda x: x.t).t
+
+            tmax = min(model.arrivals([dist], 
+                                    phases_end, 
+                                    zstart=s.depth,
+                                    zstop=s.depth), key=lambda x: x.t).t
+
+            tmin += s.time
+            tmax += s.time
+            assert tmin!=tmax
+            
+            m = gui_util.PhaseMarker(nslc_ids=target.codes, 
+                                    tmin=tmin,
+                                    tmax=tmax,
+                                    kind=1,
+                                    event=source,
+                                    phasename='range')
+
+            ref_marker[s][target] = m
+    return ref_marker
+
+def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end, 
+                    static_offset=None, t_start_shift=0, t_end_shift=0, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
-    If no phase_end value is given, takes tmax as the time of the last arriving phase of phase_start.
+    If no phase_end value is given, takes tmax as the time of the 
+    last arriving phase of phase_start.
     :return:
 
     static offset soll ersetzt werden....
     '''
-    
-    sources = test_case.sources
-    targets = test_case.targets
-    
+    if kwargs.get('fallback_phases', False):
+        try:
+            p_fallback = kwargs['fallback_phases']['p']
+        except KeyError:
+            p_fallback = None
+        
+        try:
+            s_fallback = kwargs['fallback_phases']['s']
+        except KeyError:
+            s_fallback = None
+
     phase_marker_dict = defaultdict(dict)
 
     for source in sources:
         for target in targets:
             dist = orthodrome.distance_accurate50m(source, target)
             args = (source.depth, dist)
-            tmin = test_case.store.t('first(%s)'%phase_ids_start, args)+source.time+t_start_shift
+
+            tmin = store.t('first(%s)'%phase_ids_start, args)
+            if tmin is None and p_fallback:
+                print 'Using p_fallback'
+                tmin = store.t(p_fallback, args)
+            tmin += source.time+t_start_shift
 
             if static_offset:
                 tmax = tmin+static_offset
             else:
-                tmax = test_case.store.t('last(%s)'%phase_ids_end, args)+source.time+t_end_shift
+                tmax = store.t('first(%s)'%phase_ids_end, args)
+                if tmax is None:
+                    if s_fallback is not None:
+                        tmax = store.t(s_fallback, args)
+                    else:
+                        raise Exception("cannot interpolate tmax. Target: \n%s."%target+\
+                                            '\n Source: %s'%source) 
+
+                tmax += source.time+t_start_shift
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
@@ -134,6 +194,8 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     if isinstance(traces, types.GeneratorType):
         for s, t, tr in traces:
             m = markers[s][t]
+            s.regularize()
+            t.regularize()
             tr.chop(tmin=m.tmin,
                      tmax=m.tmax,
                      *args,
@@ -155,7 +217,8 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     return chopped_test_traces
 
 
-def extend_phase_markers(markers=[], scaling_factor=1, stations=None, event=None, phase='', model=None, inplace=False):
+def extend_phase_markers(markers=[], scaling_factor=1, stations=None, 
+                        event=None, phase='', model=None, inplace=False):
     '''
     Extend phase markers to fixed length proportional to time lag between
     phase markers tmin and event tmin.
@@ -204,6 +267,10 @@ def filter_traces_dict(self, traces_dict, tfade, freqlimits):
 
 
 def calculate_misfit(test_case, mode='waveform', **kwargs):
+    modes = ['waveform', 'positive', 'envelope']
+    if mode not in modes:
+        raise Exception('Invalid mode')
+    
     sources = test_case.sources
     targets = test_case.targets
     candidates = test_case.seismograms
@@ -222,7 +289,11 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
     mfsetup = test_case.misfit_setup
     norm = mfsetup.norm
 
-    for source in sources:
+    print('calculating misfits...')
+    pbar = progressbar.ProgressBar(maxval=len(sources)).start()
+
+    for si, source in enumerate(sources):
+        pbar.update(si)
         ms = num.empty([len(targets)], dtype=float)
         ns = num.empty([len(targets)], dtype=float)
         
@@ -234,10 +305,7 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                 mf = reft.misfit(candidates=[candidates[source][target]], 
                                             setups=mfsetup)
                 
-                print '........'
-
                 for m,n in mf:
-                    print m,n
                     ms[ti] = m
                     ns[ti] = n
 
@@ -250,6 +318,7 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                     reft = cached_ref[(target, cand.tmin, cand.tmax, cand.deltat)]
                     print 'success... using a cached one '
                 except KeyError:
+                    reft = reft.copy()
                     max_deltat = max(cand.deltat, reft.deltat)
                     
                     if abs(reft.deltat - max_deltat) / reft.deltat > 1e-6:
@@ -263,7 +332,6 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                     reft.extend(tmin=wanted_tmin, 
                                 tmax=wanted_tmax, 
                                 fillmethod='zeros')
-
                     
                     if kwargs.get('tfade', False):
                         tfade = kwargs[tfade]
@@ -275,7 +343,7 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                     else:
                         freqlimits=(0.01, 0.02, 50., 100.)
                     
-                    reft.transfer(tfade=tfade, 
+                    reft = reft.transfer(tfade=tfade, 
                                   freqlimits=freqlimits, 
                                   transfer_function=mfsetup.filter)
 
@@ -291,10 +359,11 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
                     cand.downsample_to(max_deltat, snap=True)
 
                 cand.extend(tmin=wanted_tmin, tmax=wanted_tmax)
-                cand.transfer(tfade=tfade,
+
+                cand = cand.transfer(tfade=tfade,
                               freqlimits=freqlimits,
                               transfer_function=mfsetup.filter)
-                
+
                 if mode=='envelope':
                     cand.envelope()
 
@@ -308,30 +377,27 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
 
                 uydata = cand.ydata
                 vydata = reft.ydata
-                uydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
-                vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                #uydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                #vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
                 
                 v_c = vydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
                 u_c = uydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                print v_c
-                print u_c
                 norm_c = ctypes.c_double(norm)
 
-                print len(reft.ydata)
-                print reft.ydata.shape
-                print reft.nslc_id
-                print reft.ydata
                 size_c = ctypes.c_int(len(reft.ydata))
-                ms[ti] = lx_norm_c.lxnorm_m(v_c, u_c, norm_c, size_c)
-                ns[ti] = lx_norm_c.lxnorm_n(v_c, norm_c, size_c)
-                print 'C: ', ms[ti]/ns[ti]
+                #ms[ti] = lx_norm_c.lxnorm_m(v_c, u_c, norm_c, size_c)
+                #ns[ti] = lx_norm_c.lxnorm_n(v_c, norm_c, size_c)
+                #print 'C: ', ms[ti]/ns[ti]
                 ms[ti], ns[ti] = trace.Lx_norm(uydata, vydata, norm)
                 #ms[ti], ns[ti] = trace.Lx_norm(reft.ydata, cand.ydata, norm)
-                print 'P: ', ms[ti]/ns[ti]
-        
+                #print 'P: ', ms[ti]/ns[ti]
+
+
         M = num.power(num.sum(abs(num.power(ms, norm))), 1./norm)
         N = num.power(num.sum(abs(num.power(ns, norm))), 1./norm)
             
         total_misfit[source] = M/N
+    pbar.update(si+1)
+    pbar.finish()
 
     return total_misfit
