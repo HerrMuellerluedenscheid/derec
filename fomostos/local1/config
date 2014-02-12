@@ -48,11 +48,8 @@ tabulated_phases:
   id: end
   definition: '2.5'
 - !pyrocko.gf.meta.TPDef
-  id: Sv_35s
-  definition: 'Sv_(cmb)s'
-- !pyrocko.gf.meta.TPDef
-  id: Pv_35p
-  definition: 'Pv_(cmb)p'
+  id: p
+  definition: '!p'
 - !pyrocko.gf.meta.TPDef
   id: P
   definition: '!P'
@@ -60,11 +57,20 @@ tabulated_phases:
   id: S
   definition: '!S'
 - !pyrocko.gf.meta.TPDef
-  id: p
-  definition: '!p'
-- !pyrocko.gf.meta.TPDef
   id: s
   definition: '!s'
+- !pyrocko.gf.meta.TPDef
+  id: Pv20p
+  definition: 'Pv20p'
+- !pyrocko.gf.meta.TPDef
+  id: Sv20s
+  definition: 'Sv20s'
+- !pyrocko.gf.meta.TPDef
+  id: Pv35p
+  definition: 'Pv35p'
+- !pyrocko.gf.meta.TPDef
+  id: Sv35s
+  definition: 'Sv35s'
 receiver_depth: 0.0
 source_depth_min: 0.0
 source_depth_max: 40000.0

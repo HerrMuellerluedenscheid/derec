@@ -1,16 +1,16 @@
-from pyrocko.trace import Lx_norm
+from pyrocko.trace import *
 import numpy as num
 import ctypes
 import time
 
 
 fun=ctypes.cdll.LoadLibrary('./liblxnorm.so')
-size = 500
-norm = 2
+size = 150
+norm = 1
 u = num.random.uniform(-1e21, 1e21,size)
 v = num.random.uniform(-1e21, 1e21,size)
 
-loops = 10000
+loops = 100000
 
 t1 = time.time()
 
@@ -28,10 +28,9 @@ t2 = time.time()
 print t2-t1
 print m, n
 
-
 t1 = time.time()
 for i in range(loops):
-    m,n = Lx_norm(u,v,norm)
+    m,n = L1_norm(u,v)
 
 t2 = time.time()
 print t2-t1
