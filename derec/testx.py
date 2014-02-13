@@ -5,12 +5,12 @@ import time
 
 
 fun=ctypes.cdll.LoadLibrary('./liblxnorm.so')
-size = 150
+size = 1500
 norm = 1
 u = num.random.uniform(-1e21, 1e21,size)
 v = num.random.uniform(-1e21, 1e21,size)
 
-loops = 100000
+loops = 10000
 
 t1 = time.time()
 
@@ -30,7 +30,15 @@ print m, n
 
 t1 = time.time()
 for i in range(loops):
-    m,n = L1_norm(u,v)
+    if norm ==1:
+        m,n = L1_norm(u,v)
+
+t2 = time.time()
+print t2-t1
+print m, n
+
+for i in range(loops):
+    m,n = Lx_norm(u,v, 1)
 
 t2 = time.time()
 print t2-t1

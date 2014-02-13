@@ -7,6 +7,7 @@ from matplotlib import cm
 from gmtpy import griddata_auto
 from scipy.signal import butter
 
+import matplotlib.gridspec as gridspec
 import os
 import progressbar
 import os
@@ -213,9 +214,10 @@ class Core:
                                                      extended_test_marker) 
 
         norm = 2.
-        taper = trace.CosFader(xfade=4) # Seconds or samples?
+        #taper = trace.CosFader(xfade=4) # Seconds or samples?
+        taper = trace.CosFader(xfrac=0.1) 
         
-        z, p, k = butter(4, 1.*num.pi*2, 'low', analog=True, output='zpk')
+        z, p, k = butter(4, 2.*num.pi*2, 'low', analog=True, output='zpk')
         fresponse = trace.PoleZeroResponse(z,p,k)
 
         setup = trace.MisfitSetup(norm=norm,
@@ -224,12 +226,13 @@ class Core:
                                   filter=fresponse)
         
         test_case.set_misfit_setup(setup)
-        total_misfit = du.calculate_misfit(test_case, mode='positive')
-        test_case.set_misfit(total_misfit)
+        du.calculate_misfit(test_case)
+
+        # Display results===================================================
         order=['lat', 'lon','depth']
         #test_case.plot1d(order, event.lon)
         #test_case.contourf(order)
-        test_case.check_plot(test_case.targets[0])
+        test_case.check_plot({'lat':11, 'depth':5000})
 
         #test_tin = TestTin([test_case])
         #optics = OpticBase(test_tin)
@@ -260,7 +263,7 @@ class TestTin():
             numpyrize_1d({latitude:10, depth:1000})
 
         '''
-        assert all(k in self.test_parameters for k in fix_parameters.keys())
+        assert all([k in self.test_parameters for k in fix_parameters.keys()])
         if not len(fix_parameters.keys())==len(self.test_parameters)-1:
             raise Exception('Expected %s fix_parameters, got %s' % (len(self.test_parameters)-1, len(fix_parameters.keys())))
 
@@ -329,15 +332,17 @@ class TestCase():
     '''
     In one test case, up to 3 parameters can be modified
     '''
-    def __init__(self, sources, targets, engine, store_id, test_parameters, use_envelope=False):
+    def __init__(self, sources, targets, engine, store_id, test_parameters):
         self.test_grid = None
         self.sources = sources
         self.engine = engine
         self.targets = targets
         self.test_parameters = test_parameters 
         self.store_id = store_id
-        self.use_envelope = use_envelope
 
+        self.processed_references = defaultdict(dict)
+        self.references = {}
+        self.processed_candidates = defaultdict(dict)
         self.seismograms = {}
         self.misfits = None
         self.misfit_setup = None
@@ -403,20 +408,52 @@ class TestCase():
 
         self.num_array = self.num_array.T
 
-    def get_sources_where(param_dict):
+    def get_sources_where(self, param_dict):
         '''
         param_dict is something like {latitude:10, longitude:10}
-        '''
-        assert all(param_dict.keys() in self.test_parameters)
-        import pdb
-        pdb.set_trace()
-        filter(lambda x: all(getattr(x,param_dict.keys()==param_dict.values()), self.sources))
 
-    def check_plot(self, sources, target):
-        plt.figure()
-        self.get_sources_where()
-        for source, target, xdata, ydata in self.get_ydata(source, target):
-            plt.plot(xdata, ydata)
+        :returns: list of sources, matching the required parameters in the param_dict.
+        '''
+        assert all([k in self.test_parameters for k in param_dict.keys()])
+        return filter(lambda s: all(map(lambda x: abs(getattr(s, x[0])-x[1])<1e-7, \
+                param_dict.items())), self.sources)
+
+    def check_plot(self, param_dict):
+        '''
+        param_dict is something like {latitude:10, longitude:10}, defining the 
+        area of source, that you would like to look at.
+        '''
+        sources = self.get_sources_where(param_dict)
+        gs = gridspec.GridSpec(3, len(self.targets)/3)
+        subplots = dict(zip(self.targets, gs))
+
+        for source  in sources:
+            for t,s in self.processed_candidates[source].items():
+                ax = plt.subplot(subplots[t])
+                pr_ref = self.processed_references[source][t]
+
+                if isinstance(s, trace.Trace):
+                    x = s.get_xdata()
+                    y = s.get_ydata()
+                    x_ref = pr_ref.get_xdata()
+                    y_ref = pr_ref.get_ydata()
+                else:
+                    import pdb
+                    pdb.set_trace()
+                    x = s[1]
+                    y = s[2]
+                    x_ref = s[0].get_xdata()
+                    y_ref = s[0].get_ydata()
+
+                ax.plot(x, y)
+                p = ax.fill_between(x_ref,
+                                    0,
+                                    y_ref,
+                                    facecolor='grey',
+                                    alpha=0.5)
+
+
+        #plt.tight_layout()
         plt.show()
 
     def plot1d(self, order, fix_parameter_value):
@@ -470,6 +507,6 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(selfdir, '../reference_stations_local.txt'))
 
     # generate stations from olat, olon:
-    stations = du.station_distribution((11.,11.),[[5000., 4], [50000., 8]], rotate={5000.:45})
+    stations = du.station_distribution((11.,11.),[[5000., 2], [50000., 2]], rotate={5000.:45})
     markers = gui_util.Marker.load_markers(pjoin(selfdir, '../reference_marker_local.txt'))
     C = Core(markers=markers, stations=stations)
