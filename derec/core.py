@@ -1,22 +1,18 @@
 from pyrocko.gf import *
-from pyrocko import cake, model, gui_util, util, io, pile, trace, moment_tensor
-from pyrocko import orthodrome
+from pyrocko import model, gui_util, pile, trace, moment_tensor
 from vtkOptics import *
 from collections import defaultdict
 from matplotlib import cm
 from gmtpy import griddata_auto
 from scipy.signal import butter
+from guts import *
 
 import matplotlib.gridspec as gridspec
-import os
 import progressbar
 import os
-import tempfile
 import derec_utils as du
 import numpy as num
 import copy
-import inspect
-import ctypes
 
 pjoin = os.path.join
 
@@ -86,7 +82,7 @@ def event2source(event, source_type='MT'):
                                        magnitude=5)
     else:
         raise Exception('invalid source type: %s'%source_type)
-
+    
     source_event.regularize()
     return [source_event]
 
@@ -157,7 +153,7 @@ class Core:
                                              engine.get_store(store_id),
                                              phase_ids_start,
                                              phase_ids_end,
-                                             fallback_phases=fallback_phases)
+                                             t_shift_frac=0.1)
 
         reference_seismograms = make_reference_trace(source, targets, engine)
         
@@ -202,8 +198,7 @@ class Core:
                                               test_case.store,
                                               phase_ids_start, 
                                               phase_ids_end,      
-                                              t_start_shift=-3.0, 
-                                              t_end_shift=2.)
+                                              t_shift_frac=0.1)
 
         print('chopping ref....')
         test_case.references = du.chop_using_markers(reference_seismograms,
@@ -217,16 +212,21 @@ class Core:
         #taper = trace.CosFader(xfade=4) # Seconds or samples?
         taper = trace.CosFader(xfrac=0.1) 
         
-        z, p, k = butter(4, 2.*num.pi*2, 'low', analog=True, output='zpk')
+        z, p, k = butter(4, 1.*num.pi*2, 'low', analog=True, output='zpk')
+        z = num.array(z, dtype=complex)
+        p = num.array(p, dtype=complex)
+        k = num.complex(k)
         fresponse = trace.PoleZeroResponse(z,p,k)
+        fresponse.regularize()
 
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='frequency_domain',
+                                  domain='time_domain',
                                   filter=fresponse)
         
         test_case.set_misfit_setup(setup)
         du.calculate_misfit(test_case)
+        test_case.YAML_dump()
 
         # Display results===================================================
         order=['lat', 'lon','depth']
@@ -325,18 +325,31 @@ class TestTin():
         if not isinstance(test_cases, list):
             test_cases = list(test_cases)
 
-        assert all(set(x.test_parameters)==set(test_cases[0].test_parameters) for x in test_cases)
+        assert all(set(x.test_parameters)==set(test_cases[0].test_parameters) 
+                            for x in test_cases)
 
 
-class TestCase():
+class TestCase(Object):
     '''
     In one test case, up to 3 parameters can be modified
     '''
-    def __init__(self, sources, targets, engine, store_id, test_parameters):
-        self.test_grid = None
-        self.sources = sources
+
+    sources = List.T(Source.T()) 
+    targets = List.T(Target.T()) 
+    engine = Engine.T()
+    store_id = String.T()
+    test_parameters = List.T(String.T())
+    misfit_setup = trace.MisfitSetup.T()
+
+    #processed_references = Dict.T(Dict.T())
+    
+
+    def __init__(self, sources=sources, targets=targets, engine=engine, 
+                        store_id=store_id, test_parameters=test_parameters):
+        self.targets=targets
+        # sollte unnoetig sein:
+        self.sources =sources
         self.engine = engine
-        self.targets = targets
         self.test_parameters = test_parameters 
         self.store_id = store_id
 
@@ -352,6 +365,7 @@ class TestCase():
 
     def set_misfit_setup(self, setup):
         self.misfit_setup = setup
+        self.misfit_setup.regularize(depth=-10)
 
     def request_data(self):
         print 'requesting data....'
@@ -369,13 +383,26 @@ class TestCase():
     def set_misfit(self, misfits):
         self.misfits=misfits 
 
-    def dump_requests(self):
-        for r in self.requests:
-            fn = 'test.yaml'
-            f = open(fn, 'w')
-            f.write(r.dump())
-            f.close()
+    def yaml_dump(self, fn='test.yaml'):
+        '''
+        Dump TestCase Object to yaml file.
+        '''
+        
+        f = open(fn, 'w')
+        f.write(self.dump())
+        f.close()
+    
+    @staticmethod
+    def yaml_2_TestCase(fn):
+        '''
+        Create a TestCase Object from file. 
 
+        :param fn: (str) filename
+        '''
+        f = open(fn, 'r')
+        tc = load_string(f.read())
+        print tc
+        
     def update_progressbar(self, a, b):
         try:
             self.progressbar.update(a)
@@ -424,27 +451,49 @@ class TestCase():
         area of source, that you would like to look at.
         '''
         sources = self.get_sources_where(param_dict)
-        gs = gridspec.GridSpec(3, len(self.targets)/3)
-        subplots = dict(zip(self.targets, gs))
+        
+        gs = gridspec.GridSpec(len(self.targets)/3,3)
+        gs_dict= dict(zip(self.targets, gs))
+
+
+        if self.misfit_setup.domain=='frequency_domain':
+            gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
+            gs_traces_dict= dict(zip(self.targets, gs_traces))
 
         for source  in sources:
-            for t,s in self.processed_candidates[source].items():
-                ax = plt.subplot(subplots[t])
+            for t,pr_cand in self.processed_candidates[source].items():
+                ax = plt.subplot(gs_dict[t])
                 pr_ref = self.processed_references[source][t]
 
-                if isinstance(s, trace.Trace):
-                    x = s.get_xdata()
-                    y = s.get_ydata()
+                if not self.misfit_setup.domain=='frequency_domain':
+                    x = pr_cand.get_xdata()
+                    y = pr_cand.get_ydata()
                     x_ref = pr_ref.get_xdata()
                     y_ref = pr_ref.get_ydata()
-                else:
-                    import pdb
-                    pdb.set_trace()
-                    x = s[1]
-                    y = s[2]
-                    x_ref = s[0].get_xdata()
-                    y_ref = s[0].get_ydata()
 
+                else:
+                    x = pr_cand[1]
+                    y = num.log10(num.abs(pr_cand[2]))
+                    x_ref = pr_ref[1]
+                    y_ref = num.log10(num.abs(pr_ref[2]))
+                    plt.xscale('log')
+
+                    c_tracex = pr_cand[0].get_xdata()
+                    r_tracex = pr_ref[0].get_xdata()
+                    c_tracey = pr_cand[0].get_ydata()
+                    r_tracey = pr_ref[0].get_ydata()
+
+                    ax_t = plt.subplot(gs_traces_dict[t])
+                    ax_t.set_title(t.codes)
+                    ax_t.plot(x, y)
+                    p = ax_t.fill_between(x_ref,
+                                        0,
+                                        y_ref,
+                                        facecolor='grey',
+                                        alpha=0.5)
+                    
+            
+                ax.set_title(t.codes)
                 ax.plot(x, y)
                 p = ax.fill_between(x_ref,
                                     0,
@@ -452,8 +501,7 @@ class TestCase():
                                     facecolor='grey',
                                     alpha=0.5)
 
-
-        #plt.tight_layout()
+        plt.tight_layout()
         plt.show()
 
     def plot1d(self, order, fix_parameter_value):

@@ -124,7 +124,8 @@ def make_reference_markers_cake(source, targets, model):
     return ref_marker
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end, 
-                    static_offset=None, t_start_shift=0, t_end_shift=0, **kwargs):
+                    static_offset=None, t_start_shift=None, t_end_shift=None, 
+                    t_shift_frac=None, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -145,6 +146,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
         except KeyError:
             s_fallback = None
 
+    assert None in [t_shift_frac, t_start_shift]
+    assert None in [t_shift_frac, t_end_shift]
+
     phase_marker_dict = defaultdict(dict)
 
     for source in sources:
@@ -156,7 +160,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
             if tmin is None and p_fallback:
                 print 'Using p_fallback'
                 tmin = store.t(p_fallback, args)
-            tmin += source.time+t_start_shift
+            tmin += source.time
 
             if static_offset:
                 tmax = tmin+static_offset
@@ -169,7 +173,13 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
                         raise Exception("cannot interpolate tmax. Target: \n%s."%target+\
                                             '\n Source: %s'%source) 
 
-                tmax += source.time+t_start_shift
+                tmax += source.time
+            
+            if t_shift_frac:
+                t_shift = (tmax-tmin)*t_shift_frac
+
+            tmin -= t_shift 
+            tmax += t_shift 
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
@@ -266,10 +276,7 @@ def filter_traces_dict(self, traces_dict, tfade, freqlimits):
         map(lambda x: x.transfer(tfade, freqlimits), s.values())
 
 
-def calculate_misfit(test_case, mode='waveform', **kwargs):
-    modes = ['waveform', 'positive', 'envelope']
-    if mode not in modes:
-        raise Exception('Invalid mode')
+def calculate_misfit(test_case):
     
     sources = test_case.sources
     targets = test_case.targets
@@ -278,12 +285,10 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
     assert len(references.items())==1
     total_misfit = defaultdict()
 
-    cached_ref= {}
-
     # c stuff
-    lx_norm_c = ctypes.cdll.LoadLibrary('./liblxnorm.so')
-    lx_norm_c.lxnorm_n.restype = ctypes.c_double
-    lx_norm_c.lxnorm_m.restype = ctypes.c_double
+    #lx_norm_c = ctypes.cdll.LoadLibrary('./liblxnorm.so')
+    #lx_norm_c.lxnorm_n.restype = ctypes.c_double
+    #lx_norm_c.lxnorm_m.restype = ctypes.c_double
     # eo c stuff
 
     mfsetup = test_case.misfit_setup
@@ -296,101 +301,43 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
         pbar.update(si)
         ms = num.empty([len(targets)], dtype=float)
         ns = num.empty([len(targets)], dtype=float)
+        c_data = []
+        r_data = []
         
         for ti, target in enumerate(targets):
             reft = references.values()[0][target]
-            if mode=='waveform':
-                # hier kann man auch candidates[source].values() benutzen. geht 
-                # schneller! Dafuer muessen aber erst alle candidates umsortiert werden. 
-                mf = reft.misfit(candidates=[candidates[source][target]], 
-                                            setups=mfsetup)
-                
-                for m,n in mf:
-                    ms[ti] = m
-                    ns[ti] = n
-
-            else: 
-                cand = candidates[source][target]
-                cand.snap()
-                reft.snap()
-
-                try:
-                    reft = cached_ref[(target, cand.tmin, cand.tmax, cand.deltat)]
-                    print 'success... using a cached one '
-                except KeyError:
-                    reft = reft.copy()
-                    max_deltat = max(cand.deltat, reft.deltat)
-                    
-                    if abs(reft.deltat - max_deltat) / reft.deltat > 1e-6:
-                        reft.downsample_to(max_deltat, snap=True)
-                    else:
-                        reft.snap()
-
-                    wanted_tmin = min(cand.tmin, reft.tmin) - max_deltat*0.5
-                    wanted_tmax = max(cand.tmax, reft.tmax) + max_deltat*0.5
-
-                    reft.extend(tmin=wanted_tmin, 
-                                tmax=wanted_tmax, 
-                                fillmethod='zeros')
-                    
-                    if kwargs.get('tfade', False):
-                        tfade = kwargs[tfade]
-                    else:
-                        tfade = 0.0
-
-                    if kwargs.get('freqlimits', False):
-                        freqlimits = kwargs[freqlimits]
-                    else:
-                        freqlimits=(0.01, 0.02, 50., 100.)
-                    
-                    reft = reft.transfer(tfade=tfade, 
-                                  freqlimits=freqlimits, 
-                                  transfer_function=mfsetup.filter)
-
-                    if mode=='envelope':
-                        reft.envelope()
-
-                    elif mode=='positive':
-                        reft.set_ydata(abs(reft.ydata))
-
-                    cached_ref[(target, wanted_tmin, wanted_tmax, max_deltat)] =\
-                                                                            reft
-                if abs(reft.deltat - max_deltat) / reft.deltat > 1e-6:
-                    cand.downsample_to(max_deltat, snap=True)
-
-                cand.extend(tmin=wanted_tmin, tmax=wanted_tmax)
-
-                cand = cand.transfer(tfade=tfade,
-                              freqlimits=freqlimits,
-                              transfer_function=mfsetup.filter)
-
-                if mode=='envelope':
-                    cand.envelope()
-
-                elif mode=='positive':
-                    cand.set_ydata(abs(cand.ydata))
+            # hier kann man auch candidates[source].values() benutzen. geht 
+            # schneller! Dafuer muessen aber erst alle candidates umsortiert werden. 
+            mf = reft.misfit(candidates=[candidates[source][target]], 
+                                        setups=mfsetup)
+            
+            for c_d, r_d , m, n in mf:
+                test_case.processed_candidates[source][target] = c_d
+                test_case.processed_references[source][target] = r_d
+                ms[ti] = m
+                ns[ti] = n
 
                 # wichtig!
-                if reft.ydata.shape != cand.ydata.shape:
-                    raise Exception('shapes are different: %s, %s'%\
-                            (reft.ydata.shape, cand.ydata.shape))
+                #if reft.ydata.shape != cand.ydata.shape:
+                #    raise Exception('shapes are different: %s, %s'%\
+                #            (reft.ydata.shape, cand.ydata.shape))
+                #
+                #uydata = cand.ydata
+                #vydata = reft.ydata
+                ##uydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                ##vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
+                #
+                #v_c = vydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                #u_c = uydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+                #norm_c = ctypes.c_double(norm)
 
-                uydata = cand.ydata
-                vydata = reft.ydata
-                #uydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
-                #vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
-                
-                v_c = vydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                u_c = uydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                norm_c = ctypes.c_double(norm)
-
-                size_c = ctypes.c_int(len(reft.ydata))
-                #ms[ti] = lx_norm_c.lxnorm_m(v_c, u_c, norm_c, size_c)
-                #ns[ti] = lx_norm_c.lxnorm_n(v_c, norm_c, size_c)
-                #print 'C: ', ms[ti]/ns[ti]
-                ms[ti], ns[ti] = trace.Lx_norm(uydata, vydata, norm)
-                #ms[ti], ns[ti] = trace.Lx_norm(reft.ydata, cand.ydata, norm)
-                #print 'P: ', ms[ti]/ns[ti]
+                #size_c = ctypes.c_int(len(reft.ydata))
+                ##ms[ti] = lx_norm_c.lxnorm_m(v_c, u_c, norm_c, size_c)
+                ##ns[ti] = lx_norm_c.lxnorm_n(v_c, norm_c, size_c)
+                ##print 'C: ', ms[ti]/ns[ti]
+                #ms[ti], ns[ti] = trace.Lx_norm(uydata, vydata, norm)
+                ##ms[ti], ns[ti] = trace.Lx_norm(reft.ydata, cand.ydata, norm)
+                ##print 'P: ', ms[ti]/ns[ti]
 
 
         M = num.power(num.sum(abs(num.power(ms, norm))), 1./norm)
@@ -399,5 +346,4 @@ def calculate_misfit(test_case, mode='waveform', **kwargs):
         total_misfit[source] = M/N
     pbar.update(si+1)
     pbar.finish()
-
-    return total_misfit
+    test_case.set_misfit(total_misfit)
