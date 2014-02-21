@@ -7,6 +7,7 @@ from gmtpy import griddata_auto
 from scipy.signal import butter
 from guts import *
 
+import matplotlib.mlab as mlab
 import matplotlib.gridspec as gridspec
 import progressbar
 import os
@@ -71,7 +72,7 @@ def event2source(event, source_type='MT'):
                                 strike=s,
                                 dip=d,
                                 rake=r,
-                                magnitude=5)
+                                magnitude=event.magnitude)
 
     elif source_type=='EX':
         m = event.moment_tensor.moment_magnitude
@@ -79,7 +80,7 @@ def event2source(event, source_type='MT'):
                                        lon=event.lon,
                                        depth=event.depth,
                                        time=event.time,
-                                       magnitude=5)
+                                       magnitude=event.magnitude)
     else:
         raise Exception('invalid source type: %s'%source_type)
     
@@ -119,7 +120,7 @@ def make_reference_trace(source, targets, engine):
 class Core:
     def __init__(self, markers, stations):
         # Targets================================================
-        store_id = 'local1'
+        store_id = 'very_local_20Hz'
 
         if store_id=='local1':
             phase_ids_start = 'p|P|Pv20p|Pv35p'
@@ -129,13 +130,19 @@ class Core:
             phase_ids_start = 'p|P|Pv3p|Pv8p|Pv20p|Pv35p'
             phase_ids_end =   's|S|Sv3s|Sv8s|Sv20s|Sv35s'
 
+        if store_id=='very_local_20Hz':
+            phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
+            phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
+
+
         targets = stations2targets(stations, store_id)
         # Event==================================================
         event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
         assert len(event) == 1
         event = event[0].get_event()
+        event.magnitude = 3
         event.moment_tensor = moment_tensor.MomentTensor(
-                                        m=num.array([[1.0, 0.0, 0.0],
+                                        m=num.array([[1.0, 0.0, -0.0],
                                                      [0.0, 1.0, 0.0],
                                                      [0.0, 0.0, 1.0]]))
     
@@ -147,31 +154,32 @@ class Core:
         engine = LocalEngine(store_superdirs=store_dirs)
         model = get_earthmodel_from_engine(engine, store_id) 
 
-        fallback_phases = {'p': 'p_fallback' }
         extended_ref_marker = du.chop_ranges(source, 
                                              targets, 
                                              engine.get_store(store_id),
                                              phase_ids_start,
                                              phase_ids_end,
-                                             t_shift_frac=0.1)
+                                             t_shift_frac=0.03)
 
         reference_seismograms = make_reference_trace(source, targets, engine)
         
         #TESTSOURCES===============================================
-        offset = 0.05
-        zoffset= 1000.
+        offset = 0.1
+        zoffset= 1500.
 
-        lats=num.arange(event.lat-offset, event.lat+offset, offset/4) 
-        lons=num.arange(event.lon-offset, event.lon+offset, offset/4)
+        #lats=num.arange(event.lat-offset, event.lat+offset, offset/2) 
+        lons=num.arange(event.lon-offset, event.lon+offset, offset/2)
         
-        depths = [event.depth]
+        #lons = [event.lon]
+        lats = [event.lat]
+        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/3)
+        #depths = [event.depth]
         print lats, '<- lats'
         print lons, '<- lons'
         print depths, '<- depths'
-        #depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/1)
 
-        strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[1]
-        m = event.moment_tensor.moment_magnitude
+        strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
+        print strike, dip, rake
         location_test_sources = [DCSource(lat=lat,
                                lon=lon,
                                depth=depth,
@@ -179,26 +187,34 @@ class Core:
                                strike=strike,
                                dip=dip,
                                rake=rake,
-                               magnitude=5) for depth in depths 
+                               magnitude=event.magnitude) for depth in depths 
                                         for lat in lats for lon in lons]
-        
+
+        for s in location_test_sources:
+            s.regularize()
         #==========================================================
 
         test_case = TestCase(location_test_sources, 
                              targets, 
                              engine, 
                              store_id, 
-                             test_parameters={'depth':depths, 'lat':lats, 'lon':lons})
+                             test_parameters={'depth':depths, 
+                                              'lat':lats, 
+                                              'lon':lons})
 
         test_case.request_data()
 
         print('test data marker....')
+        extended_test_marker = []
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
                                               phase_ids_start, 
-                                              phase_ids_end,      
-                                              t_shift_frac=0.1)
+                                              phase_ids_end, 
+                                              t_shift_frac=0.03)
+        
+        test_case.test_markers = extended_test_marker
+        test_case.ref_markers = extended_ref_marker
 
         print('chopping ref....')
         test_case.references = du.chop_using_markers(reference_seismograms,
@@ -210,29 +226,26 @@ class Core:
 
         norm = 2.
         #taper = trace.CosFader(xfade=4) # Seconds or samples?
-        taper = trace.CosFader(xfrac=0.1) 
+        taper = trace.CosFader(xfrac=0.3) 
         
-        z, p, k = butter(4, 1.*num.pi*2, 'low', analog=True, output='zpk')
+        z, p, k = butter(4, 3.*num.pi*2, 'low', analog=True, output='zpk')
         z = num.array(z, dtype=complex)
         p = num.array(p, dtype=complex)
         k = num.complex(k)
         fresponse = trace.PoleZeroResponse(z,p,k)
         fresponse.regularize()
-
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='time_domain',
+                                  domain='frequency_domain',
                                   filter=fresponse)
-        
         test_case.set_misfit_setup(setup)
         du.calculate_misfit(test_case)
-        test_case.YAML_dump()
+        #test_case.yaml_dump()
 
         # Display results===================================================
-        order=['lat', 'lon','depth']
         #test_case.plot1d(order, event.lon)
-        #test_case.contourf(order)
-        test_case.check_plot({'lat':11, 'depth':5000})
+        test_case.contourf({'lat':11})
+        test_case.check_plot({'lat':11, 'lon':11})
 
         #test_tin = TestTin([test_case])
         #optics = OpticBase(test_tin)
@@ -341,9 +354,6 @@ class TestCase(Object):
     test_parameters = List.T(String.T())
     misfit_setup = trace.MisfitSetup.T()
 
-    #processed_references = Dict.T(Dict.T())
-    
-
     def __init__(self, sources=sources, targets=targets, engine=engine, 
                         store_id=store_id, test_parameters=test_parameters):
         self.targets=targets
@@ -387,7 +397,6 @@ class TestCase(Object):
         '''
         Dump TestCase Object to yaml file.
         '''
-        
         f = open(fn, 'w')
         f.write(self.dump())
         f.close()
@@ -451,10 +460,10 @@ class TestCase(Object):
         area of source, that you would like to look at.
         '''
         sources = self.get_sources_where(param_dict)
-        
+
+        # google maps snuffling
         gs = gridspec.GridSpec(len(self.targets)/3,3)
         gs_dict= dict(zip(self.targets, gs))
-
 
         if self.misfit_setup.domain=='frequency_domain':
             gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
@@ -466,17 +475,20 @@ class TestCase(Object):
                 pr_ref = self.processed_references[source][t]
 
                 if not self.misfit_setup.domain=='frequency_domain':
-                    x = pr_cand.get_xdata()
-                    y = pr_cand.get_ydata()
-                    x_ref = pr_ref.get_xdata()
-                    y_ref = pr_ref.get_ydata()
+                    try:
+                        x = pr_cand.get_xdata()
+                        y = pr_cand.get_ydata()
+                        x_ref = pr_ref.get_xdata()
+                        y_ref = pr_ref.get_ydata()
+                    except AttributeError:
+                        print 'warning: processed candidate or reference is None'
+                        pass
 
                 else:
                     x = pr_cand[1]
                     y = num.log10(num.abs(pr_cand[2]))
                     x_ref = pr_ref[1]
                     y_ref = num.log10(num.abs(pr_ref[2]))
-                    plt.xscale('log')
 
                     c_tracex = pr_cand[0].get_xdata()
                     r_tracex = pr_ref[0].get_xdata()
@@ -484,24 +496,43 @@ class TestCase(Object):
                     r_tracey = pr_ref[0].get_ydata()
 
                     ax_t = plt.subplot(gs_traces_dict[t])
-                    ax_t.set_title(t.codes)
-                    ax_t.plot(x, y)
-                    p = ax_t.fill_between(x_ref,
+                    ax_t.set_title(t.codes, fontsize=8)
+                    ax_t.plot(c_tracex, c_tracey)
+                    p = ax_t.fill_between(r_tracex,
                                         0,
-                                        y_ref,
+                                        r_tracey,
                                         facecolor='grey',
-                                        alpha=0.5)
+                                        alpha=0.2)
                     
-            
-                ax.set_title(t.codes)
-                ax.plot(x, y)
+                ax.set_title('.'.join(t.codes), fontsize=11)
+                ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
+                                                   source.lon, 
+                                                   source.depth))
+
+                marker_min = self.test_markers[source][t].tmin
+                marker_max = self.test_markers[source][t].tmax
+
+                plt.annotate('p', xy=(marker_min, 0))
+                plt.annotate('s', xy=(marker_max, 0))
                 p = ax.fill_between(x_ref,
                                     0,
                                     y_ref,
                                     facecolor='grey',
                                     alpha=0.5)
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.tick_params(axis='both', which='major', labelsize=10)
+                #plt.tight_layout()
+                #plt.xscale('log')
 
-        plt.tight_layout()
+        plt.subplots_adjust(left=None, 
+                            bottom=None, 
+                            right=None, 
+                            top=None, 
+                            wspace=None, 
+                            hspace=0.6)
+
+        plt.legend(loc=2, prop={'size':8})
+        #plt.tight_layout()
         plt.show()
 
     def plot1d(self, order, fix_parameter_value):
@@ -517,16 +548,27 @@ class TestCase(Object):
         plt.plot(X, Z[index[0][0]])
         plt.show()
 
-    def contourf(self, order):
-        self.numpy_it(order=order)
+    def contourf(self, fix_parameter):
+        '''
+        :param fix_parameter: dict like {'lat':10}
+
+        parameters are sorted beforehand. This also defines the x and y axis.
+        (By alphabetical order)
+        '''
+        #sort parameters with fix_parameter key as last item
+        p = self.test_parameters.keys()
+        p.sort()
+        p.insert(2, p.pop(p.index(fix_parameter.keys()[0])))
+        self.numpy_it(order=p)
 
         x=self.num_array[0]
         y=self.num_array[1]
         z=self.num_array[2]
         v=self.num_array[3]
+        X,Y = num.meshgrid(x,y)
+        Z = mlab.griddata(x,y,v, X,Y)
 
-        X,Y,Z = griddata_auto(x,y,v)
-        plt.contourf(X,Y, Z, cmap=cm.bone_r)
+        plt.contourf(X,Y, Z, 25, cmap=cm.bone_r)
         plt.xlabel(self.xkey)
         plt.ylabel(self.ykey)
         cbar = plt.colorbar()

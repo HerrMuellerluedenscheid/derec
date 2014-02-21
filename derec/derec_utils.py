@@ -148,7 +148,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
 
     assert None in [t_shift_frac, t_start_shift]
     assert None in [t_shift_frac, t_end_shift]
-
+    t_shift = 0
     phase_marker_dict = defaultdict(dict)
 
     for source in sources:
@@ -176,10 +176,11 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
                 tmax += source.time
             
             if t_shift_frac:
-                t_shift = (tmax-tmin)*t_shift_frac
+                t_end_shift = -1*(tmax-tmin)*t_shift_frac
+                t_start_shift = -t_end_shift
 
-            tmin -= t_shift 
-            tmax += t_shift 
+            tmin += t_start_shift
+            tmax += t_end_shift 
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
@@ -213,16 +214,23 @@ def chop_using_markers(traces, markers, *args, **kwargs):
             chopped_test_traces[s][t] = tr
 
     else:
-        for trs in traces:
-            for source, target_list in markers.items():
-                for target, marker in target_list.items(): 
-                    if marker.nslc_ids==trs.nslc_id:
-                        trs.chop(tmin=marker.tmin,
-                                 tmax=marker.tmax,
-                                 *args,
-                                 **kwargs)
+        try:
 
-                        chopped_test_traces[source][target]=trs
+            for trs in traces:
+                for source, target_list in markers.items():
+                    for target, marker in target_list.items(): 
+                        if marker.nslc_ids==trs.nslc_id:
+                            trs.chop(tmin=marker.tmin,
+                                     tmax=marker.tmax,
+                                     *args,
+                                     **kwargs)
+
+                            chopped_test_traces[source][target]=trs
+        except trace.NoData:
+            import pdb
+            pdb.set_trace()
+            print '.'.join(trs.nslc_id)
+            raise
 
     return chopped_test_traces
 
