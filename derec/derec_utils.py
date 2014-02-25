@@ -76,8 +76,8 @@ def station_distribution(origin, rings, **kwargs):
 
         for azi in azis:
             lat, lon = lat_lon_from_dist_azi(olat, olon, radius, azi)
-            stations.append(model.Station(network=azi_to_location_digits(azi), 
-                                          station=x_to_station_digits(radius),
+            stations.append(model.Station(network=str(azi_to_location_digits(azi)), 
+                                          station=str(x_to_station_digits(radius)),
                                           lat=lat, 
                                           lon=lon))
             
@@ -85,11 +85,13 @@ def station_distribution(origin, rings, **kwargs):
 
 
 def z_to_network_digits(z):
-    return str(int(z)/1000)[0:2].zfill(2)
+    r = str(int(z)/1000)[0:2].zfill(2)
+    return r
 
 
 def x_to_station_digits(x):
-    return str(int(x)/1000)[0:3].zfill(3)
+    r = str(int(x)/1000)[0:3].zfill(3)
+    return r
 
 
 def azi_to_location_digits(azi):
@@ -97,7 +99,8 @@ def azi_to_location_digits(azi):
     :param azi:
     :return:
     """
-    return str(int(azi)).zfill(3)
+    r = str(int(azi)).zfill(3)
+    return r
 
 def make_reference_markers_cake(source, targets, model):
     
@@ -126,7 +129,6 @@ def make_reference_markers_cake(source, targets, model):
             tmin += s.time
             tmax += s.time
             assert tmin!=tmax
-            
             m = gui_util.PhaseMarker(nslc_ids=target.codes, 
                                     tmin=tmin,
                                     tmax=tmax,
@@ -149,6 +151,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
 
     static offset soll ersetzt werden....
     '''
+    assert None in [t_shift_frac, t_start_shift]
+    assert None in [t_shift_frac, t_end_shift]
+
     if kwargs.get('fallback_phases', False):
         try:
             p_fallback = kwargs['fallback_phases']['p']
@@ -164,8 +169,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
     if kwargs.get('parallelize', False):
         paralellize=True
 
-    assert None in [t_shift_frac, t_start_shift]
-    assert None in [t_shift_frac, t_end_shift]
+    if not isinstance(sources, list):
+        sources = [sources]
+
     t_shift = 0
     phase_marker_dict = defaultdict()
     def do_run(source, return_dict=None):
@@ -214,7 +220,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
             return_dict[target] = m
         return return_dict 
 
-    if parallelize == True:
+    if parallelize==True:
         nworkers = 1
         #for source, tmp_dict in parimap(do_run, sources):
         manager = Manager()
@@ -251,7 +257,7 @@ def chop_using_markers(traces, markers, *args, **kwargs):
                  tmax=m.tmax,
                  *args,
                  **kwargs)
-        tr.set_codes(s.lat, s.lon, s.depth)
+        tr.set_codes(str(s.lat), str(s.lon), str(s.depth))
         chopped_test_traces[s][t] = tr
 
     return chopped_test_traces
@@ -313,7 +319,6 @@ def calculate_misfit(test_case):
     targets = test_case.targets
     candidates = test_case.seismograms
     references = test_case.references
-    print references
     assert len(references.items())==1
     total_misfit = defaultdict()
 
@@ -345,8 +350,9 @@ def calculate_misfit(test_case):
             
             for c_d, r_d , m, n in mf:
                 if m==None or n==None:
-                    print 'm,n=None, skipping %s'%('.'.join(c_d.nslc_id),
-                            '.'.join(r_d.nslc_id) )
+                    print 'm,n =None'
+                    #print 'm,n=None, skipping %s'%('.'.join(c_d.nslc_id),
+                    #        '.'.join(r_d.nslc_id) )
                     continue
                 test_case.processed_candidates[source][target] = c_d
                 test_case.processed_references[source][target] = r_d

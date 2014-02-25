@@ -89,9 +89,8 @@ def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.)
     else:
         raise Exception('invalid source type: %s'%source_type)
 
-    
     source_event.regularize()
-    return [source_event]
+    return source_event
 
 
 def equal_attributes(o1, o2):
@@ -117,6 +116,9 @@ def set_refine_parameter(ref_event, **kwargs):
 
 
 def make_reference_trace(source, targets, engine):
+    if not isinstance(source, list):
+        source = [source]
+
     response = engine.process(
             sources=source,
             targets=targets)
@@ -175,21 +177,21 @@ class Core:
         engine = LocalEngine(store_superdirs=store_dirs)
         model = get_earthmodel_from_engine(engine, store_id) 
 
-        
         #TESTSOURCES===============================================
         
         offset = 0.05
 
         #offset von km in degrees umrechnen
         zoffset= 1000.
-
-        lats=num.arange(event.lat-offset, event.lat+offset, offset/5) 
-        lons=num.arange(event.lon-offset, event.lon+offset, offset/5)
+        ref_source = event2source(event, 'DC', rel_north_shift=40*km,
+                                                    rel_east_shift=30*km)
+        lats=num.arange(ref_source.lat-offset, ref_source.lat+offset, offset/5) 
+        lons=num.arange(ref_source.lon-offset, ref_source.lon+offset, offset/5)
         
-        #lons = [event.lon]
-        #lats = [event.lat]
-        #depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/5)
-        depths = [event.depth]
+        #lons = [ref_source.lon]
+        #lats = [ref_source.lat]
+        #depths=num.arange(ref_source.depth-zoffset, ref_source.depth+zoffset, zoffset/5)
+        depths = [ref_source.depth]
         print lats, '<- lats'
         print lons, '<- lons'
         print depths, '<- depths'
@@ -220,18 +222,17 @@ class Core:
                              test_parameters={'depth':depths, 
                                               'lat':lats, 
                                               'lon':lons})
+        test_case.ref_source = ref_source
 
         test_case.request_data()
 
-        test_case.ref_source = list(event2source(event, 'DC', rel_north_shift=0*km,
-                                                    rel_east_shift=0*km))
 
-        print id(test_case.targets[0])
+        print 'source location: ', test_case.ref_source
+
         reference_seismograms = make_reference_trace(test_case.ref_source,
                                                      test_case.targets, 
                                                      engine)
         
-        print id(test_case.targets[0])
         extended_ref_marker = du.chop_ranges(test_case.ref_source, 
                                              test_case.targets, 
                                              test_case.store,
@@ -239,9 +240,7 @@ class Core:
                                              phase_ids_end,
                                              t_shift_frac=0.10)
 
-
         print('test data marker....')
-        t1 = time.time()
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
@@ -249,7 +248,6 @@ class Core:
                                               phase_ids_end, 
                                               t_shift_frac=0.10)
         
-        print time.time()-t1
         test_case.test_markers = extended_test_marker
         test_case.ref_markers = extended_ref_marker
 
@@ -616,6 +614,7 @@ class TestCase(Object):
         v=v.reshape(len(self.test_parameters['lat']),
                 len(self.test_parameters['lon']))
         plt.contourf(x,y,v,20,  cmap=cm.bone_r)
+        plt.plot(self.ref_source.lat, self.ref_source.lon, '*')
         plt.xlabel(self.xkey)
         plt.ylabel(self.ykey)
         cbar = plt.colorbar()

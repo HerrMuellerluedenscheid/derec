@@ -4,6 +4,7 @@ import vtk
 import numpy as num
 from collections import defaultdict
 import matplotlib.pyplot as plt
+from gmtpy import GMT
 
 def make_3D_pseudo_data():
     n_samples = 75
@@ -39,6 +40,38 @@ def dict_2_3d_array(ddict):
         cube.append(slice)
     return num.array(cube)
 
+
+def gmt_map(event_lats=None, event_lons=None, station_lats=None, station_lons=None)
+    gmt = GMT( config={'BASEMAP_TYPE':'fancy'} )
+
+    lat_min = min(station_lats, event_lats)
+    lat_max = max(station_lats, event_lats)
+    lon_min = min(station_lons, event_lons)
+    lon_max = max(station_lons, event_lons)
+
+    lat_offset = (lat_max-lat_min)*0.3
+    lon_offset = (lon_max-lon_min)*0.3
+
+    gmt.pscoast( R='%i/%i/%i/%i'%(int(lon_min-lon_offset), 
+                                   int(lon_max+lon_offset), 
+                                   int(lat_min-lat_offset), 
+                                   int(lat_max+lat_offset)),
+                J='M10c',
+                B='4g4',
+                D='f',
+                S=(114,159,207),
+                G=(233,185,110),
+                W='thinnest')
+
+    if event_lats and event_lons:
+        gmt.psxy('-Sa1c', R=True, J=True, G=(255,0,0), in_columns=[event_lons,
+            event_lats])
+
+    if station_lats and station_lons:
+        gmt.psxy('-St1c', R=True, J=True, G(0,230,0), in_columns=[station_lats,
+            station_lons])
+
+    gmt.save('mapplot.pdf')
 
 
 class OpticBase():
