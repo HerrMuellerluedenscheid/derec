@@ -7,6 +7,7 @@ from gmtpy import griddata_auto
 from scipy.signal import butter
 from guts import *
 
+import time
 import matplotlib.mlab as mlab
 import matplotlib.gridspec as gridspec
 import progressbar
@@ -16,6 +17,7 @@ import numpy as num
 import copy
 
 pjoin = os.path.join
+km = 1000.
 
 def get_earthmodel_from_engine(engine, store_id):
     return engine.get_store(store_id).config.earthmodel_1d
@@ -41,17 +43,20 @@ def stations2targets(stations, store_id):
     return targets
 
 
-def event2source(event, source_type='MT'):
+def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.):
     '''
     Convert pyrockos original event into seismosizer MT source.
 
     MT Source magnitude not scaled?!
     returns list of sources
     '''
+    rel_n_deg, rel_e_deg = du.lat_lon_relative_shift(event.lat, event.lon,
+                                rel_north_shift, rel_east_shift)
+
     if source_type=='MT':
         m = event.moment_tensor._m
-        source_event = MTSource(lat=event.lat,
-                                   lon=event.lon,
+        source_event = MTSource(lat=rel_n_deg,
+                                   lon=rel_e_deg,
                                    depth=event.depth,
                                    time=event.time,
                                    mnn=float(m[0,0]),
@@ -65,8 +70,8 @@ def event2source(event, source_type='MT'):
         # only one of both possible s,d,r is needed.
         s,d,r = event.moment_tensor.both_strike_dip_rake()[0]
         m = event.moment_tensor.moment_magnitude
-        source_event = DCSource(lat=event.lat,
-                                lon=event.lon,
+        source_event = DCSource(lat=rel_n_deg,
+                                lon=rel_e_deg,
                                 depth=event.depth,
                                 time=event.time,
                                 strike=s,
@@ -76,13 +81,14 @@ def event2source(event, source_type='MT'):
 
     elif source_type=='EX':
         m = event.moment_tensor.moment_magnitude
-        source_event = ExplosionSource(lat=event.lat,
-                                       lon=event.lon,
+        source_event = ExplosionSource(lat=rel_n_deg,
+                                       lon=rel_e_deg,
                                        depth=event.depth,
                                        time=event.time,
                                        magnitude=event.magnitude)
     else:
         raise Exception('invalid source type: %s'%source_type)
+
     
     source_event.regularize()
     return [source_event]
@@ -114,13 +120,13 @@ def make_reference_trace(source, targets, engine):
     response = engine.process(
             sources=source,
             targets=targets)
-    return response.pyrocko_traces()
+    return response
     
 
 class Core:
-    def __init__(self, markers, stations):
+    def __init__(self, markers, stations=None):
         # Targets================================================
-        store_id = 'very_local_20Hz'
+        store_id = 'castor'
 
         if store_id=='local1':
             phase_ids_start = 'p|P|Pv20p|Pv35p'
@@ -134,19 +140,34 @@ class Core:
             phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
             phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
 
+        if store_id=='very_local_20Hz':
+            phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
+            phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
 
-        targets = stations2targets(stations, store_id)
+        if store_id=='castor':
+            # bug?! bei Pv1.5p gibt's bei nahen Entfernungen ein index ot of
+            # bounds
+            phase_ids_start = 'p|P|Pv12.5p|Pv2.5p|Pv18.5p|Pv20p|Pv35p'
+            phase_ids_end= 's|S|Sv12.5s|Sv2.5s|Sv18.5s|Sv20s|Sv35s'
+
         # Event==================================================
         event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
         assert len(event) == 1
         event = event[0].get_event()
-        event.magnitude = 3
+        event.magnitude = 4.3
         event.moment_tensor = moment_tensor.MomentTensor(
                                         m=num.array([[1.0, 0.0, -0.0],
                                                      [0.0, 1.0, 0.0],
                                                      [0.0, 0.0, 1.0]]))
     
-        source = list(event2source(event, 'DC'))
+
+        # generate stations from olat, olon:
+        if not stations:
+            stations = du.station_distribution((event.lat,event.lon),
+                                           [[10000., 4], [130000., 8]], 
+                                           rotate={3000.:45, 130000.:0})
+
+        targets = stations2targets(stations, store_id)
 
         derec_home = os.environ["DEREC_HOME"]
         store_dirs = [derec_home + '/fomostos']
@@ -154,29 +175,27 @@ class Core:
         engine = LocalEngine(store_superdirs=store_dirs)
         model = get_earthmodel_from_engine(engine, store_id) 
 
-        extended_ref_marker = du.chop_ranges(source, 
-                                             targets, 
-                                             engine.get_store(store_id),
-                                             phase_ids_start,
-                                             phase_ids_end,
-                                             t_shift_frac=0.03)
-
-        reference_seismograms = make_reference_trace(source, targets, engine)
         
         #TESTSOURCES===============================================
-        offset = 0.1
-        zoffset= 1500.
+        
+        offset = 0.05
 
-        #lats=num.arange(event.lat-offset, event.lat+offset, offset/2) 
-        lons=num.arange(event.lon-offset, event.lon+offset, offset/2)
+        #offset von km in degrees umrechnen
+        zoffset= 1000.
+
+        lats=num.arange(event.lat-offset, event.lat+offset, offset/5) 
+        lons=num.arange(event.lon-offset, event.lon+offset, offset/5)
         
         #lons = [event.lon]
-        lats = [event.lat]
-        depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/3)
-        #depths = [event.depth]
+        #lats = [event.lat]
+        #depths=num.arange(event.depth-zoffset, event.depth+zoffset, zoffset/5)
+        depths = [event.depth]
         print lats, '<- lats'
         print lons, '<- lons'
         print depths, '<- depths'
+        print event.lat, '<- event lat'
+        print event.lon, '<- event lon'
+        print event.depth, '<- event depth'
 
         strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
         print strike, dip, rake
@@ -204,20 +223,39 @@ class Core:
 
         test_case.request_data()
 
+        test_case.ref_source = list(event2source(event, 'DC', rel_north_shift=0*km,
+                                                    rel_east_shift=0*km))
+
+        print id(test_case.targets[0])
+        reference_seismograms = make_reference_trace(test_case.ref_source,
+                                                     test_case.targets, 
+                                                     engine)
+        
+        print id(test_case.targets[0])
+        extended_ref_marker = du.chop_ranges(test_case.ref_source, 
+                                             test_case.targets, 
+                                             test_case.store,
+                                             phase_ids_start,
+                                             phase_ids_end,
+                                             t_shift_frac=0.10)
+
+
         print('test data marker....')
-        extended_test_marker = []
+        t1 = time.time()
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
                                               phase_ids_start, 
                                               phase_ids_end, 
-                                              t_shift_frac=0.03)
+                                              t_shift_frac=0.10)
         
+        print time.time()-t1
         test_case.test_markers = extended_test_marker
         test_case.ref_markers = extended_ref_marker
 
         print('chopping ref....')
-        test_case.references = du.chop_using_markers(reference_seismograms,
+        print id(test_case.targets[0])
+        test_case.references = du.chop_using_markers(reference_seismograms.iter_results(),
                                                      extended_ref_marker)
 
         print('chopping cand....')
@@ -226,9 +264,13 @@ class Core:
 
         norm = 2.
         #taper = trace.CosFader(xfade=4) # Seconds or samples?
-        taper = trace.CosFader(xfrac=0.3) 
+        taper = trace.CosFader(xfrac=0.1) 
         
-        z, p, k = butter(4, 3.*num.pi*2, 'low', analog=True, output='zpk')
+        z, p, k = butter(4, (2.*num.pi*2. ,0.4*num.pi*2.) , 
+                           'bandpass', 
+                           analog=True, 
+                           output='zpk')
+
         z = num.array(z, dtype=complex)
         p = num.array(p, dtype=complex)
         k = num.complex(k)
@@ -236,16 +278,17 @@ class Core:
         fresponse.regularize()
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='frequency_domain',
+                                  domain='time_domain',
                                   filter=fresponse)
+
         test_case.set_misfit_setup(setup)
         du.calculate_misfit(test_case)
         #test_case.yaml_dump()
 
         # Display results===================================================
         #test_case.plot1d(order, event.lon)
-        test_case.contourf({'lat':11})
-        test_case.check_plot({'lat':11, 'lon':11})
+        test_case.contourf({'depth':event.depth})
+        #test_case.check_plot({'lat':event.lat, 'depth':event.depth})
 
         #test_tin = TestTin([test_case])
         #optics = OpticBase(test_tin)
@@ -278,7 +321,8 @@ class TestTin():
         '''
         assert all([k in self.test_parameters for k in fix_parameters.keys()])
         if not len(fix_parameters.keys())==len(self.test_parameters)-1:
-            raise Exception('Expected %s fix_parameters, got %s' % (len(self.test_parameters)-1, len(fix_parameters.keys())))
+            raise Exception('Expected %s fix_parameters, got %s' % 
+                        (len(self.test_parameters)-1, len(fix_parameters.keys())))
 
         x = []
         y = []
@@ -305,7 +349,8 @@ class TestTin():
         '''
         assert all(k in self.test_parameters for k in fix_parameters.keys())
         if not len(fix_parameters.keys())==len(self.test_parameters)-1:
-            raise Exception('Expected %s fix_parameters, got %s' % (len(self.test_parameters)-1, len(fix_parameters.keys())))
+            raise Exception('Expected %s fix_parameters, got %s' % 
+                        (len(self.test_parameters)-1, len(fix_parameters.keys())))
 
         data = num.ndarray(shape=(len(tc),len()))
 
@@ -347,6 +392,7 @@ class TestCase(Object):
     In one test case, up to 3 parameters can be modified
     '''
 
+    
     sources = List.T(Source.T()) 
     targets = List.T(Target.T()) 
     engine = Engine.T()
@@ -375,7 +421,7 @@ class TestCase(Object):
 
     def set_misfit_setup(self, setup):
         self.misfit_setup = setup
-        self.misfit_setup.regularize(depth=-10)
+        #self.misfit_setup.regularize(depth=10)
 
     def request_data(self):
         print 'requesting data....'
@@ -410,7 +456,6 @@ class TestCase(Object):
         '''
         f = open(fn, 'r')
         tc = load_string(f.read())
-        print tc
         
     def update_progressbar(self, a, b):
         try:
@@ -450,7 +495,7 @@ class TestCase(Object):
 
         :returns: list of sources, matching the required parameters in the param_dict.
         '''
-        assert all([k in self.test_parameters for k in param_dict.keys()])
+        #assert all([float(v) in self.test_parameters[k] for k,v in param_dict.items()])
         return filter(lambda s: all(map(lambda x: abs(getattr(s, x[0])-x[1])<1e-7, \
                 param_dict.items())), self.sources)
 
@@ -474,25 +519,18 @@ class TestCase(Object):
                 ax = plt.subplot(gs_dict[t])
                 pr_ref = self.processed_references[source][t]
 
-                if not self.misfit_setup.domain=='frequency_domain':
-                    try:
-                        x = pr_cand.get_xdata()
-                        y = pr_cand.get_ydata()
-                        x_ref = pr_ref.get_xdata()
-                        y_ref = pr_ref.get_ydata()
-                    except AttributeError:
-                        print 'warning: processed candidate or reference is None'
-                        pass
-
-                else:
+                if self.misfit_setup.domain=='frequency_domain':
+                    cand = pr_cand[0]
                     x = pr_cand[1]
                     y = num.log10(num.abs(pr_cand[2]))
+                    ref = pr_ref[0]
                     x_ref = pr_ref[1]
                     y_ref = num.log10(num.abs(pr_ref[2]))
 
                     c_tracex = pr_cand[0].get_xdata()
-                    r_tracex = pr_ref[0].get_xdata()
                     c_tracey = pr_cand[0].get_ydata()
+
+                    r_tracex = pr_ref[0].get_xdata()
                     r_tracey = pr_ref[0].get_ydata()
 
                     ax_t = plt.subplot(gs_traces_dict[t])
@@ -503,6 +541,12 @@ class TestCase(Object):
                                         r_tracey,
                                         facecolor='grey',
                                         alpha=0.2)
+
+                else:
+                    x = pr_cand.get_xdata()
+                    y = pr_cand.get_ydata() 
+                    x_ref = pr_ref.get_xdata()
+                    y_ref = pr_ref.get_ydata()
                     
                 ax.set_title('.'.join(t.codes), fontsize=11)
                 ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
@@ -521,8 +565,8 @@ class TestCase(Object):
                                     alpha=0.5)
                 plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
                 plt.tick_params(axis='both', which='major', labelsize=10)
-                #plt.tight_layout()
-                #plt.xscale('log')
+                if self.misfit_setup.domain=='frequency_domain':
+                    plt.xscale('log')
 
         plt.subplots_adjust(left=None, 
                             bottom=None, 
@@ -565,10 +609,13 @@ class TestCase(Object):
         y=self.num_array[1]
         z=self.num_array[2]
         v=self.num_array[3]
-        X,Y = num.meshgrid(x,y)
-        Z = mlab.griddata(x,y,v, X,Y)
-
-        plt.contourf(X,Y, Z, 25, cmap=cm.bone_r)
+        x=x.reshape(len(self.test_parameters['lat']),
+                len(self.test_parameters['lon']))
+        y=y.reshape(len(self.test_parameters['lat']),
+                len(self.test_parameters['lon']))
+        v=v.reshape(len(self.test_parameters['lat']),
+                len(self.test_parameters['lon']))
+        plt.contourf(x,y,v,20,  cmap=cm.bone_r)
         plt.xlabel(self.xkey)
         plt.ylabel(self.ykey)
         cbar = plt.colorbar()
@@ -594,9 +641,9 @@ if __name__ ==  "__main__":
     selfdir = selfdir.rsplit('/')[0]
     
     # load stations from file:
-    stations = model.load_stations(pjoin(selfdir, '../reference_stations_local.txt'))
+    #stations = model.load_stations(pjoin(selfdir, '../reference_stations_castor.txt'))
 
-    # generate stations from olat, olon:
-    stations = du.station_distribution((11.,11.),[[5000., 2], [50000., 2]], rotate={5000.:45})
-    markers = gui_util.Marker.load_markers(pjoin(selfdir, '../reference_marker_local.txt'))
-    C = Core(markers=markers, stations=stations)
+    markers = gui_util.Marker.load_markers(pjoin(selfdir,
+                                                    '../reference_marker_castor.txt'))
+
+    C = Core(markers=markers, stations=None)

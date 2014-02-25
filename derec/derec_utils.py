@@ -10,14 +10,29 @@ from collections import defaultdict
 from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model
 from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
+from pyrocko.parimap import parimap
 
+from multiprocessing import Pool, Pipe, Process, Manager
+from itertools import izip
 
 logger = logging.getLogger('derec_utils')
 
 
+re = 6371000.785
+
 class NoMatchingTraces(Exception):
     def __str__(self):
         return 'No matching traces found.'
+
+def lat_lon_relative_shift(olat, olon, north_shift, east_shift):
+    '''
+    Uses flat earth approximation. 
+    '''
+    rolat = radians(olat)
+    dlat = north_shift/re
+    dlon = east_shift/(re*cos(pi*rolat/180.))
+    
+    return olat+dlat*180/pi, olon+dlon*180/pi
 
 
 def lat_lon_from_dist_azi(olat, olon, dist, azim):
@@ -31,7 +46,6 @@ def lat_lon_from_dist_azi(olat, olon, dist, azim):
     :return lat, lon: new latitude and longitude 
     @rtype : float, float
     """
-    re = 6371000.785
     olat = radians(olat)
     olon = radians(olon)
     azi = radians(azim)
@@ -146,12 +160,18 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
         except KeyError:
             s_fallback = None
 
+    parallelize = False 
+    if kwargs.get('parallelize', False):
+        paralellize=True
+
     assert None in [t_shift_frac, t_start_shift]
     assert None in [t_shift_frac, t_end_shift]
     t_shift = 0
-    phase_marker_dict = defaultdict(dict)
+    phase_marker_dict = defaultdict()
+    def do_run(source, return_dict=None):
+        if return_dict is None:
+            return_dict = defaultdict()
 
-    for source in sources:
         for target in targets:
             dist = orthodrome.distance_accurate50m(source, target)
             args = (source.depth, dist)
@@ -176,8 +196,8 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
                 tmax += source.time
             
             if t_shift_frac:
-                t_end_shift = -1*(tmax-tmin)*t_shift_frac
-                t_start_shift = -t_end_shift
+                t_start_shift = -(tmax-tmin)*t_shift_frac
+                t_end_shift = t_start_shift
 
             tmin += t_start_shift
             tmax += t_end_shift 
@@ -191,7 +211,28 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
 
             m.set_selected(True)
 
-            phase_marker_dict[source][target] = m
+            return_dict[target] = m
+        return return_dict 
+
+    if parallelize == True:
+        nworkers = 1
+        #for source, tmp_dict in parimap(do_run, sources):
+        manager = Manager()
+        return_dict = manager.dict()
+        jobs = []
+        for i in range(nworkers):
+            p = Process(target=do_run, args=(sources, return_dict))
+            jobs.append(p)
+            p.start()
+
+        for proc in jobs:
+            proc.join()
+        
+        #for source, tmp_dict in p.map(do_run, sources):
+        #    phase_marker_dict[source] = tmp_dict
+    else:
+        for source in sources:
+            phase_marker_dict[source] = do_run(source)
     return phase_marker_dict
 
 
@@ -202,35 +243,16 @@ def chop_using_markers(traces, markers, *args, **kwargs):
     '''
     chopped_test_traces = defaultdict(dict)
     
-    if isinstance(traces, types.GeneratorType):
-        for s, t, tr in traces:
-            m = markers[s][t]
-            s.regularize()
-            t.regularize()
-            tr.chop(tmin=m.tmin,
-                     tmax=m.tmax,
-                     *args,
-                     **kwargs)
-            chopped_test_traces[s][t] = tr
-
-    else:
-        try:
-
-            for trs in traces:
-                for source, target_list in markers.items():
-                    for target, marker in target_list.items(): 
-                        if marker.nslc_ids==trs.nslc_id:
-                            trs.chop(tmin=marker.tmin,
-                                     tmax=marker.tmax,
-                                     *args,
-                                     **kwargs)
-
-                            chopped_test_traces[source][target]=trs
-        except trace.NoData:
-            import pdb
-            pdb.set_trace()
-            print '.'.join(trs.nslc_id)
-            raise
+    for s, t, tr in traces:
+        m = markers[s][t]
+        s.regularize()
+        t.regularize()
+        tr.chop(tmin=m.tmin,
+                 tmax=m.tmax,
+                 *args,
+                 **kwargs)
+        tr.set_codes(s.lat, s.lon, s.depth)
+        chopped_test_traces[s][t] = tr
 
     return chopped_test_traces
 
@@ -259,20 +281,21 @@ def extend_phase_markers(markers=[], scaling_factor=1, stations=None,
         for marker in markers:
             if isinstance(marker, gui_util.PhaseMarker):
                 t_event = marker.get_event().time
-                marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event) * 0.33 * scaling_factor
+                marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event)*\
+                        0.33 * scaling_factor
                 yield marker
 
 
 def sampling_rate_similar(t1, t2):
     '''
-    returns True, if the difference in sampling rates is bigger than 1.0% of t1's sampling rate
+    returns True, if the difference in sampling rates is bigger than 1.0% 
+    of t1's sampling rate.
     '''
     return abs(t1.deltat - t2.deltat) <= t1.deltat / 100
 
 
 def plot_misfit_dict(mfdict):
     plt.figure()
-    print mfdict.values()
     plt.plot(mfdict.values(), '+')
     plt.xlabel('Depth [m]')
     plt.ylabel('Misfit []')
@@ -290,6 +313,7 @@ def calculate_misfit(test_case):
     targets = test_case.targets
     candidates = test_case.seismograms
     references = test_case.references
+    print references
     assert len(references.items())==1
     total_misfit = defaultdict()
 
@@ -304,7 +328,6 @@ def calculate_misfit(test_case):
 
     print('calculating misfits...')
     pbar = progressbar.ProgressBar(maxval=len(sources)).start()
-
     for si, source in enumerate(sources):
         pbar.update(si)
         ms = num.empty([len(targets)], dtype=float)
@@ -316,10 +339,15 @@ def calculate_misfit(test_case):
             reft = references.values()[0][target]
             # hier kann man auch candidates[source].values() benutzen. geht 
             # schneller! Dafuer muessen aber erst alle candidates umsortiert werden. 
+
             mf = reft.misfit(candidates=[candidates[source][target]], 
                                         setups=mfsetup)
             
             for c_d, r_d , m, n in mf:
+                if m==None or n==None:
+                    print 'm,n=None, skipping %s'%('.'.join(c_d.nslc_id),
+                            '.'.join(r_d.nslc_id) )
+                    continue
                 test_case.processed_candidates[source][target] = c_d
                 test_case.processed_references[source][target] = r_d
                 ms[ti] = m
@@ -347,9 +375,8 @@ def calculate_misfit(test_case):
                 ##ms[ti], ns[ti] = trace.Lx_norm(reft.ydata, cand.ydata, norm)
                 ##print 'P: ', ms[ti]/ns[ti]
 
-
-        M = num.power(num.sum(abs(num.power(ms, norm))), 1./norm)
-        N = num.power(num.sum(abs(num.power(ns, norm))), 1./norm)
+        M = num.power(num.sum(num.abs(num.power(ms, norm))), 1./norm)
+        N = num.power(num.sum(num.abs(num.power(ns, norm))), 1./norm)
             
         total_misfit[source] = M/N
     pbar.update(si+1)
