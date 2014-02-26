@@ -3,6 +3,7 @@ from pyrocko import model, gui_util, pile, trace, moment_tensor
 from vtkOptics import *
 from collections import defaultdict
 from matplotlib import cm
+from matplotlib.mlab import griddata
 from gmtpy import griddata_auto
 from scipy.signal import butter
 from guts import *
@@ -165,6 +166,7 @@ class Core:
 
         # generate stations from olat, olon:
         if not stations:
+            print 'Generating station distribution.'
             stations = du.station_distribution((event.lat,event.lon),
                                            [[10000., 4], [130000., 8]], 
                                            rotate={3000.:45, 130000.:0})
@@ -179,17 +181,21 @@ class Core:
 
         #TESTSOURCES===============================================
         
-        offset = 0.05
-
-        #offset von km in degrees umrechnen
+        offset = 5*km
         zoffset= 1000.
-        ref_source = event2source(event, 'DC', rel_north_shift=40*km,
-                                                    rel_east_shift=30*km)
-        lats=num.arange(ref_source.lat-offset, ref_source.lat+offset, offset/5) 
-        lons=num.arange(ref_source.lon-offset, ref_source.lon+offset, offset/5)
-        
-        #lons = [ref_source.lon]
-        #lats = [ref_source.lat]
+        ref_source = event2source(event, 'DC' )
+        center_lat = ref_source.lat
+        center_lon = ref_source.lon
+
+        negative_lat_offset, negative_lon_offset = du.lat_lon_relative_shift(
+                center_lat, center_lon, -offset, -offset)
+
+        positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
+                center_lat, center_lon, offset, offset)
+
+        lats=num.linspace(negative_lat_offset, positive_lat_offset, 50) 
+        lons=num.linspace(negative_lon_offset, positive_lon_offset, 50)
+
         #depths=num.arange(ref_source.depth-zoffset, ref_source.depth+zoffset, zoffset/5)
         depths = [ref_source.depth]
         print lats, '<- lats'
@@ -237,28 +243,27 @@ class Core:
                                              test_case.targets, 
                                              test_case.store,
                                              phase_ids_start,
-                                             phase_ids_end,
-                                             t_shift_frac=0.10)
+                                             phase_ids_end)
 
         print('test data marker....')
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
                                               phase_ids_start, 
-                                              phase_ids_end, 
-                                              t_shift_frac=0.10)
+                                              phase_ids_end)
         
         test_case.test_markers = extended_test_marker
         test_case.ref_markers = extended_ref_marker
 
         print('chopping ref....')
-        print id(test_case.targets[0])
-        test_case.references = du.chop_using_markers(reference_seismograms.iter_results(),
-                                                     extended_ref_marker)
+        test_case.references = du.chop_using_markers(
+                reference_seismograms.iter_results(), extended_ref_marker, 
+                                                        t_shift_frac=0.1)
 
         print('chopping cand....')
-        test_case.seismograms = du.chop_using_markers(test_case.response.iter_results(),
-                                                     extended_test_marker) 
+        test_case.seismograms = du.chop_using_markers(
+                test_case.response.iter_results(), extended_test_marker, 
+                                                        t_shift_frac=0.1)
 
         norm = 2.
         #taper = trace.CosFader(xfade=4) # Seconds or samples?
@@ -285,12 +290,13 @@ class Core:
 
         # Display results===================================================
         #test_case.plot1d(order, event.lon)
-        test_case.contourf({'depth':event.depth})
-        #test_case.check_plot({'lat':event.lat, 'depth':event.depth})
+        test_case.contourf({'depth':ref_source.depth})
 
-        #test_tin = TestTin([test_case])
-        #optics = OpticBase(test_tin)
+        #test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
+
+        optics = OpticBase(test_case)
         #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
+        optics.gmt_map(stations=True, events=True)
 
 
 class TestTin():
@@ -603,17 +609,26 @@ class TestCase(Object):
         p.insert(2, p.pop(p.index(fix_parameter.keys()[0])))
         self.numpy_it(order=p)
 
-        x=self.num_array[0]
-        y=self.num_array[1]
-        z=self.num_array[2]
-        v=self.num_array[3]
-        x=x.reshape(len(self.test_parameters['lat']),
+        xraw = self.num_array[0]
+        yraw = self.num_array[1]
+        zraw = self.num_array[2]
+        vraw = self.num_array[3]
+
+        # TODO: Ersetzen durch test parameter keys
+        x=xraw.reshape(len(self.test_parameters['lat']),
                 len(self.test_parameters['lon']))
-        y=y.reshape(len(self.test_parameters['lat']),
+        y=yraw.reshape(len(self.test_parameters['lat']),
                 len(self.test_parameters['lon']))
-        v=v.reshape(len(self.test_parameters['lat']),
+        v=vraw.reshape(len(self.test_parameters['lat']),
                 len(self.test_parameters['lon']))
-        plt.contourf(x,y,v,20,  cmap=cm.bone_r)
+
+        xi = num.linspace(min(xraw), max(xraw), 100)
+        yi = num.linspace(min(yraw), max(yraw), 100)
+        zi = griddata(xraw,yraw, vraw, xi, yi)
+
+        cf = plt.contourf(xi,yi,zi, 25,  cmap=cm.bone_r)
+        #cf = plt.contourf(x,y,v, 10,  cmap=cm.bone_r)
+
         plt.plot(self.ref_source.lat, self.ref_source.lon, '*')
         plt.xlabel(self.xkey)
         plt.ylabel(self.ykey)
@@ -640,9 +655,10 @@ if __name__ ==  "__main__":
     selfdir = selfdir.rsplit('/')[0]
     
     # load stations from file:
-    #stations = model.load_stations(pjoin(selfdir, '../reference_stations_castor.txt'))
+    stations = model.load_stations(pjoin(selfdir,
+                            '../reference_stations_castor_selection.txt'))
 
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                     '../reference_marker_castor.txt'))
 
-    C = Core(markers=markers, stations=None)
+    C = Core(markers=markers, stations=stations)

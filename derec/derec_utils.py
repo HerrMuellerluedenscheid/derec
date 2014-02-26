@@ -27,6 +27,8 @@ class NoMatchingTraces(Exception):
 def lat_lon_relative_shift(olat, olon, north_shift, east_shift):
     '''
     Uses flat earth approximation. 
+    :param olat, olon: origin latitude/ longitude in degrees
+    :param north_shift, east_shift: horizontal shifts in meters.
     '''
     rolat = radians(olat)
     dlat = north_shift/re
@@ -139,9 +141,8 @@ def make_reference_markers_cake(source, targets, model):
             ref_marker[s][target] = m
     return ref_marker
 
-def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end, 
-                    static_offset=None, t_start_shift=None, t_end_shift=None, 
-                    t_shift_frac=None, **kwargs):
+def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
+        **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -151,9 +152,6 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
 
     static offset soll ersetzt werden....
     '''
-    assert None in [t_shift_frac, t_start_shift]
-    assert None in [t_shift_frac, t_end_shift]
-
     if kwargs.get('fallback_phases', False):
         try:
             p_fallback = kwargs['fallback_phases']['p']
@@ -171,8 +169,6 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
 
     if not isinstance(sources, list):
         sources = [sources]
-
-    t_shift = 0
     phase_marker_dict = defaultdict()
     def do_run(source, return_dict=None):
         if return_dict is None:
@@ -188,25 +184,15 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
                 tmin = store.t(p_fallback, args)
             tmin += source.time
 
-            if static_offset:
-                tmax = tmin+static_offset
-            else:
-                tmax = store.t('first(%s)'%phase_ids_end, args)
-                if tmax is None:
-                    if s_fallback is not None:
-                        tmax = store.t(s_fallback, args)
-                    else:
-                        raise Exception("cannot interpolate tmax. Target: \n%s."%target+\
-                                            '\n Source: %s'%source) 
+            tmax = store.t('first(%s)'%phase_ids_end, args)
+            if tmax is None:
+                if s_fallback is not None:
+                    tmax = store.t(s_fallback, args)
+                else:
+                    raise Exception("cannot interpolate tmax. Target: \n%s."%target+\
+                                        '\n Source: %s'%source) 
 
-                tmax += source.time
-            
-            if t_shift_frac:
-                t_start_shift = -(tmax-tmin)*t_shift_frac
-                t_end_shift = t_start_shift
-
-            tmin += t_start_shift
-            tmax += t_end_shift 
+            tmax += source.time
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
@@ -214,8 +200,6 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
                             kind=1,
                             event=source,
                             phasename='p-s')
-
-            m.set_selected(True)
 
             return_dict[target] = m
         return return_dict 
@@ -242,21 +226,33 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
     return phase_marker_dict
 
 
-def chop_using_markers(traces, markers, *args, **kwargs):
+def chop_using_markers(traces, markers, static_offset=None, 
+                                    t_shift_frac=None, *args, **kwargs):
     '''
     Chop a list of traces or generator of traces using a list of markers.
     :rtype : list
     '''
+    t_shift = 0
+
     chopped_test_traces = defaultdict(dict)
     
     for s, t, tr in traces:
+
         m = markers[s][t]
-        s.regularize()
-        t.regularize()
-        tr.chop(tmin=m.tmin,
-                 tmax=m.tmax,
-                 *args,
-                 **kwargs)
+        tmin = m.tmin
+        tmax = m.tmax
+
+        if static_offset:
+            tmax = tmin+static_offset
+
+        if t_shift_frac:
+            t_start_shift = -(tmax-tmin)*t_shift_frac
+            t_end_shift = t_start_shift
+
+            tmin += t_start_shift
+            tmax += t_end_shift 
+        tr.chop(tmin, tmax, *args, **kwargs)
+
         tr.set_codes(str(s.lat), str(s.lon), str(s.depth))
         chopped_test_traces[s][t] = tr
 

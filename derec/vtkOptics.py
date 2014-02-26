@@ -34,28 +34,38 @@ def dict_2_3d_array(ddict):
     '''
     cube = []
     for k_1, val_1 in ddict.iteritems():
-        slice = []
+        sheet = []
         for k_2, val_2 in val_1.iteritems():
-            slice.append(val_2) 
-        cube.append(slice)
+            sheet.append(val_2) 
+        cube.append(sheet)
     return num.array(cube)
 
 
-def gmt_map(event_lats=None, event_lons=None, station_lats=None, station_lons=None)
+def gmt_map(event_lats=None, event_lons=None, station_lats=None,
+        station_lons=None, **kwargs):
+
+    with_stations = False
+    if kwargs.get('stations', False):
+        with_stations = True
+
+    with_events= False
+    if kwargs.get('events', False):
+        with_events = True
+
     gmt = GMT( config={'BASEMAP_TYPE':'fancy'} )
 
-    lat_min = min(station_lats, event_lats)
-    lat_max = max(station_lats, event_lats)
-    lon_min = min(station_lons, event_lons)
-    lon_max = max(station_lons, event_lons)
+    lat_min = min(station_lats+ event_lats)
+    lat_max = max(station_lats+ event_lats)
+    lon_min = min(station_lons+ event_lons)
+    lon_max = max(station_lons+ event_lons)
 
     lat_offset = (lat_max-lat_min)*0.3
     lon_offset = (lon_max-lon_min)*0.3
 
-    gmt.pscoast( R='%i/%i/%i/%i'%(int(lon_min-lon_offset), 
-                                   int(lon_max+lon_offset), 
-                                   int(lat_min-lat_offset), 
-                                   int(lat_max+lat_offset)),
+    gmt.pscoast( R='%i/%i/%i/%i'%(lon_min-lon_offset, 
+                                   lon_max+lon_offset, 
+                                   lat_min-lat_offset, 
+                                   lat_max+lat_offset),
                 J='M10c',
                 B='4g4',
                 D='f',
@@ -63,13 +73,13 @@ def gmt_map(event_lats=None, event_lons=None, station_lats=None, station_lons=No
                 G=(233,185,110),
                 W='thinnest')
 
-    if event_lats and event_lons:
-        gmt.psxy('-Sa1c', R=True, J=True, G=(255,0,0), in_columns=[event_lons,
-            event_lats])
+    if station_lats and station_lons and with_stations:
+        gmt.psxy('-St0.5c', R=True, J=True, G=(0,255,123),
+                    in_columns=[station_lons, station_lats])
 
-    if station_lats and station_lons:
-        gmt.psxy('-St1c', R=True, J=True, G(0,230,0), in_columns=[station_lats,
-            station_lons])
+    if event_lats and event_lons and with_events:
+        gmt.psxy('-Sa0.2c', R=True, J=True, G=(255,0,0), 
+                    in_columns=[event_lons, event_lats])
 
     gmt.save('mapplot.pdf')
 
@@ -79,8 +89,6 @@ class OpticBase():
 
         self.test_case=test_case 
         self.test_case.numpy_it()
-        import pdb
-        pdb.set_trace()
         self.xdim = len(self.test_case.test_parameters[test_case.xkey])
         self.ydim = len(self.test_case.test_parameters[test_case.ykey])
         self.zdim = len(self.test_case.test_parameters[test_case.zkey])
@@ -89,7 +97,7 @@ class OpticBase():
                                             self.ydim,
                                             self.zdim)
         data = scale_2_int_perc(data)
-        self.vtkCube(data)
+        #self.vtkCube(data)
 
     def value_to_index(k, val):
         return self.dim_mapper[k].index(val)
@@ -116,10 +124,21 @@ class OpticBase():
         plt.plot(x,y, 'o')
         plt.show()
 
-    def assertEquallySpaced(self):
-        # assertion needed for vtk 3d cube
-        pass
- 
+
+    def gmt_map(self, **kwargs):
+        sources_lon_lat = set()
+        for s in self.test_case.sources:
+            sources_lon_lat.add((s.lon, s.lat))
+        sources_lon_lat = zip(*list(sources_lon_lat))
+
+        targets_lon_lat = set()
+        for t in self.test_case.targets:
+            targets_lon_lat.add((t.lon, t.lat))
+        targets_lon_lat = zip(*list(targets_lon_lat))
+        gmt_map(sources_lon_lat[1], sources_lon_lat[0],
+                targets_lon_lat[1], targets_lon_lat[0],
+                    **kwargs)
+
 
     def vtkCube(self, data_matrix=None):
 
