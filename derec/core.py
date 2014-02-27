@@ -7,6 +7,7 @@ from matplotlib.mlab import griddata
 from gmtpy import griddata_auto
 from scipy.signal import butter
 from guts import *
+from scipy.ndimage import zoom
 
 import time
 import matplotlib.mlab as mlab
@@ -181,8 +182,8 @@ class Core:
 
         #TESTSOURCES===============================================
         
-        offset = 5*km
-        zoffset= 1000.
+        offset = 7*km
+        zoffset= 2000.
         ref_source = event2source(event, 'DC' )
         center_lat = ref_source.lat
         center_lon = ref_source.lon
@@ -193,11 +194,13 @@ class Core:
         positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
                 center_lat, center_lon, offset, offset)
 
-        lats=num.linspace(negative_lat_offset, positive_lat_offset, 50) 
-        lons=num.linspace(negative_lon_offset, positive_lon_offset, 50)
+        #lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
+        lons=num.linspace(negative_lon_offset, positive_lon_offset, 25)
+        #lons = [ref_source.lon]
+        lats = [ref_source.lat]
 
-        #depths=num.arange(ref_source.depth-zoffset, ref_source.depth+zoffset, zoffset/5)
-        depths = [ref_source.depth]
+        depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
+        #depths = [ref_source.depth]
         print lats, '<- lats'
         print lons, '<- lons'
         print depths, '<- depths'
@@ -232,9 +235,7 @@ class Core:
 
         test_case.request_data()
 
-
         print 'source location: ', test_case.ref_source
-
         reference_seismograms = make_reference_trace(test_case.ref_source,
                                                      test_case.targets, 
                                                      engine)
@@ -290,7 +291,7 @@ class Core:
 
         # Display results===================================================
         #test_case.plot1d(order, event.lon)
-        test_case.contourf({'depth':ref_source.depth})
+        test_case.contourf(xkey='lon', ykey='depth')
 
         #test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
 
@@ -596,17 +597,24 @@ class TestCase(Object):
         plt.plot(X, Z[index[0][0]])
         plt.show()
 
-    def contourf(self, fix_parameter):
+    def contourf(self, fix_parameter=None, xkey=None, ykey=None):
         '''
         :param fix_parameter: dict like {'lat':10}
 
         parameters are sorted beforehand. This also defines the x and y axis.
         (By alphabetical order)
         '''
-        #sort parameters with fix_parameter key as last item
         p = self.test_parameters.keys()
         p.sort()
-        p.insert(2, p.pop(p.index(fix_parameter.keys()[0])))
+
+        if fix_parameter:
+        #sort parameters with fix_parameter key as last item
+            p.insert(2, p.pop(p.index(fix_parameter.keys()[0])))
+            xkey, ykey, lastkey = p
+
+        elif xkey and ykey:
+            lastkey = str((set(p)-set([xkey, ykey])).pop())
+            p = [xkey, ykey, lastkey]
         self.numpy_it(order=p)
 
         xraw = self.num_array[0]
@@ -615,21 +623,23 @@ class TestCase(Object):
         vraw = self.num_array[3]
 
         # TODO: Ersetzen durch test parameter keys
-        x=xraw.reshape(len(self.test_parameters['lat']),
-                len(self.test_parameters['lon']))
-        y=yraw.reshape(len(self.test_parameters['lat']),
-                len(self.test_parameters['lon']))
-        v=vraw.reshape(len(self.test_parameters['lat']),
-                len(self.test_parameters['lon']))
+        x=xraw.reshape(len(self.test_parameters[xkey]),
+                len(self.test_parameters[ykey]))
+        y=yraw.reshape(len(self.test_parameters[xkey]),
+                len(self.test_parameters[ykey]))
+        v=vraw.reshape(len(self.test_parameters[xkey]),
+                len(self.test_parameters[ykey]))
 
-        xi = num.linspace(min(xraw), max(xraw), 100)
-        yi = num.linspace(min(yraw), max(yraw), 100)
-        zi = griddata(xraw,yraw, vraw, xi, yi)
+        x = zoom(x, 4, order=1)
+        y = zoom(y, 4, order=1)
+        v = zoom(v, 4, order=1)
+        v = num.ma.masked_where(v>2.5, v)
 
-        cf = plt.contourf(xi,yi,zi, 25,  cmap=cm.bone_r)
-        #cf = plt.contourf(x,y,v, 10,  cmap=cm.bone_r)
+        palette = cm.bone_r
+        cf = plt.contourf(x,y,v, 20,  cmap=cm.bone_r)
 
-        plt.plot(self.ref_source.lat, self.ref_source.lon, '*')
+        plt.plot(getattr(self.ref_source, xkey), getattr(self.ref_source, ykey), '*')
+        plt.plot(xraw, yraw, '+', color='w', markersize=6)
         plt.xlabel(self.xkey)
         plt.ylabel(self.ykey)
         cbar = plt.colorbar()
