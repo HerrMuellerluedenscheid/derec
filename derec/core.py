@@ -1,5 +1,5 @@
 from pyrocko.gf import *
-from pyrocko import model, gui_util, pile, trace, moment_tensor
+from pyrocko import model, gui_util, pile, trace, moment_tensor, io
 from vtkOptics import *
 from collections import defaultdict
 from matplotlib import cm
@@ -194,13 +194,13 @@ class Core:
         positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
                 center_lat, center_lon, offset, offset)
 
-        #lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
+        lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
         lons=num.linspace(negative_lon_offset, positive_lon_offset, 25)
         #lons = [ref_source.lon]
-        lats = [ref_source.lat]
+        #lats = [ref_source.lat]
 
-        depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
-        #depths = [ref_source.depth]
+        #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
+        depths = [ref_source.depth]
         print lats, '<- lats'
         print lons, '<- lons'
         print depths, '<- depths'
@@ -282,7 +282,7 @@ class Core:
         fresponse.regularize()
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='time_domain',
+                                  domain='frequency_domain',
                                   filter=fresponse)
 
         test_case.set_misfit_setup(setup)
@@ -291,7 +291,7 @@ class Core:
 
         # Display results===================================================
         #test_case.plot1d(order, event.lon)
-        test_case.contourf(xkey='lon', ykey='depth')
+        test_case.contourf(xkey='lat', ykey='lon')
 
         #test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
 
@@ -668,7 +668,9 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
 
+    traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
+
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
-                                                    '../reference_marker_castor.txt'))
+                                                '../reference_marker_castor.txt'))
 
     C = Core(markers=markers, stations=stations)
