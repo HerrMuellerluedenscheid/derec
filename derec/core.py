@@ -45,7 +45,8 @@ def stations2targets(stations, store_id):
     return targets
 
 
-def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.):
+def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
+        **kwargs):
     '''
     Convert pyrockos original event into seismosizer MT source.
 
@@ -69,8 +70,12 @@ def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.)
                                    med=float(m[1,2]))
 
     elif source_type=='DC':
-        # only one of both possible s,d,r is needed.
-        s,d,r = event.moment_tensor.both_strike_dip_rake()[0]
+
+        try: 
+            s,d,r = kwargs['strike'], kwargs['dip'], kwargs['rake']
+        except KeyError:
+            s,d,r = event.moment_tensor.both_strike_dip_rake()[0]
+
         m = event.moment_tensor.moment_magnitude
         source_event = DCSource(lat=rel_n_deg,
                                 lon=rel_e_deg,
@@ -160,9 +165,9 @@ class Core:
         event = event[0].get_event()
         event.magnitude = 4.3
         event.moment_tensor = moment_tensor.MomentTensor(
-                                        m=num.array([[1.0, 0.0, -0.0],
-                                                     [0.0, 1.0, 0.0],
-                                                     [0.0, 0.0, 1.0]]))
+                                        m=num.array([[0.0, 0.0, -0.0],
+                                                     [0.0, 0.0, 0.0],
+                                                     [0.0, 0.0, 0.0]]))
     
 
         # generate stations from olat, olon:
@@ -184,7 +189,7 @@ class Core:
         
         offset = 7*km
         zoffset= 2000.
-        ref_source = event2source(event, 'DC' )
+        ref_source = event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
         center_lat = ref_source.lat
         center_lon = ref_source.lon
 
