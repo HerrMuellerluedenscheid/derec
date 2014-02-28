@@ -165,7 +165,7 @@ class Core:
         event = event[0].get_event()
         event.magnitude = 4.3
         event.moment_tensor = moment_tensor.MomentTensor(
-                                        m=num.array([[0.0, 0.0, -0.0],
+                                        m=num.array([[0.0, 0.0, 1.0],
                                                      [0.0, 0.0, 0.0],
                                                      [0.0, 0.0, 0.0]]))
     
@@ -199,22 +199,31 @@ class Core:
         positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
                 center_lat, center_lon, offset, offset)
 
-        lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
-        lons=num.linspace(negative_lon_offset, positive_lon_offset, 25)
-        #lons = [ref_source.lon]
-        #lats = [ref_source.lat]
+        #lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
+        lats = [ref_source.lat]
+
+        #lons=num.linspace(negative_lon_offset, positive_lon_offset, 25)
+        lons = [ref_source.lon]
 
         #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
         depths = [ref_source.depth]
+
+        strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 25)
+        #strikes = [ref_source.strike]
+
+        #dips = num.linspace(ref_source.dip-45, ref_source.dip+45, 25)
+        dips = [ref_source.dip]
+
+        rakes = num.linspace(ref_source.rake-180, ref_source.rake+180, 25)
+        #rakes = [ref_source.rake]
+
         print lats, '<- lats'
         print lons, '<- lons'
         print depths, '<- depths'
-        print event.lat, '<- event lat'
-        print event.lon, '<- event lon'
-        print event.depth, '<- event depth'
-
-        strike,dip,rake = event.moment_tensor.both_strike_dip_rake()[0]
-        print strike, dip, rake
+        print ref_source.lat, '<- event lat'
+        print ref_source.lon, '<- event lon'
+        print ref_source.depth, '<- event depth'
+        print event.moment_tensor.both_strike_dip_rake()[0], '<- event S D R'
         location_test_sources = [DCSource(lat=lat,
                                lon=lon,
                                depth=depth,
@@ -222,8 +231,12 @@ class Core:
                                strike=strike,
                                dip=dip,
                                rake=rake,
-                               magnitude=event.magnitude) for depth in depths 
-                                        for lat in lats for lon in lons]
+                               magnitude=event.magnitude) for strike in strikes 
+                                                        for dip in dips 
+                                                        for rake in rakes 
+                                                        for lat in lats 
+                                                        for lon in lons 
+                                                        for depth in depths]
 
         for s in location_test_sources:
             s.regularize()
@@ -233,9 +246,9 @@ class Core:
                              targets, 
                              engine, 
                              store_id, 
-                             test_parameters={'depth':depths, 
-                                              'lat':lats, 
-                                              'lon':lons})
+                             test_parameters={'strike':strikes, 
+                                              'dip':dips, 
+                                              'rake':rakes})
         test_case.ref_source = ref_source
 
         test_case.request_data()
@@ -644,7 +657,7 @@ class TestCase(Object):
         cf = plt.contourf(x,y,v, 20,  cmap=cm.bone_r)
 
         plt.plot(getattr(self.ref_source, xkey), getattr(self.ref_source, ykey), '*')
-        plt.plot(xraw, yraw, '+', color='w', markersize=6)
+        plt.plot(xraw, yraw, '+', color='w', markersize=4)
         plt.xlabel(self.xkey)
         plt.ylabel(self.ykey)
         cbar = plt.colorbar()
@@ -678,4 +691,4 @@ if __name__ ==  "__main__":
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                 '../reference_marker_castor.txt'))
 
-    C = Core(markers=markers, stations=stations)
+    C = Core(markers=markers, stations=None)
