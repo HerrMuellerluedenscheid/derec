@@ -199,23 +199,23 @@ class Core:
         positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
                 center_lat, center_lon, offset, offset)
 
-        #lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
-        lats = [ref_source.lat]
+        lats=num.linspace(negative_lat_offset, positive_lat_offset, 20)
+        #lats = [ref_source.lat]
 
-        #lons=num.linspace(negative_lon_offset, positive_lon_offset, 25)
-        lons = [ref_source.lon]
+        lons=num.linspace(negative_lon_offset, positive_lon_offset, 20)
+        #lons = [ref_source.lon]
 
-        #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
-        depths = [ref_source.depth]
+        depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 20)
+        #depths = [ref_source.depth]
 
-        strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 25)
-        #strikes = [ref_source.strike]
+        #strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 3)
+        strikes = [ref_source.strike]
 
-        #dips = num.linspace(ref_source.dip-45, ref_source.dip+45, 25)
+        #dips = num.linspace(ref_source.dip-45, ref_source.dip+45, 3)
         dips = [ref_source.dip]
 
-        rakes = num.linspace(ref_source.rake-180, ref_source.rake+180, 25)
-        #rakes = [ref_source.rake]
+        #rakes = num.linspace(ref_source.rake-180, ref_source.rake+180, 3)
+        rakes = [ref_source.rake]
 
         print lats, '<- lats'
         print lons, '<- lons'
@@ -246,9 +246,9 @@ class Core:
                              targets, 
                              engine, 
                              store_id, 
-                             test_parameters={'strike':strikes, 
-                                              'dip':dips, 
-                                              'rake':rakes})
+                             test_parameters={'lat':lats, 
+                                              'lon':lons,
+                                              'depth':depths})
         test_case.ref_source = ref_source
 
         test_case.request_data()
@@ -640,6 +640,8 @@ class TestCase(Object):
         zraw = self.num_array[2]
         vraw = self.num_array[3]
 
+        self.save_numpy(self.num_array)
+
         # TODO: Ersetzen durch test parameter keys
         x=xraw.reshape(len(self.test_parameters[xkey]),
                 len(self.test_parameters[ykey]))
@@ -672,6 +674,9 @@ class TestCase(Object):
             ssmgrm = self.seismograms[source][target]
             yield source, ssmgrm.get_xdata(), ssmgrm.get_ydata()
 
+    def save_numpy(self, X, fn='numpy_data.txt'):
+        num.savetxt(fn, X) 
+
     @property
     def store(self):
         return self.engine.get_store(self.store_id)
@@ -686,9 +691,9 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
 
-    traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
+    #traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
 
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                 '../reference_marker_castor.txt'))
 
-    C = Core(markers=markers, stations=None)
+    C = Core(markers=markers, stations=stations)

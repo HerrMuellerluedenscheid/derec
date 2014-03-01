@@ -85,19 +85,24 @@ def gmt_map(event_lats=None, event_lons=None, station_lats=None,
 
 
 class OpticBase():
-    def __init__(self, test_case):
+    def __init__(self, test_case=None):
 
-        self.test_case=test_case 
-        self.test_case.numpy_it()
-        self.xdim = len(self.test_case.test_parameters[test_case.xkey])
-        self.ydim = len(self.test_case.test_parameters[test_case.ykey])
-        self.zdim = len(self.test_case.test_parameters[test_case.zkey])
+        if test_case:
+            self.test_case=test_case 
+            self.test_case.numpy_it()
+            self.xdim = len(self.test_case.test_parameters[test_case.xkey])
+            self.ydim = len(self.test_case.test_parameters[test_case.ykey])
+            self.zdim = len(self.test_case.test_parameters[test_case.zkey])
 
-        data=test_case.num_array[3].reshape(self.xdim,
-                                            self.ydim,
-                                            self.zdim)
-        data = scale_2_int_perc(data)
-        #self.vtkCube(data)
+            data=test_case.num_array[3].reshape(self.xdim,
+                                                self.ydim,
+                                                self.zdim)
+
+            data = scale_2_int_perc(data)
+            #self.vtkCube(data)
+
+        else:
+            pass
 
     def value_to_index(k, val):
         return self.dim_mapper[k].index(val)
@@ -139,6 +144,13 @@ class OpticBase():
                 targets_lon_lat[1], targets_lon_lat[0],
                     **kwargs)
 
+    def read_file(self, infile='numpy_data.txt'):
+        import pdb
+        pdb.set_trace()
+        data = num.loadtxt(infile)
+        data = data[3].reshape(3,3,3)
+        data = scale_2_int_perc(data)
+        self.vtkCube(data)
 
     def vtkCube(self, data_matrix=None):
 
@@ -166,8 +178,8 @@ class OpticBase():
         # simple case, all axes are of length 75 and begins with the first element. For other data, this is probably not the case.
         # I have to admit however, that I honestly dont know the difference between SetDataExtent() and SetWholeExtent() although
         # VTK complains if not both are used.
-        dataImporter.SetDataExtent(0, 9, 0, 9, 0, 9)
-        dataImporter.SetWholeExtent(0, 9, 0, 9, 0, 9)
+        dataImporter.SetDataExtent(0, 3, 0, 3, 0, 3)
+        dataImporter.SetWholeExtent(0, 3, 0, 3, 0, 3)
         #dataImporter.SetDataExtent(0, 74, 0, 74, 0, 74)
         #dataImporter.SetWholeExtent(0, 74, 0, 74, 0, 74)
 
@@ -182,9 +194,9 @@ class OpticBase():
         # Gradient opacity
         # other way: misfit 0 is anti opacity
         volumeGradientOpacity = vtk.vtkPiecewiseFunction()
-        volumeGradientOpacity.AddPoint(70,   1.0)
-        volumeGradientOpacity.AddPoint(50,  0.5)
-        volumeGradientOpacity.AddPoint(20, 0.0)
+        volumeGradientOpacity.AddPoint(60,   0.0)
+        volumeGradientOpacity.AddPoint(40,  0.1)
+        volumeGradientOpacity.AddPoint(20, 1.0)
 
         # This class stores color data and can create color tables from a few color points. For this demo, we want the three cubes
         # to be of the colors red green and blue.
@@ -201,9 +213,9 @@ class OpticBase():
         volumeProperty.SetGradientOpacity(volumeGradientOpacity)
         volumeProperty.SetInterpolationTypeToLinear()
         volumeProperty.ShadeOff()
-        volumeProperty.SetAmbient(0.1)
-        volumeProperty.SetDiffuse(0.6)
-        volumeProperty.SetSpecular(0.2)
+        #volumeProperty.SetAmbient(0.1)
+        #volumeProperty.SetDiffuse(0.6)
+        #volumeProperty.SetSpecular(0.2)
 
         # This class describes how the volume is rendered (through ray tracing).
         compositeFunction = vtk.vtkVolumeRayCastCompositeFunction()
@@ -218,28 +230,28 @@ class OpticBase():
         volume.SetProperty(volumeProperty)
 
         # Text am Nullpunkt
-        atext = vtk.vtkVectorText()
-        atext.SetText("(0,0,0)")
-        textMapper = vtk.vtkPolyDataMapper()
-        textMapper.SetInputConnection(atext.GetOutputPort())
-        textActor = vtk.vtkFollower()
-        textActor.SetMapper(textMapper)
-        textActor.SetScale(10, 10, 10)
-        textActor.AddPosition(0, -0.1, 78)
+        #atext = vtk.vtkVectorText()
+        #atext.SetText("(0,0,0)")
+        #textMapper = vtk.vtkPolyDataMapper()
+        #textMapper.SetInputConnection(atext.GetOutputPort())
+        #textActor = vtk.vtkFollower()
+        #textActor.SetMapper(textMapper)
+        #textActor.SetScale(10, 10, 10)
+        #textActor.AddPosition(0, -0.1, 78)
 
         # Cube to give some orientation 
         # (from http://www.vtk.org/Wiki/VTK/Examples/Python/Widgets/OrientationMarkerWidget)
 
-        axesActor = vtk.vtkAnnotatedCubeActor();
-        axesActor.SetXPlusFaceText('N')
-        axesActor.SetXMinusFaceText('S')
-        axesActor.SetYMinusFaceText('W')
-        axesActor.SetYPlusFaceText('E')
-        axesActor.SetZMinusFaceText('D')
-        axesActor.SetZPlusFaceText('U')
-        axesActor.GetTextEdgesProperty().SetColor(1,1,0)
-        axesActor.GetTextEdgesProperty().SetLineWidth(2)
-        axesActor.GetCubeProperty().SetColor(0,0,1)
+        #axesActor = vtk.vtkAnnotatedCubeActor();
+        #axesActor.SetXPlusFaceText('N')
+        #axesActor.SetXMinusFaceText('S')
+        #axesActor.SetYMinusFaceText('W')
+        #axesActor.SetYPlusFaceText('E')
+        #axesActor.SetZMinusFaceText('D')
+        #axesActor.SetZPlusFaceText('U')
+        #axesActor.GetTextEdgesProperty().SetColor(1,1,0)
+        #axesActor.GetTextEdgesProperty().SetLineWidth(2)
+        #axesActor.GetCubeProperty().SetColor(0,0,1)
 
         # With almost everything else ready, its time to initialize the renderer and window, as well as creating a method for exiting the application
         renderer = vtk.vtkRenderer()
@@ -248,12 +260,12 @@ class OpticBase():
         renderInteractor = vtk.vtkRenderWindowInteractor()
         renderInteractor.SetRenderWindow(renderWin)
 
-        axes = vtk.vtkOrientationMarkerWidget()
-        axes.SetOrientationMarker(axesActor)
-        axes.SetInteractor(renderInteractor)
-        axes.EnabledOn()
-        axes.InteractiveOn()
-        renderer.ResetCamera()
+        #axes = vtk.vtkOrientationMarkerWidget()
+        #axes.SetOrientationMarker(axesActor)
+        #axes.SetInteractor(renderInteractor)
+        #axes.EnabledOn()
+        #axes.InteractiveOn()
+        #renderer.ResetCamera()
 
         # We add the volume to the renderer ...
         renderer.AddVolume(volume)
@@ -263,7 +275,7 @@ class OpticBase():
         renderWin.SetSize(400, 400)
 
         # Fuege Text am Nullpunkt hinzu:
-        renderer.AddActor(textActor)
+        #renderer.AddActor(textActor)
         
         # A simple function to be called when the user decides to quit the application.
         def exitCheck(obj, event):
@@ -280,7 +292,10 @@ class OpticBase():
 
 
 if __name__=='__main__':
-    data_matrix = dict_2_3d_array(make_3D_pseudo_data())
+    optics = OpticBase()
+    optics.read_file()
+    #data_matrix = dict_2_3d_array(make_3D_pseudo_data())
 
-    data_matrix = scale_2_int_perc(data_matrix)
-    vtkCube(data_matrix)
+
+    #data_matrix = scale_2_int_perc(data_matrix)
+    #vtkCube(data_matrix)
