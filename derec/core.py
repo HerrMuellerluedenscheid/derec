@@ -187,8 +187,8 @@ class Core:
 
         #TESTSOURCES===============================================
         
-        offset = 7*km
-        zoffset= 2000.
+        offset = 3*km
+        zoffset= 1000.
         ref_source = event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
         center_lat = ref_source.lat
         center_lon = ref_source.lon
@@ -199,23 +199,23 @@ class Core:
         positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
                 center_lat, center_lon, offset, offset)
 
-        #lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
-        lats = [ref_source.lat]
+        lats=num.linspace(negative_lat_offset, positive_lat_offset, 3) 
+        #lats = [ref_source.lat]
 
-        #lons=num.linspace(negative_lon_offset, positive_lon_offset, 25)
-        lons = [ref_source.lon]
+        lons=num.linspace(negative_lon_offset, positive_lon_offset, 3)
+        #lons = [ref_source.lon]
 
-        #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
+        depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 3)
         depths = [ref_source.depth]
 
-        strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 25)
-        #strikes = [ref_source.strike]
+        #strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 25)
+        strikes = [ref_source.strike]
 
         #dips = num.linspace(ref_source.dip-45, ref_source.dip+45, 25)
         dips = [ref_source.dip]
 
-        rakes = num.linspace(ref_source.rake-180, ref_source.rake+180, 25)
-        #rakes = [ref_source.rake]
+        #rakes = num.linspace(ref_source.rake-180, ref_source.rake+180, 25)
+        rakes = [ref_source.rake]
 
         print lats, '<- lats'
         print lons, '<- lons'
@@ -223,7 +223,7 @@ class Core:
         print ref_source.lat, '<- event lat'
         print ref_source.lon, '<- event lon'
         print ref_source.depth, '<- event depth'
-        print event.moment_tensor.both_strike_dip_rake()[0], '<- event S D R'
+        print ref_source.strike, ref_source.dip, ref_source.rake, '<- event S D R'
         location_test_sources = [DCSource(lat=lat,
                                lon=lon,
                                depth=depth,
@@ -246,9 +246,9 @@ class Core:
                              targets, 
                              engine, 
                              store_id, 
-                             test_parameters={'strike':strikes, 
-                                              'dip':dips, 
-                                              'rake':rakes})
+                             test_parameters={'lat':lats, 
+                                              'lon':lons, 
+                                              'depth':depths})
         test_case.ref_source = ref_source
 
         test_case.request_data()
@@ -300,7 +300,7 @@ class Core:
         fresponse.regularize()
         setup = trace.MisfitSetup(norm=norm,
                                   taper=taper,
-                                  domain='frequency_domain',
+                                  domain='envelope',
                                   filter=fresponse)
 
         test_case.set_misfit_setup(setup)
@@ -309,9 +309,9 @@ class Core:
 
         # Display results===================================================
         #test_case.plot1d(order, event.lon)
-        test_case.contourf(xkey='lat', ykey='lon')
+        #test_case.contourf(xkey='lon', ykey='lat')
 
-        #test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
+        test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
 
         optics = OpticBase(test_case)
         #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
@@ -533,7 +533,7 @@ class TestCase(Object):
         gs = gridspec.GridSpec(len(self.targets)/3,3)
         gs_dict= dict(zip(self.targets, gs))
 
-        if self.misfit_setup.domain=='frequency_domain':
+        if self.misfit_setup.domain=='time_domain':
             gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
             gs_traces_dict= dict(zip(self.targets, gs_traces))
 
@@ -570,6 +570,9 @@ class TestCase(Object):
                     y = pr_cand.get_ydata() 
                     x_ref = pr_ref.get_xdata()
                     y_ref = pr_ref.get_ydata()
+                    if self.misfit_setup.domain=='envelope':
+                        y = num.abs(y)
+                        y_ref = num.abs(y_ref)
                     
                 ax.set_title('.'.join(t.codes), fontsize=11)
                 ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
@@ -686,9 +689,9 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
 
-    traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
+    #traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
 
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
-                                                '../reference_marker_castor.txt'))
+                                        '../reference_marker_castor.txt'))
 
-    C = Core(markers=markers, stations=None)
+    C = Core(markers=markers, stations=stations)

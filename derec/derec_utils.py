@@ -329,6 +329,7 @@ def calculate_misfit(test_case):
 
     print('calculating misfits...')
     pbar = progressbar.ProgressBar(maxval=len(sources)).start()
+    import pdb
     for si, source in enumerate(sources):
         pbar.update(si)
         ms = num.empty([len(targets)], dtype=float)
@@ -337,6 +338,8 @@ def calculate_misfit(test_case):
         r_data = []
         
         for ti, target in enumerate(targets):
+            if target.codes[1]=='ALCX':
+                pdb.set_trace()
             reft = references.values()[0][target]
             # hier kann man auch candidates[source].values() benutzen. geht 
             # schneller! Dafuer muessen aber erst alle candidates umsortiert werden. 
