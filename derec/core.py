@@ -187,8 +187,8 @@ class Core:
 
         #TESTSOURCES===============================================
         
-        offset = 7*km
-        zoffset= 2000.
+        offset = 5*km
+        zoffset= 1000.
         ref_source = event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
         center_lat = ref_source.lat
         center_lon = ref_source.lon
@@ -199,13 +199,13 @@ class Core:
         positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
                 center_lat, center_lon, offset, offset)
 
-        lats=num.linspace(negative_lat_offset, positive_lat_offset, 20)
+        lats=num.linspace(negative_lat_offset, positive_lat_offset, 5)
         #lats = [ref_source.lat]
 
-        lons=num.linspace(negative_lon_offset, positive_lon_offset, 20)
+        lons=num.linspace(negative_lon_offset, positive_lon_offset, 5)
         #lons = [ref_source.lon]
 
-        depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 20)
+        depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 5)
         #depths = [ref_source.depth]
 
         #strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 3)
@@ -640,7 +640,7 @@ class TestCase(Object):
         zraw = self.num_array[2]
         vraw = self.num_array[3]
 
-        self.save_numpy(self.num_array)
+        self.save_numpy(self.num_array, fn='small_array.txt')
 
         # TODO: Ersetzen durch test parameter keys
         x=xraw.reshape(len(self.test_parameters[xkey]),
