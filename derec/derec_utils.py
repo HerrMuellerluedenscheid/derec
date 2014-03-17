@@ -313,16 +313,9 @@ def calculate_misfit(test_case):
     
     sources = test_case.sources
     targets = test_case.targets
-    candidates = test_case.seismograms
     references = test_case.references
     assert len(references.items())==1
     total_misfit = defaultdict()
-
-    # c stuff
-    #lx_norm_c = ctypes.cdll.LoadLibrary('./liblxnorm.so')
-    #lx_norm_c.lxnorm_n.restype = ctypes.c_double
-    #lx_norm_c.lxnorm_m.restype = ctypes.c_double
-    # eo c stuff
 
     mfsetup = test_case.misfit_setup
     norm = mfsetup.norm
@@ -338,44 +331,31 @@ def calculate_misfit(test_case):
         
         for ti, target in enumerate(targets):
             reft = references.values()[0][target]
-            # hier kann man auch candidates[source].values() benutzen. geht 
-            # schneller! Dafuer muessen aber erst alle candidates umsortiert werden. 
-
-            mf = reft.misfit(candidates=[candidates[source][target]], 
-                                        setups=mfsetup)
-            
-            for c_d, r_d , m, n in mf:
+            #candidate = candidates[source][target]
+            M_tmp = 999.
+            for c_d, r_d , m, n in reft.misfit(candidates=
+                        test_case.make_shifted_candidates[source][target], 
+                        setups=mfsetup):
                 if m==None or n==None:
                     print 'm,n =None'
-                    #print 'm,n=None, skipping %s'%('.'.join(c_d.nslc_id),
-                    #        '.'.join(r_d.nslc_id) )
+                    import pdb
+                    pdb.set_trace()
                     continue
-                test_case.processed_candidates[source][target] = c_d
-                test_case.processed_references[source][target] = r_d
-                ms[ti] = m
-                ns[ti] = n
 
-                # wichtig!
-                #if reft.ydata.shape != cand.ydata.shape:
-                #    raise Exception('shapes are different: %s, %s'%\
-                #            (reft.ydata.shape, cand.ydata.shape))
-                #
-                #uydata = cand.ydata
-                #vydata = reft.ydata
-                ##uydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
-                ##vydata = num.random.uniform(-1e21, 1e21, len(reft.ydata))
-                #
-                #v_c = vydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                #u_c = uydata.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-                #norm_c = ctypes.c_double(norm)
+                if m/n>=M_tmp:
+                    continue
 
-                #size_c = ctypes.c_int(len(reft.ydata))
-                ##ms[ti] = lx_norm_c.lxnorm_m(v_c, u_c, norm_c, size_c)
-                ##ns[ti] = lx_norm_c.lxnorm_n(v_c, norm_c, size_c)
-                ##print 'C: ', ms[ti]/ns[ti]
-                #ms[ti], ns[ti] = trace.Lx_norm(uydata, vydata, norm)
-                ##ms[ti], ns[ti] = trace.Lx_norm(reft.ydata, cand.ydata, norm)
-                ##print 'P: ', ms[ti]/ns[ti]
+                elif m/n<M_tmp:
+                    M_tmp = m/n
+                    M = m
+                    N = n
+                    best_candidate = c_d
+                    best_reference = r_d
+
+            test_case.processed_candidates[source][target] = best_candidate
+            test_case.processed_references[source][target] = best_reference 
+            ms[ti] = M
+            ns[ti] = N
 
         M = num.power(num.sum(num.abs(num.power(ms, norm))), 1./norm)
         N = num.power(num.sum(num.abs(num.power(ns, norm))), 1./norm)

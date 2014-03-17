@@ -64,13 +64,6 @@ class Doer():
         test_case.request_data()
 
         #print 'source location: ', test_case.ref_source
-        
-        #extended_ref_marker = du.chop_ranges(test_case.ref_source, 
-        #                                    test_case.targets, 
-        #                                    test_case.store,
-        #                                    phase_ids_start,
-        #                                    phase_ids_end)
-
         print('test data marker....')
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
@@ -131,9 +124,10 @@ class TestCase(Object):
         self.processed_references = defaultdict(dict)
         self.references = {}
         self.processed_candidates = defaultdict(dict)
-        self.seismograms = {}
+        self.candidates= {}
         self.misfits = None
         self.misfit_setup = None
+        self.t_shifts = num.arange(-1, 1, 10)
             
     def request_data(self):
         print 'requesting data....'
@@ -142,8 +136,8 @@ class TestCase(Object):
                                 targets=self.targets)
         print 'finished'
 
-    def set_seismograms(self, seismograms):
-        self.seismograms = seismograms
+    def set_candidates(self, candidates):
+        self.candidates = candidates
 
     def set_markers(self, markers):
         self.markers = markers
@@ -158,7 +152,18 @@ class TestCase(Object):
         f = open(fn, 'w')
         f.write(self.dump())
         f.close()
-    
+
+    def make_shifted_candidates(self, source, target):
+        """
+        Generator generating shifted candidates.
+        """
+        for tshift in self.t_shifts:
+            # needs to be copied or not?
+            shifted_candidate = self.candidates[source][target]
+            shifted_candidate.tmin += thift
+
+            yield shifted_candidate
+
     @staticmethod
     def yaml_2_TestCase(fn):
         '''
@@ -358,7 +363,7 @@ class TestCase(Object):
         if sources == []:
             sources = self.sources
         for source in sources:
-            ssmgrm = self.seismograms[source][target]
+            ssmgrm = self.candidates[source][target]
             yield source, ssmgrm.get_xdata(), ssmgrm.get_ydata()
 
     @property
@@ -390,10 +395,6 @@ if __name__ ==  "__main__":
     if store_id=='very_local':
         phase_ids_start = 'p|P|Pv3p|Pv8p|Pv20p|Pv35p'
         phase_ids_end =   's|S|Sv3s|Sv8s|Sv20s|Sv35s'
-
-    if store_id=='very_local_20Hz':
-        phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
-        phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
 
     if store_id=='very_local_20Hz':
         phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
@@ -436,7 +437,7 @@ if __name__ ==  "__main__":
     zoffset= 2000.
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
-    depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
+    depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 5)
     strikes = [ref_source.strike]
     dips = [ref_source.dip]
     rakes = [ref_source.rake]
@@ -503,6 +504,13 @@ if __name__ ==  "__main__":
                                     misfit_setup=misfit_setup)
 
     test_case = TestCase(test_case_setup )
-    test_case.set_seismograms(reference_seismograms)
+
+    extended_ref_marker = du.chop_ranges(test_case.ref_source, 
+                                        test_case.targets, 
+                                        test_case.store,
+                                        phase_ids_start,
+                                        phase_ids_end)
+
+    test_case.set_marker(extended_ref_marker)
 
     D = Doer(test_case)
