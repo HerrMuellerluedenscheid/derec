@@ -189,7 +189,8 @@ class Core:
         
         offset = 7*km
         zoffset= 2000.
-        ref_source = event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
+        ref_source = event2source(event, 'DC', rel_north_shift=40*km,
+                rel_east_shift=50*km, strike=37.3, dip=30, rake=-3)
         center_lat = ref_source.lat
         center_lon = ref_source.lon
 
@@ -199,14 +200,14 @@ class Core:
         positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
                 center_lat, center_lon, offset, offset)
 
-        lats=num.linspace(negative_lat_offset, positive_lat_offset, 20)
+        lats=num.linspace(negative_lat_offset, positive_lat_offset, 2)
         #lats = [ref_source.lat]
 
-        lons=num.linspace(negative_lon_offset, positive_lon_offset, 20)
+        lons=num.linspace(negative_lon_offset, positive_lon_offset, 2)
         #lons = [ref_source.lon]
 
-        depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 20)
-        #depths = [ref_source.depth]
+        #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 2)
+        depths = [ref_source.depth]
 
         #strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 3)
         strikes = [ref_source.strike]
@@ -696,4 +697,4 @@ if __name__ ==  "__main__":
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                 '../reference_marker_castor.txt'))
 
-    C = Core(markers=markers, stations=stations)
+    C = Core(markers=markers, stations=None)
