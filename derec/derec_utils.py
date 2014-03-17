@@ -384,3 +384,78 @@ def calculate_misfit(test_case):
     pbar.update(si+1)
     pbar.finish()
     test_case.set_misfit(total_misfit)
+
+def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
+        **kwargs):
+    '''
+    Convert pyrockos original event into seismosizer MT source.
+
+    MT Source magnitude not scaled?!
+    returns list of sources
+    '''
+    rel_n_deg, rel_e_deg = lat_lon_relative_shift(event.lat, event.lon,
+                                rel_north_shift, rel_east_shift)
+
+    if source_type=='MT':
+        m = event.moment_tensor._m
+        source_event = MTSource(lat=rel_n_deg,
+                                   lon=rel_e_deg,
+                                   depth=event.depth,
+                                   time=event.time,
+                                   mnn=float(m[0,0]),
+                                   mee=float(m[1,1]),
+                                   mdd=float(m[2,2]),
+                                   mne=float(m[0,1]),
+                                   mnd=float(m[0,2]),
+                                   med=float(m[1,2]))
+
+    elif source_type=='DC':
+
+        try: 
+            s,d,r = kwargs['strike'], kwargs['dip'], kwargs['rake']
+        except KeyError:
+            s,d,r = event.moment_tensor.both_strike_dip_rake()[0]
+
+        m = event.moment_tensor.moment_magnitude
+        source_event = DCSource(lat=rel_n_deg,
+                                lon=rel_e_deg,
+                                depth=event.depth,
+                                time=event.time,
+                                strike=s,
+                                dip=d,
+                                rake=r,
+                                magnitude=event.magnitude)
+
+    elif source_type=='EX':
+        m = event.moment_tensor.moment_magnitude
+        source_event = ExplosionSource(lat=rel_n_deg,
+                                       lon=rel_e_deg,
+                                       depth=event.depth,
+                                       time=event.time,
+                                       magnitude=event.magnitude)
+    else:
+        raise Exception('invalid source type: %s'%source_type)
+    
+    return source_event
+
+
+def stations2targets(stations, store_id):
+    '''
+    Convert pyrockos original stations into seismosizer targets.
+    '''
+    targets = []
+    for s in stations:
+        channels = s.get_channels()
+        if channels == []:
+            channels = 'NEZ'
+        target = [Target(codes=(s.network,s.station,s.location,component),
+                                 lat=s.lat,
+                                 lon=s.lon,
+                                 store_id=store_id,
+                                 )for component in channels]
+        targets.extend(target)
+    
+    map(lambda x: x.regularize(), targets)
+    return targets
+
+

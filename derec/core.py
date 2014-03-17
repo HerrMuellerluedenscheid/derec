@@ -25,80 +25,6 @@ def get_earthmodel_from_engine(engine, store_id):
     return engine.get_store(store_id).config.earthmodel_1d
 
 
-def stations2targets(stations, store_id):
-    '''
-    Convert pyrockos original stations into seismosizer targets.
-    '''
-    targets = []
-    for s in stations:
-        channels = s.get_channels()
-        if channels == []:
-            channels = 'NEZ'
-        target = [Target(codes=(s.network,s.station,s.location,component),
-                                 lat=s.lat,
-                                 lon=s.lon,
-                                 store_id=store_id,
-                                 )for component in channels]
-        targets.extend(target)
-    
-    map(lambda x: x.regularize(), targets)
-    return targets
-
-
-def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
-        **kwargs):
-    '''
-    Convert pyrockos original event into seismosizer MT source.
-
-    MT Source magnitude not scaled?!
-    returns list of sources
-    '''
-    rel_n_deg, rel_e_deg = du.lat_lon_relative_shift(event.lat, event.lon,
-                                rel_north_shift, rel_east_shift)
-
-    if source_type=='MT':
-        m = event.moment_tensor._m
-        source_event = MTSource(lat=rel_n_deg,
-                                   lon=rel_e_deg,
-                                   depth=event.depth,
-                                   time=event.time,
-                                   mnn=float(m[0,0]),
-                                   mee=float(m[1,1]),
-                                   mdd=float(m[2,2]),
-                                   mne=float(m[0,1]),
-                                   mnd=float(m[0,2]),
-                                   med=float(m[1,2]))
-
-    elif source_type=='DC':
-
-        try: 
-            s,d,r = kwargs['strike'], kwargs['dip'], kwargs['rake']
-        except KeyError:
-            s,d,r = event.moment_tensor.both_strike_dip_rake()[0]
-
-        m = event.moment_tensor.moment_magnitude
-        source_event = DCSource(lat=rel_n_deg,
-                                lon=rel_e_deg,
-                                depth=event.depth,
-                                time=event.time,
-                                strike=s,
-                                dip=d,
-                                rake=r,
-                                magnitude=event.magnitude)
-
-    elif source_type=='EX':
-        m = event.moment_tensor.moment_magnitude
-        source_event = ExplosionSource(lat=rel_n_deg,
-                                       lon=rel_e_deg,
-                                       depth=event.depth,
-                                       time=event.time,
-                                       magnitude=event.magnitude)
-    else:
-        raise Exception('invalid source type: %s'%source_type)
-
-    source_event.regularize()
-    return source_event
-
 
 def equal_attributes(o1, o2):
     '''
@@ -132,137 +58,18 @@ def make_reference_trace(source, targets, engine):
     return response
     
 
-class Core:
-    def __init__(self, markers, stations=None):
-        # Targets================================================
-        store_id = 'castor'
-
-        if store_id=='local1':
-            phase_ids_start = 'p|P|Pv20p|Pv35p'
-            phase_ids_end =   's|S|Sv20s|Sv35s'
-
-        if store_id=='very_local':
-            phase_ids_start = 'p|P|Pv3p|Pv8p|Pv20p|Pv35p'
-            phase_ids_end =   's|S|Sv3s|Sv8s|Sv20s|Sv35s'
-
-        if store_id=='very_local_20Hz':
-            phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
-            phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
-
-        if store_id=='very_local_20Hz':
-            phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
-            phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
-
-        if store_id=='castor':
-            # bug?! bei Pv1.5p gibt's bei nahen Entfernungen ein index ot of
-            # bounds
-            phase_ids_start = 'p|P|Pv12.5p|Pv2.5p|Pv18.5p|Pv20p|Pv35p'
-            phase_ids_end= 's|S|Sv12.5s|Sv2.5s|Sv18.5s|Sv20s|Sv35s'
-
-        # Event==================================================
-        event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
-        assert len(event) == 1
-        event = event[0].get_event()
-        event.magnitude = 4.3
-        event.moment_tensor = moment_tensor.MomentTensor(
-                                        m=num.array([[0.0, 0.0, 1.0],
-                                                     [0.0, 0.0, 0.0],
-                                                     [0.0, 0.0, 0.0]]))
-    
-
-        # generate stations from olat, olon:
-        if not stations:
-            print 'Generating station distribution.'
-            stations = du.station_distribution((event.lat,event.lon),
-                                           [[10000., 4], [130000., 8]], 
-                                           rotate={3000.:45, 130000.:0})
-
-        targets = stations2targets(stations, store_id)
-
-        derec_home = os.environ["DEREC_HOME"]
-        store_dirs = [derec_home + '/fomostos']
-
-        engine = LocalEngine(store_superdirs=store_dirs)
-        model = get_earthmodel_from_engine(engine, store_id) 
-
-        #TESTSOURCES===============================================
-        
-        offset = 7*km
-        zoffset= 2000.
-        ref_source = event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
-        center_lat = ref_source.lat
-        center_lon = ref_source.lon
-
-        negative_lat_offset, negative_lon_offset = du.lat_lon_relative_shift(
-                center_lat, center_lon, -offset, -offset)
-
-        positive_lat_offset, positive_lon_offset = du.lat_lon_relative_shift(
-                center_lat, center_lon, offset, offset)
-
-        #lats=num.linspace(negative_lat_offset, positive_lat_offset, 25) 
-        lats = [ref_source.lat]
-
-        #lons=num.linspace(negative_lon_offset, positive_lon_offset, 25)
-        lons = [ref_source.lon]
-
-        #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
-        depths = [ref_source.depth]
-
-        strikes = num.linspace(ref_source.strike-90, ref_source.strike+90, 25)
-        #strikes = [ref_source.strike]
-
-        #dips = num.linspace(ref_source.dip-45, ref_source.dip+45, 25)
-        dips = [ref_source.dip]
-
-        rakes = num.linspace(ref_source.rake-180, ref_source.rake+180, 25)
-        #rakes = [ref_source.rake]
-
-        print lats, '<- lats'
-        print lons, '<- lons'
-        print depths, '<- depths'
-        print ref_source.lat, '<- event lat'
-        print ref_source.lon, '<- event lon'
-        print ref_source.depth, '<- event depth'
-        print event.moment_tensor.both_strike_dip_rake()[0], '<- event S D R'
-        location_test_sources = [DCSource(lat=lat,
-                               lon=lon,
-                               depth=depth,
-                               time=event.time,
-                               strike=strike,
-                               dip=dip,
-                               rake=rake,
-                               magnitude=event.magnitude) for strike in strikes 
-                                                        for dip in dips 
-                                                        for rake in rakes 
-                                                        for lat in lats 
-                                                        for lon in lons 
-                                                        for depth in depths]
-
-        for s in location_test_sources:
-            s.regularize()
-        #==========================================================
-
-        test_case = TestCase(location_test_sources, 
-                             targets, 
-                             engine, 
-                             store_id, 
-                             test_parameters={'strike':strikes, 
-                                              'dip':dips, 
-                                              'rake':rakes})
-        test_case.ref_source = ref_source
+class Doer():
+    def __init__(self, test_case):
 
         test_case.request_data()
 
-        print 'source location: ', test_case.ref_source
-        reference_seismograms = make_reference_trace(test_case.ref_source,
-                                                     test_case.targets, 
-                                                     engine)
+        #print 'source location: ', test_case.ref_source
         
-        extended_ref_marker = du.chop_ranges(test_case.ref_source, 
-                                             test_case.targets, 
-                                             test_case.store,
-                                             phase_ids_start,
-                                             phase_ids_end)
+        #extended_ref_marker = du.chop_ranges(test_case.ref_source, 
+        #                                    test_case.targets, 
+        #                                    test_case.store,
+        #                                    phase_ids_start,
+        #                                    phase_ids_end)
 
         print('test data marker....')
         extended_test_marker = du.chop_ranges(test_case.sources,
@@ -276,34 +83,15 @@ class Core:
 
         print('chopping ref....')
         test_case.references = du.chop_using_markers(
-                reference_seismograms.iter_results(), extended_ref_marker, 
-                                                        t_shift_frac=0.1)
+                                test_case.reference_seismograms.iter_results(), 
+                                extended_ref_marker, 
+                                t_shift_frac=0.1)
 
         print('chopping cand....')
         test_case.seismograms = du.chop_using_markers(
                 test_case.response.iter_results(), extended_test_marker, 
                                                         t_shift_frac=0.1)
 
-        norm = 2.
-        #taper = trace.CosFader(xfade=4) # Seconds or samples?
-        taper = trace.CosFader(xfrac=0.1) 
-        
-        z, p, k = butter(4, (2.*num.pi*2. ,0.4*num.pi*2.) , 
-                           'bandpass', 
-                           analog=True, 
-                           output='zpk')
-
-        z = num.array(z, dtype=complex)
-        p = num.array(p, dtype=complex)
-        k = num.complex(k)
-        fresponse = trace.PoleZeroResponse(z,p,k)
-        fresponse.regularize()
-        setup = trace.MisfitSetup(norm=norm,
-                                  taper=taper,
-                                  domain='frequency_domain',
-                                  filter=fresponse)
-
-        test_case.set_misfit_setup(setup)
         du.calculate_misfit(test_case)
         #test_case.yaml_dump()
 
@@ -318,104 +106,7 @@ class Core:
         optics.gmt_map(stations=True, events=True)
 
 
-class TestTin():
-    def __init__(self, test_cases=[]):
-        self.assertSameParameters(test_cases)
-        self.test_cases = test_cases
-        self.test_parameters = self.test_cases[0].test_parameters
-        self.update_dimensions(self.test_cases)
-        self.x_range = None
-        self.y_range = None
-        self.z_range = None
-
-    def add_test_case(test_case):
-        self.assertSameParameters(test_case)
-        self.test_cases.extend(test_case)
-        self.update_dimensions([test_case])
-
-    def numpyrize_1d(self, fix_parameters={}):
-        '''Make 1dimensional numpy array
-
-        fix_parameters is a dict {parameter1:value, parameter2:value}
-
-        ..examples:
-            numpyrize_1d({latitude:10, depth:1000})
-
-        '''
-        assert all([k in self.test_parameters for k in fix_parameters.keys()])
-        if not len(fix_parameters.keys())==len(self.test_parameters)-1:
-            raise Exception('Expected %s fix_parameters, got %s' % 
-                        (len(self.test_parameters)-1, len(fix_parameters.keys())))
-
-        x = []
-        y = []
-        x_key = ''.join(set(self.test_parameters) - set(fix_parameters.keys()))
-        
-        for tc in self.test_cases:
-            misfits = tc.misfits
-            for source in tc.sources:
-                if all(getattr(source, k)==v for k,v in fix_parameters.items()):
-                    x.append(getattr(source, x_key))
-                    y.append(misfits[source])
-                else:
-                    continue
-        return num.array(x), num.array(y)
-
-    def numpyrize_2d(self, fix_parameters={}):
-        '''Make 1dimensional numpy array
-
-        fix_parameters is a dict {parameter1:value, parameter2:value}
-
-        ..examples:
-            numpyrize_2d({latitude:10, depth:1000})
-
-        '''
-        assert all(k in self.test_parameters for k in fix_parameters.keys())
-        if not len(fix_parameters.keys())==len(self.test_parameters)-1:
-            raise Exception('Expected %s fix_parameters, got %s' % 
-                        (len(self.test_parameters)-1, len(fix_parameters.keys())))
-
-        data = num.ndarray(shape=(len(tc),len()))
-
-        x = []
-        y = []
-        z = []
-
-        # TODO: Ordering of keys needs revision.
-        x_key, y_key = set(self.test_parameters) - set(fix_parameters.keys())
-        
-        for tc in self.test_cases:
-            misfits = tc.misfits
-            for source in tc.sources:
-                if all(getattr(source, k)==v for k,v in fix_parameters.items()):
-                    D[getattr(source, xkey)][getattr(source,ykey)]=misfits[source]
-
-        return x, y
-
-    def update_dimensions(self, test_cases):
-        for tc in test_cases:
-            self.x_range = num.union1d(self.x_range, 
-                            tc.test_parameters.items()[0].values())
-            self.y_range = num.union1d(self.y_range, 
-                            tc.test_parameters.items()[1].values())
-            self.z_range = num.union1d(self.z_range, 
-                            tc.test_parameters.items()[2].values())
-
-
-    def assertSameParameters(self, test_cases):
-        if not isinstance(test_cases, list):
-            test_cases = list(test_cases)
-
-        assert all(set(x.test_parameters)==set(test_cases[0].test_parameters) 
-                            for x in test_cases)
-
-
-class TestCase(Object):
-    '''
-    In one test case, up to 3 parameters can be modified
-    '''
-
-    
+class TestCaseSetup(Object):
     sources = List.T(Source.T()) 
     targets = List.T(Target.T()) 
     engine = Engine.T()
@@ -423,14 +114,19 @@ class TestCase(Object):
     test_parameters = List.T(String.T())
     misfit_setup = trace.MisfitSetup.T()
 
-    def __init__(self, sources=sources, targets=targets, engine=engine, 
-                        store_id=store_id, test_parameters=test_parameters):
-        self.targets=targets
+
+class TestCase(Object):
+    '''
+    In one test case, up to 3 parameters can be modified
+    '''
+
+    def __init__(self, test_case_setup):
+        self.targets=test_case_setup.targets
         # sollte unnoetig sein:
-        self.sources =sources
-        self.engine = engine
-        self.test_parameters = test_parameters 
-        self.store_id = store_id
+        self.sources =test_case_setup.sources
+        self.engine = test_case_setup.engine
+        self.test_parameters = test_case_setup.test_parameters 
+        self.store_id = test_case_setup.store_id
 
         self.processed_references = defaultdict(dict)
         self.references = {}
@@ -439,13 +135,6 @@ class TestCase(Object):
         self.misfits = None
         self.misfit_setup = None
             
-    def set_stations(self, stations=[]):
-        self.stations = stations 
-
-    def set_misfit_setup(self, setup):
-        self.misfit_setup = setup
-        #self.misfit_setup.regularize(depth=10)
-
     def request_data(self):
         print 'requesting data....'
         self.response = self.engine.process(status_callback=self.update_progressbar, 
@@ -453,11 +142,11 @@ class TestCase(Object):
                                 targets=self.targets)
         print 'finished'
 
-    def get_seismograms(self):
-        return self.seismograms
-
     def set_seismograms(self, seismograms):
         self.seismograms = seismograms
+
+    def set_markers(self, markers):
+        self.markers = markers
 
     def set_misfit(self, misfits):
         self.misfits=misfits 
@@ -686,9 +375,134 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
 
-    traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
+    #traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
 
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                 '../reference_marker_castor.txt'))
 
-    C = Core(markers=markers, stations=None)
+    # Targets================================================
+    store_id = 'castor'
+
+    if store_id=='local1':
+        phase_ids_start = 'p|P|Pv20p|Pv35p'
+        phase_ids_end =   's|S|Sv20s|Sv35s'
+
+    if store_id=='very_local':
+        phase_ids_start = 'p|P|Pv3p|Pv8p|Pv20p|Pv35p'
+        phase_ids_end =   's|S|Sv3s|Sv8s|Sv20s|Sv35s'
+
+    if store_id=='very_local_20Hz':
+        phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
+        phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
+
+    if store_id=='very_local_20Hz':
+        phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
+        phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
+
+    if store_id=='castor':
+        # bug?! bei Pv1.5p gibt's bei nahen Entfernungen ein index ot of
+        # bounds
+        phase_ids_start = 'p|P|Pv12.5p|Pv2.5p|Pv18.5p|Pv20p|Pv35p'
+        phase_ids_end= 's|S|Sv12.5s|Sv2.5s|Sv18.5s|Sv20s|Sv35s'
+
+    # Event==================================================
+    event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
+    assert len(event) == 1
+    event = event[0].get_event()
+    event.magnitude = 4.3
+    event.moment_tensor = moment_tensor.MomentTensor(
+                                    m=num.array([[0.0, 0.0, 1.0],
+                                                 [0.0, 0.0, 0.0],
+                                                 [0.0, 0.0, 0.0]]))
+
+
+    # generate stations from olat, olon:
+    if not stations:
+        print 'Generating station distribution.'
+        stations = du.station_distribution((event.lat,event.lon),
+                                       [[10000., 4], [130000., 8]], 
+                                       rotate={3000.:45, 130000.:0})
+
+    targets = du.stations2targets(stations, store_id)
+
+    derec_home = os.environ["DEREC_HOME"]
+    store_dirs = [derec_home + '/fomostos']
+
+    engine = LocalEngine(store_superdirs=store_dirs)
+    model = get_earthmodel_from_engine(engine, store_id) 
+
+    #TESTSOURCES===============================================
+    
+    zoffset= 2000.
+    ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
+
+    depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 25)
+    strikes = [ref_source.strike]
+    dips = [ref_source.dip]
+    rakes = [ref_source.rake]
+    lats = [ref_source.lat]
+    lons = [ref_source.lon]
+
+    print lats, '<- lats'
+    print lons, '<- lons'
+    print depths, '<- depths'
+    print ref_source.lat, '<- event lat'
+    print ref_source.lon, '<- event lon'
+    print ref_source.depth, '<- event depth'
+    print event.moment_tensor.both_strike_dip_rake()[0], '<- event S D R'
+    location_test_sources = [DCSource(lat=lat,
+                           lon=lon,
+                           depth=depth,
+                           time=event.time,
+                           strike=strike,
+                           dip=dip,
+                           rake=rake,
+                           magnitude=event.magnitude) for strike in strikes 
+                                                    for dip in dips 
+                                                    for rake in rakes 
+                                                    for lat in lats 
+                                                    for lon in lons 
+                                                    for depth in depths]
+
+    for s in location_test_sources:
+        s.regularize()
+    #==========================================================
+
+    reference_seismograms = make_reference_trace(ref_source,
+                                                 targets, 
+                                                 engine)
+
+    # setup the misfit setup:
+    norm = 2.
+    #taper = trace.CosFader(xfade=4) # Seconds or samples?
+    taper = trace.CosFader(xfrac=0.1) 
+    
+    z, p, k = butter(4, (2.*num.pi*2. ,0.4*num.pi*2.) , 
+                       'bandpass', 
+                       analog=True, 
+                       output='zpk')
+
+    z = num.array(z, dtype=complex)
+    p = num.array(p, dtype=complex)
+    k = num.complex(k)
+    fresponse = trace.PoleZeroResponse(z,p,k)
+    fresponse.regularize()
+
+    misfit_setup = trace.MisfitSetup(norm=norm,
+                                     taper=taper,
+                                     domain='frequency_domain',
+                                     filter=fresponse)
+
+    test_parameters = {'depth':depths}
+
+    test_case_setup = TestCaseSetup(sources=location_test_sources,
+                                    targets=targets,
+                                    engine=engine, 
+                                    store_id=store_id,
+                                    test_parameters=test_parameters,
+                                    misfit_setup=misfit_setup)
+
+    test_case = TestCase(test_case_setup )
+    test_case.set_seismograms(reference_seismograms)
+
+    D = Doer(test_case)
