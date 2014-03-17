@@ -641,7 +641,7 @@ class TestCase(Object):
         zraw = self.num_array[2]
         vraw = self.num_array[3]
 
-        self.save_numpy(self.num_array)
+        self.save_numpy(self.num_array, fn='small_array.txt')
 
         # TODO: Ersetzen durch test parameter keys
         x=xraw.reshape(len(self.test_parameters[xkey]),

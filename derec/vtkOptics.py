@@ -148,7 +148,12 @@ class OpticBase():
         import pdb
         pdb.set_trace()
         data = num.loadtxt(infile)
-        data = data[3].reshape(3,3,3)
+        #data = data[3].reshape(5,5,5)
+        for i,v in enumerate(data[3]):
+            if v > 2.0:
+                data[3][i]=2.1
+        data = data[3].reshape(20,20,20)
+        #data = data[3].reshape(len(data[0]),len(data[1]),len(data[2]))
         data = scale_2_int_perc(data)
         self.vtkCube(data)
 
@@ -178,44 +183,47 @@ class OpticBase():
         # simple case, all axes are of length 75 and begins with the first element. For other data, this is probably not the case.
         # I have to admit however, that I honestly dont know the difference between SetDataExtent() and SetWholeExtent() although
         # VTK complains if not both are used.
-        dataImporter.SetDataExtent(0, 3, 0, 3, 0, 3)
-        dataImporter.SetWholeExtent(0, 3, 0, 3, 0, 3)
-        #dataImporter.SetDataExtent(0, 74, 0, 74, 0, 74)
-        #dataImporter.SetWholeExtent(0, 74, 0, 74, 0, 74)
+        dataImporter.SetDataExtent( 0,20,0,20,0,20)
+        dataImporter.SetWholeExtent(0,20,0,20,0,20)
+        #dataImporter.SetDataExtent( 0,5,0,5,0,5)
+        #dataImporter.SetWholeExtent(0,5,0,5,0,5)
 
         # The following class is used to store transparencyv-values for later retrival. In our case, we want the value 0 to be
         # completly opaque whereas the three different cubes are given different transperancy-values to show how it works.
         alphaChannelFunc = vtk.vtkPiecewiseFunction()
-        alphaChannelFunc.AddPoint(0, 0.6)
-        alphaChannelFunc.AddPoint(33, 0.2)
-        alphaChannelFunc.AddPoint(66, 0.1)
-        alphaChannelFunc.AddPoint(100, 0.01)
+        alphaChannelFunc.AddPoint(0, 1.0)
+        alphaChannelFunc.AddPoint(20, 1.0)
+        alphaChannelFunc.AddPoint(70, 0.0)
+        alphaChannelFunc.AddPoint(30, 0.0)
+        alphaChannelFunc.AddPoint(100, 0.0)
 
         # Gradient opacity
         # other way: misfit 0 is anti opacity
-        volumeGradientOpacity = vtk.vtkPiecewiseFunction()
-        volumeGradientOpacity.AddPoint(60,   0.0)
-        volumeGradientOpacity.AddPoint(40,  0.1)
-        volumeGradientOpacity.AddPoint(20, 1.0)
+        #volumeGradientOpacity = vtk.vtkPiecewiseFunction()
+        #volumeGradientOpacity.AddPoint(100,   1.0)
+        #volumeGradientOpacity.AddPoint(80,  1.0)
+        #volumeGradientOpacity.AddPoint(10, 0.1)
+        #volumeGradientOpacity.AddPoint(3, 0.0)
 
         # This class stores color data and can create color tables from a few color points. For this demo, we want the three cubes
         # to be of the colors red green and blue.
         colorFunc = vtk.vtkColorTransferFunction()
-        colorFunc.AddRGBPoint(00, 1.0, 0.0, 0.0)
-        colorFunc.AddRGBPoint(30, 0.0, 1.0, 0.0)
-        colorFunc.AddRGBPoint(60, 0.0, 0.0, 1.0)
+        colorFunc.AddRGBPoint(100, 1.0, 1.0, 1.0)
+        #colorFunc.AddRGBPoint(50, 0.0, 1.0, 0.0)
+        colorFunc.AddRGBPoint(0, 0.0, 0.0, 0.0)
 
         # The preavius two classes stored properties. Because we want to apply these properties to the volume we want to render,
         # we have to store them in a class that stores volume prpoperties.
         volumeProperty = vtk.vtkVolumeProperty()
         volumeProperty.SetColor(colorFunc)
         volumeProperty.SetScalarOpacity(alphaChannelFunc)
-        volumeProperty.SetGradientOpacity(volumeGradientOpacity)
+        volumeProperty.SetInterpolationTypeToNearest()
+        #volumeProperty.SetGradientOpacity(volumeGradientOpacity)
         volumeProperty.SetInterpolationTypeToLinear()
         volumeProperty.ShadeOff()
-        #volumeProperty.SetAmbient(0.1)
-        #volumeProperty.SetDiffuse(0.6)
-        #volumeProperty.SetSpecular(0.2)
+        volumeProperty.SetAmbient(0.1)
+        volumeProperty.SetDiffuse(0.6)
+        volumeProperty.SetSpecular(0.2)
 
         # This class describes how the volume is rendered (through ray tracing).
         compositeFunction = vtk.vtkVolumeRayCastCompositeFunction()
