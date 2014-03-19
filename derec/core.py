@@ -8,6 +8,7 @@ from gmtpy import griddata_auto
 from scipy.signal import butter
 from guts import *
 from scipy.ndimage import zoom
+
 import matplotlib.transforms as transforms
 import time
 import matplotlib.mlab as mlab
@@ -25,7 +26,6 @@ km = 1000.
 
 def get_earthmodel_from_engine(engine, store_id):
     return engine.get_store(store_id).config.earthmodel_1d
-
 
 
 def equal_attributes(o1, o2):
@@ -246,13 +246,11 @@ class TestCase(Object):
                 param_dict.items())), self.sources)
 
 
-    def make_y_transformations_dict(data, fig, inch=1):
+    def y_transformations_dict(self, data, scale, inch=1):
         """
         returns a dictionary with date as key and transormation as value.
         Each transformation will distribute the concerning data on n *inch*es.
         """
-        spaces = num.linspace(-inch/2./72., inch/2./72., len(data))
-        scale = fig.dpi_scale_trans
         transformations = defaultdict()
 
         for i, date in enumerate(data):
@@ -268,29 +266,40 @@ class TestCase(Object):
         http://wiki.scipy.org/Cookbook/Matplotlib/MultilinePlots
         """
         num_stations = len(self.targets)/3
-        figures = [plt.figure(i) for i in range(num_stations)]
+        figures = [plt.figure(i, facecolor='grey') for i in range(num_stations)]
         targets_nsl = set([t.codes[:3] for t in self.targets])
 
         fig_dict = dict(zip(targets_nsl, figures))
         channel_map = {'N':1, 'E':2, 'Z':3}    
-        i=1
+
+        lines = defaultdict(dict)
     
-        transformations
-        
         for source in self.sources:
             for target, winner in self.processed_candidates[source].items():
                 fig = fig_dict[target.codes[:3]]
-                ax = plt.gca()
-            
-                try:
-                    sub = fig.subplot(channel_map[1, 3,target.codes[3]] )
-                except:
-                    sub = fig.add_subplot(1, 3, channel_map[target.codes[3]])
 
-                line = sub.plot(winner.get_xdata(), winner.get_ydata())
+                ax = fig.add_subplot(1, 3, channel_map[target.codes[3]])
+                ax.axes.get_yaxis().set_visible(False)
+                lines[source][target] = ax.plot(winner.get_xdata(), 
+                                                winner.get_ydata())
+        
+        px=340.
+        y_scale_factor = 0.5
 
-                line[0].verticalOffset=i
-                ++i
+        y_shifts = dict(zip(self.sources, num.linspace(-px/2./72., px/2./72., 
+            len(self.sources))))
+        
+        
+        pdb.set_trace()
+
+        # vertically distribute graphs
+        for s in self.sources:
+            for t in self.targets:
+                line = lines[s][t]
+                fig = fig_dict[t.codes[:3]]
+                trans = transforms.ScaledTranslation(0, y_shifts[s], 
+                                                     fig.dpi_scale_trans)
+                line[0].set_transform(line[0].get_transform()+trans)
 
         plt.show()
     
