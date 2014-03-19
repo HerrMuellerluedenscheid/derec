@@ -259,7 +259,7 @@ def chop_using_markers(traces, markers, static_offset=None,
     return chopped_test_traces
 
 
-def extend_phase_markers(markers=[], scaling_factor=1, stations=None, 
+def extend_markers(markers=[], scaling_factor=1, stations=None, 
                         event=None, phase='', model=None, inplace=False):
     '''
     Extend phase markers to fixed length proportional to time lag between
@@ -284,8 +284,9 @@ def extend_phase_markers(markers=[], scaling_factor=1, stations=None,
             if isinstance(marker, gui_util.PhaseMarker):
                 t_event = marker.get_event().time
                 marker.tmax = marker.get_tmin() + (marker.get_tmin() - t_event)*\
-                        0.33 * scaling_factor
-                yield marker
+                                                            scaling_factor
+                
+
 
 
 def sampling_rate_similar(t1, t2):
@@ -322,6 +323,8 @@ def calculate_misfit(test_case):
 
     print('calculating misfits...')
     pbar = progressbar.ProgressBar(maxval=len(sources)).start()
+    import pdb
+    pdb.set_trace()
     for si, source in enumerate(sources):
         pbar.update(si)
         ms = num.empty([len(targets)], dtype=float)
@@ -333,8 +336,9 @@ def calculate_misfit(test_case):
             reft = references.values()[0][target]
             #candidate = candidates[source][target]
             M_tmp = 999.
+
             for c_d, r_d , m, n in reft.misfit(candidates=
-                        test_case.make_shifted_candidates[source][target], 
+                        test_case.make_shifted_candidates(source, target), 
                         setups=mfsetup):
                 if m==None or n==None:
                     print 'm,n =None'

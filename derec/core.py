@@ -8,15 +8,17 @@ from gmtpy import griddata_auto
 from scipy.signal import butter
 from guts import *
 from scipy.ndimage import zoom
-
+import matplotlib.transforms as transforms
 import time
 import matplotlib.mlab as mlab
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 import progressbar
 import os
 import derec_utils as du
 import numpy as num
 import copy
+import pdb
 
 pjoin = os.path.join
 km = 1000.
@@ -71,17 +73,16 @@ class Doer():
                                               phase_ids_start, 
                                               phase_ids_end)
         
-        test_case.test_markers = extended_test_marker
-        test_case.ref_markers = extended_ref_marker
+        test_case.set_candidates_markers( extended_test_marker )
 
         print('chopping ref....')
         test_case.references = du.chop_using_markers(
-                                test_case.reference_seismograms.iter_results(), 
-                                extended_ref_marker, 
+                                test_case.references.iter_results(), 
+                                test_case.ref_markers, 
                                 t_shift_frac=0.1)
 
         print('chopping cand....')
-        test_case.seismograms = du.chop_using_markers(
+        test_case.candidates = du.chop_using_markers(
                 test_case.response.iter_results(), extended_test_marker, 
                                                         t_shift_frac=0.1)
 
@@ -90,16 +91,17 @@ class Doer():
 
         # Display results===================================================
         #test_case.plot1d(order, event.lon)
-        test_case.contourf(xkey='lat', ykey='lon')
-
+        #test_case.contourf(xkey='lat', ykey='lon')
+        
         #test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
 
-        optics = OpticBase(test_case)
+        #optics = OpticBase(test_case)
         #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
-        optics.gmt_map(stations=True, events=True)
+        #optics.gmt_map(stations=True, events=True)
 
 
 class TestCaseSetup(Object):
+    reference_source = Source.T()
     sources = List.T(Source.T()) 
     targets = List.T(Target.T()) 
     engine = Engine.T()
@@ -126,8 +128,8 @@ class TestCase(Object):
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
         self.misfits = None
-        self.misfit_setup = None
-        self.t_shifts = num.arange(-1, 1, 10)
+        self.misfit_setup = test_case_setup.misfit_setup
+        self.t_shifts = num.arange(-1, 1, 0.4)
             
     def request_data(self):
         print 'requesting data....'
@@ -136,11 +138,35 @@ class TestCase(Object):
                                 targets=self.targets)
         print 'finished'
 
+    def set_references(self, references):
+        """
+        references is a dictionary containing the reference seismograms
+        """
+        self.references = references 
+
     def set_candidates(self, candidates):
+        """
+        candidates is a dictionary containing the candidates seismograms
+        """
         self.candidates = candidates
 
-    def set_markers(self, markers):
-        self.markers = markers
+    def set_reference_markers(self, markers):
+        """
+        Reference markers are the ones used as stencil to chop the reference
+        traces.
+        """
+        self.ref_markers = markers
+
+    def set_candidates_markers(self, markers):
+        """
+        candidates markers are the ones used as stencil to chop the candidates 
+        traces.
+        """
+        self.candidates_markers = markers
+
+    def extend_markers(self, markers, c):
+        markers = du.extend_markers(markers, scaling_factor=c)
+        return markers
 
     def set_misfit(self, misfits):
         self.misfits=misfits 
@@ -157,12 +183,15 @@ class TestCase(Object):
         """
         Generator generating shifted candidates.
         """
+        shifted_candidates = []
         for tshift in self.t_shifts:
             # needs to be copied or not?
-            shifted_candidate = self.candidates[source][target]
-            shifted_candidate.tmin += thift
+            shifted_candidate = self.candidates[source][target].copy()
+            shifted_candidate.shift(tshift)
 
-            yield shifted_candidate
+            shifted_candidates.append(shifted_candidate)
+            
+        return shifted_candidates
 
     @staticmethod
     def yaml_2_TestCase(fn):
@@ -216,12 +245,65 @@ class TestCase(Object):
         return filter(lambda s: all(map(lambda x: abs(getattr(s, x[0])-x[1])<1e-7, \
                 param_dict.items())), self.sources)
 
-    def check_plot(self, param_dict):
+
+    def make_y_transformations_dict(data, fig, inch=1):
+        """
+        returns a dictionary with date as key and transormation as value.
+        Each transformation will distribute the concerning data on n *inch*es.
+        """
+        spaces = num.linspace(-inch/2./72., inch/2./72., len(data))
+        scale = fig.dpi_scale_trans
+        transformations = defaultdict()
+
+        for i, date in enumerate(data):
+            transformations[date] = transforms.ScaledTranslation(
+                                    0, spaces[i], scale)
+        return transformations
+
+
+    def waveforms_plot(self):
+        """
+        plot waveforms.
+        some ideas taken from
+        http://wiki.scipy.org/Cookbook/Matplotlib/MultilinePlots
+        """
+        num_stations = len(self.targets)/3
+        figures = [plt.figure(i) for i in range(num_stations)]
+        targets_nsl = set([t.codes[:3] for t in self.targets])
+
+        fig_dict = dict(zip(targets_nsl, figures))
+        channel_map = {'N':1, 'E':2, 'Z':3}    
+        i=1
+    
+        transformations
+        
+        for source in self.sources:
+            for target, winner in self.processed_candidates[source].items():
+                fig = fig_dict[target.codes[:3]]
+                ax = plt.gca()
+            
+                try:
+                    sub = fig.subplot(channel_map[1, 3,target.codes[3]] )
+                except:
+                    sub = fig.add_subplot(1, 3, channel_map[target.codes[3]])
+
+                line = sub.plot(winner.get_xdata(), winner.get_ydata())
+
+                line[0].verticalOffset=i
+                ++i
+
+        plt.show()
+    
+    def stack_plot(self, param_dict=None):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
         area of source, that you would like to look at.
         '''
-        sources = self.get_sources_where(param_dict)
+        if param_dict:
+            sources = self.get_sources_where(param_dict)
+
+        else:
+            sources = self.sources
 
         # google maps snuffling
         gs = gridspec.GridSpec(len(self.targets)/3,3)
@@ -270,8 +352,8 @@ class TestCase(Object):
                                                    source.lon, 
                                                    source.depth))
 
-                marker_min = self.test_markers[source][t].tmin
-                marker_max = self.test_markers[source][t].tmax
+                marker_min = self.candidates_markers[source][t].tmin
+                marker_max = self.candidates_markers[source][t].tmax
 
                 plt.annotate('p', xy=(marker_min, 0))
                 plt.annotate('s', xy=(marker_max, 0))
@@ -350,7 +432,7 @@ class TestCase(Object):
         palette = cm.bone_r
         cf = plt.contourf(x,y,v, 20,  cmap=cm.bone_r)
 
-        plt.plot(getattr(self.ref_source, xkey), getattr(self.ref_source, ykey), '*')
+        plt.plot(getattr(self.reference_source, xkey), getattr(self.reference_source, ykey), '*')
         plt.plot(xraw, yraw, '+', color='w', markersize=4)
         plt.xlabel(self.xkey)
         plt.ylabel(self.ykey)
@@ -379,8 +461,6 @@ if __name__ ==  "__main__":
     # load stations from file:
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
-
-    #traces = io.load(pjoin(selfdir, '../traces/2013-10-01T03-32-45/2013-10-01*'))
 
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                 '../reference_marker_castor.txt'))
@@ -438,36 +518,19 @@ if __name__ ==  "__main__":
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
     depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 5)
-    strikes = [ref_source.strike]
-    dips = [ref_source.dip]
-    rakes = [ref_source.rake]
-    lats = [ref_source.lat]
-    lons = [ref_source.lon]
 
-    print lats, '<- lats'
-    print lons, '<- lons'
     print depths, '<- depths'
-    print ref_source.lat, '<- event lat'
-    print ref_source.lon, '<- event lon'
-    print ref_source.depth, '<- event depth'
-    print event.moment_tensor.both_strike_dip_rake()[0], '<- event S D R'
-    location_test_sources = [DCSource(lat=lat,
-                           lon=lon,
+
+    location_test_sources = [DCSource(lat=ref_source.lat,
+                           lon=ref_source.lon,
                            depth=depth,
                            time=event.time,
-                           strike=strike,
-                           dip=dip,
-                           rake=rake,
-                           magnitude=event.magnitude) for strike in strikes 
-                                                    for dip in dips 
-                                                    for rake in rakes 
-                                                    for lat in lats 
-                                                    for lon in lons 
-                                                    for depth in depths]
+                           strike=ref_source.strike,
+                           dip=ref_source.dip,
+                           rake=ref_source.rake,
+                           magnitude=event.magnitude) for depth in depths]
 
-    for s in location_test_sources:
-        s.regularize()
-    #==========================================================
+    map(lambda x: x.regularize(), location_test_sources)
 
     reference_seismograms = make_reference_trace(ref_source,
                                                  targets, 
@@ -479,9 +542,9 @@ if __name__ ==  "__main__":
     taper = trace.CosFader(xfrac=0.1) 
     
     z, p, k = butter(4, (2.*num.pi*2. ,0.4*num.pi*2.) , 
-                       'bandpass', 
-                       analog=True, 
-                       output='zpk')
+                                       'bandpass', 
+                                       analog=True, 
+                                       output='zpk')
 
     z = num.array(z, dtype=complex)
     p = num.array(p, dtype=complex)
@@ -491,26 +554,30 @@ if __name__ ==  "__main__":
 
     misfit_setup = trace.MisfitSetup(norm=norm,
                                      taper=taper,
-                                     domain='frequency_domain',
+                                     domain='time_domain',
                                      filter=fresponse)
 
-    test_parameters = {'depth':depths}
-
-    test_case_setup = TestCaseSetup(sources=location_test_sources,
+    test_case_setup = TestCaseSetup(reference_source=ref_source,
+                                    sources=location_test_sources,
                                     targets=targets,
                                     engine=engine, 
                                     store_id=store_id,
-                                    test_parameters=test_parameters,
                                     misfit_setup=misfit_setup)
 
-    test_case = TestCase(test_case_setup )
+    test_case = TestCase( test_case_setup )
 
-    extended_ref_marker = du.chop_ranges(test_case.ref_source, 
-                                        test_case.targets, 
+    test_case.set_references(reference_seismograms)
+
+    extended_ref_marker = du.chop_ranges(ref_source, 
+                                        targets, 
                                         test_case.store,
                                         phase_ids_start,
                                         phase_ids_end)
 
-    test_case.set_marker(extended_ref_marker)
+    test_case.set_reference_markers(extended_ref_marker)
 
     D = Doer(test_case)
+    
+    # plot jede Tiefe, jede station/ target: originale spur und bester candidate    
+    test_case.waveforms_plot()
+    #test_case.stack_plot()
