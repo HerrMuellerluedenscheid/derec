@@ -71,8 +71,9 @@ class Doer():
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
-                                              phase_ids_start, 
-                                              phase_ids_end)
+                                              phase_ids_start,
+                                              perc=0.2)
+                                              #phase_ids_end)
         
         test_case.set_candidates_markers( extended_test_marker )
 
@@ -86,7 +87,9 @@ class Doer():
         test_case.candidates = du.chop_using_markers(
                                 test_case.raw_candidates, 
                                 extended_test_marker, 
-                                t_shift_frac=0.1)
+                                t_shift_frac=0.1,
+                                inplace=False)
+
 
         du.calculate_misfit(test_case)
         #test_case.yaml_dump()
@@ -135,6 +138,7 @@ class TestCase(Object):
         self.misfits = None
         self.misfit_setup = test_case_setup.misfit_setup
         self.t_shifts = num.arange(-1, 1, 0.4)
+        self.channel_map = {'N':1, 'E':2, 'Z':3}    
             
     def request_data(self):
         print 'requesting data....'
@@ -266,13 +270,11 @@ class TestCase(Object):
         figures = [plt.figure(i, facecolor='grey') for i in range(num_stations)]
         fig_dict = dict(zip(self.targets_nsl, figures))
 
-
         axes_dict = {}
-        channel_map = {'N':1, 'E':2, 'Z':3}    
         # overlapping axes objects <- google
         for target in self.targets:
             fig = fig_dict[target.codes[:3]]
-            axes_dict[target] = fig.add_subplot(1,3,channel_map[target.codes[3]])
+            axes_dict[target] = fig.add_subplot(1,3,self.channel_map[target.codes[3]])
 
         processed_lines = self.lines_dict(self.processed_candidates)
 
@@ -297,25 +299,8 @@ class TestCase(Object):
         for ax in axes_dict.values():
             ax.axes.get_yaxis().set_visible(False)
             ax.autoscale()
-        
 
-    def before_after(self, before_dict, after_dict):
-        """
-        return axes object with initial trace and processed trace.
-        """
-        before_after_dict = defaultdict(dict)
-        for source, target_trace_before in before_dict.items():
-            for target, before_trace in target_trace_before.items():
-                after_trace = after_dict[source][target]
-                ax = plt.subplot()
-                ax.plot(before_trace.get_xdata(), before_trace.get_ydata(),'--')
-                ax.plot(after_trace.get_xdata(), after_trace.get_ydata())
-                ax.autoscale()
-                before_after_dict[source][target] = ax
-
-        return before_after_dict
-
-    def before_after_plot(self, sources=[], targets=[]):
+    def before_after_plot(self, sources=[], targets=[], focus=False):
         """
 
         """
@@ -324,15 +309,43 @@ class TestCase(Object):
 
         if not targets:
             targets = self.targets
-        
-        axes_dict = {}
+        targets_nsl = set([target.codes[:3] for target in targets]) 
+
+        axes_dict = defaultdict(dict) 
+        figs = defaultdict(dict) 
+
         for s in sources:
-            figs, axs = plt.subplots(1, 3, sharex=True)
-            axes_dict[s] = figs
+            for tnsl in self.targets_nsl:
+                fig = plt.figure()
+                fig.suptitle('z=%s; station=%s'%(s.depth, tnsl))
+                figs[s][tnsl] = fig
 
-        axes = self.before_after(self.raw_candidates, self.processed_candidates)
+        for s in sources:
+            for t in targets:
+                fig = figs[s][t.codes[:3]]
+                ax = fig.add_subplot(3,1, self.channel_map[t.codes[3]])
+                pro = self.processed_candidates[s][t]
+                pro_x = pro.get_xdata()
+                pro_y = pro.get_ydata()
 
-        [figs[t].set_axes(axes[s][t]) for s in sources for t in targets]
+                raw = self.raw_candidates[s][t]
+                raw_x = raw.get_xdata()
+                raw_x_f = []
+                raw_y = raw.get_ydata()
+                raw_y_f = []
+
+                if focus:
+                    for ix,x in enumerate(raw_x):
+                        if pro_x[0]<=x<=pro_x[-1]:
+                            raw_y_f.append(raw_y[ix])
+                            raw_x_f.append(x)
+                    raw_x = raw_x_f
+                    raw_y = raw_y_f
+
+                ax.plot(raw_x, raw_y)
+                ax.plot(pro.get_xdata(), pro.get_ydata())
+                ax.set_title('%s'%t.codes[3])
+                ax.autoscale()
 
     def lines_dict(self, traces_dict):
         """
@@ -541,6 +554,9 @@ if __name__ ==  "__main__":
         phase_ids_start = 'p|P|Pv12.5p|Pv2.5p|Pv18.5p|Pv20p|Pv35p'
         phase_ids_end= 's|S|Sv12.5s|Sv2.5s|Sv18.5s|Sv20s|Sv35s'
 
+    phase_ids_start = 'p|P'
+    phase_ids_end = 's|S'
+
     # Event==================================================
     event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
     assert len(event) == 1
@@ -569,10 +585,10 @@ if __name__ ==  "__main__":
 
     #TESTSOURCES===============================================
     
-    zoffset= 2000.
+    zoffset= 0.
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
-    depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 5)
+    depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 1)
 
     print depths, '<- depths'
 
@@ -629,17 +645,49 @@ if __name__ ==  "__main__":
                                         targets, 
                                         test_case.store,
                                         phase_ids_start,
-                                        phase_ids_end)
+                                        perc=0.2)
+                                        #phase_ids_end)
+
+            
 
     test_case.set_reference_markers(extended_ref_marker)
 
     D = Doer(test_case)
+
+    # Plot Distance vs. start/end of chopping range.
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    for source, target_marker in extended_ref_marker.items():
+        for target, mark in target_marker.items():
+            trac = test_case.raw_references[source][target]
+            dist = source.distance_to(target)
+            ax.plot(dist, mark.tmin,'+')
+            ax.plot(dist, mark.tmax,'o')
+
+    # Plot z-component
+    for source in test_case.sources:
+        i=0
+        fig, axs = plt.subplots(len(test_case.targets)/3, sharex=True)
+        sorted_targets = sorted(test_case.targets, key=lambda tr: tr.distance_to(source))
+        # only use vertical components. But sort by distance, first :
+        for target in [t for t in sorted_targets if t.codes[3]=='Z']:
+                m = test_case.candidates_markers[source][target]
+                c = test_case.raw_candidates[source][target]
+                axs[i].plot(c.get_xdata(), c.get_ydata())
+                axs[i].axvline(m.tmin, label='P')
+                axs[i].axvline(m.tmax, label='P')
+                i+=1
+
+        fig.subplots_adjust(hspace=0)
+        plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+        fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
     
     # plot jede Tiefe, jede station/ target: originale spur und bester candidate    
 
     #test_case.raw_candidates_lines = test_case.lines_dict(test_case.raw_candidates)
     #test_case.waveforms_plot()
-    #test_case.before_after_plot(sources=test_case.get_sources_where({'depth':2000}))
-    test_case.before_after_plot()
+    test_case.before_after_plot(sources=test_case.get_sources_where({'depth':2000}),
+            focus=True)
+    #test_case.before_after_plot()
     plt.show()
     #test_case.stack_plot()

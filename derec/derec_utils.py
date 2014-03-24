@@ -24,6 +24,7 @@ class NoMatchingTraces(Exception):
     def __str__(self):
         return 'No matching traces found.'
 
+
 def lat_lon_relative_shift(olat, olon, north_shift, east_shift):
     '''
     Uses flat earth approximation. 
@@ -104,45 +105,25 @@ def azi_to_location_digits(azi):
     r = str(int(azi)).zfill(3)
     return r
 
-def make_reference_markers_cake(source, targets, model):
+
+def cake_first_arrival(distance, depth, model, phases=None):
+    """
+    Get very first arrival of *phases*. 
+    """
+    if not phases:
+        phases = ['p','P']
     
-    assert len(source) == 1
-    
-    ref_marker = defaultdict(dict)
-    phases_start = ['p','P']
-    phases_start = [cake.PhaseDef(ph) for ph in phases_start]
+    phases = [cake.PhaseDef(ph) for ph in phases]
 
-    phases_end = ['s', 'S']
-    phases_end = [cake.PhaseDef(ph) for ph in phases_end]
-    
-    for s in source:
-        for target in targets:
-            dist = orthodrome.distance_accurate50m(s, target)*cake.m2d
-            tmin = min(model.arrivals([dist], 
-                                    phases_start,
-                                    zstart=s.depth,
-                                    zstop=s.depth), key=lambda x: x.t).t
+    tmin = min(model.arrivals([distance*cake.m2d], 
+                            phases,
+                            zstart=depth,
+                            zstop=depth), key=lambda x: x.t).t
+    return tmin
 
-            tmax = min(model.arrivals([dist], 
-                                    phases_end, 
-                                    zstart=s.depth,
-                                    zstop=s.depth), key=lambda x: x.t).t
 
-            tmin += s.time
-            tmax += s.time
-            assert tmin!=tmax
-            m = gui_util.PhaseMarker(nslc_ids=target.codes, 
-                                    tmin=tmin,
-                                    tmax=tmax,
-                                    kind=1,
-                                    event=source,
-                                    phasename='range')
-
-            ref_marker[s][target] = m
-    return ref_marker
-
-def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
-        **kwargs):
+def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
+        perc=None, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -152,46 +133,42 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
 
     static offset soll ersetzt werden....
     '''
-    if kwargs.get('fallback_phases', False):
-        try:
-            p_fallback = kwargs['fallback_phases']['p']
-        except KeyError:
-            p_fallback = None
-        
-        try:
-            s_fallback = kwargs['fallback_phases']['s']
-        except KeyError:
-            s_fallback = None
+    assert not phase_ids_end==perc and None in (phase_ids_end, perc)
 
     parallelize = False 
     if kwargs.get('parallelize', False):
         paralellize=True
 
+    model = store.config.earthmodel_1d
+
     if not isinstance(sources, list):
         sources = [sources]
-    phase_marker_dict = defaultdict()
+
     def do_run(source, return_dict=None):
         if return_dict is None:
             return_dict = defaultdict()
 
         for target in targets:
-            dist = orthodrome.distance_accurate50m(source, target)
+            dist = source.distance_to(target)
+            print dist
             args = (source.depth, dist)
 
             tmin = store.t('first(%s)'%phase_ids_start, args)
-            if tmin is None and p_fallback:
-                print 'Using p_fallback'
-                tmin = store.t(p_fallback, args)
-            tmin += source.time
+            if tmin==None:
+                print 'tmin is None, using cake...(takes a little longer)'
+                tmin = cake_first_arrival(dist, source.depth, model,
+                        phases=phase_ids_start.split('|'))
 
-            tmax = store.t('first(%s)'%phase_ids_end, args)
-            if tmax is None:
-                if s_fallback is not None:
-                    tmax = store.t(s_fallback, args)
-                else:
+            if phase_ids_end:
+                tmax = store.t('first(%s)'%phase_ids_end, args)
+                if tmax is None:
                     raise Exception("cannot interpolate tmax. Target: \n%s."%target+\
                                         '\n Source: %s'%source) 
 
+            if perc:
+                tmax = tmin + tmin * perc
+
+            tmin += source.time
             tmax += source.time
 
             m = PhaseMarker(nslc_ids=target.codes,
@@ -203,6 +180,8 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
 
             return_dict[target] = m
         return return_dict 
+
+    phase_marker_dict = defaultdict()
 
     if parallelize==True:
         nworkers = 1
@@ -223,6 +202,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end,
     else:
         for source in sources:
             phase_marker_dict[source] = do_run(source)
+
     return phase_marker_dict
 
 
@@ -251,10 +231,10 @@ def chop_using_markers(traces, markers, static_offset=None,
 
                 tmin += t_start_shift
                 tmax += t_end_shift 
-            tr.chop(tmin, tmax, *args, **kwargs)
+            chopped_tr = tr.chop(tmin, tmax, args, kwargs)
 
-            tr.set_codes(str(source.lat), str(source.lon), str(source.depth))
-            chopped_test_traces[source][target] = tr
+            #chopped_tr.set_codes(str(source.lat), str(source.lon), str(source.depth))
+            chopped_test_traces[source][target] = chopped_tr
 
     return chopped_test_traces
 
