@@ -236,25 +236,25 @@ def chop_using_markers(traces, markers, static_offset=None,
 
     chopped_test_traces = defaultdict(dict)
     
-    for s, t, tr in traces:
+    for source, targets_traces in traces.items():
+        for target, tr in targets_traces.items():
+            m = markers[source][target]
+            tmin = m.tmin
+            tmax = m.tmax
 
-        m = markers[s][t]
-        tmin = m.tmin
-        tmax = m.tmax
+            if static_offset:
+                tmax = tmin+static_offset
 
-        if static_offset:
-            tmax = tmin+static_offset
+            if t_shift_frac:
+                t_start_shift = -(tmax-tmin)*t_shift_frac
+                t_end_shift = t_start_shift
 
-        if t_shift_frac:
-            t_start_shift = -(tmax-tmin)*t_shift_frac
-            t_end_shift = t_start_shift
+                tmin += t_start_shift
+                tmax += t_end_shift 
+            tr.chop(tmin, tmax, *args, **kwargs)
 
-            tmin += t_start_shift
-            tmax += t_end_shift 
-        tr.chop(tmin, tmax, *args, **kwargs)
-
-        tr.set_codes(str(s.lat), str(s.lon), str(s.depth))
-        chopped_test_traces[s][t] = tr
+            tr.set_codes(str(source.lat), str(source.lon), str(source.depth))
+            chopped_test_traces[source][target] = tr
 
     return chopped_test_traces
 
@@ -443,3 +443,8 @@ def stations2targets(stations, store_id):
     return targets
 
 
+def response_to_dict(response_dict):
+    store_dict = defaultdict(dict)
+    for source, target, trac in response_dict.iter_results():
+        store_dict[source][target] = trac
+    return store_dict

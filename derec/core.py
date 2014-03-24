@@ -14,6 +14,7 @@ import time
 import matplotlib.mlab as mlab
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import matplotlib.lines as pltlines
 import progressbar
 import os
 import derec_utils as du
@@ -77,14 +78,15 @@ class Doer():
 
         print('chopping ref....')
         test_case.references = du.chop_using_markers(
-                                test_case.references.iter_results(), 
+                                test_case.raw_references, 
                                 test_case.ref_markers, 
                                 t_shift_frac=0.1)
 
         print('chopping cand....')
         test_case.candidates = du.chop_using_markers(
-                test_case.response.iter_results(), extended_test_marker, 
-                                                        t_shift_frac=0.1)
+                                test_case.raw_candidates, 
+                                extended_test_marker, 
+                                t_shift_frac=0.1)
 
         du.calculate_misfit(test_case)
         #test_case.yaml_dump()
@@ -123,8 +125,11 @@ class TestCase(Object):
         self.test_parameters = test_case_setup.test_parameters 
         self.store_id = test_case_setup.store_id
 
+        self.raw_references = None
         self.processed_references = defaultdict(dict)
         self.references = {}
+
+        self.raw_candidates = None
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
         self.misfits = None
@@ -137,18 +142,19 @@ class TestCase(Object):
                                 sources=self.sources,
                                 targets=self.targets)
         print 'finished'
-
-    def set_references(self, references):
+        self.set_raw_candidates(du.response_to_dict(self.response))
+    
+    def set_raw_references(self, references):
         """
         references is a dictionary containing the reference seismograms
         """
-        self.references = references 
+        self.raw_references = references 
 
-    def set_candidates(self, candidates):
+    def set_raw_candidates(self, candidates):
         """
         candidates is a dictionary containing the candidates seismograms
         """
-        self.candidates = candidates
+        self.raw_candidates = candidates
 
     def set_reference_markers(self, markers):
         """
@@ -167,6 +173,12 @@ class TestCase(Object):
     def extend_markers(self, markers, c):
         markers = du.extend_markers(markers, scaling_factor=c)
         return markers
+
+    @property
+    def targets_nsl(self):
+        """return a set of all network, station, location tuples contained
+        in this Test Case"""
+        return set([t.codes[:3] for t in self.targets])
 
     def set_misfit(self, misfits):
         self.misfits=misfits 
@@ -241,23 +253,8 @@ class TestCase(Object):
 
         :returns: list of sources, matching the required parameters in the param_dict.
         '''
-        #assert all([float(v) in self.test_parameters[k] for k,v in param_dict.items()])
         return filter(lambda s: all(map(lambda x: abs(getattr(s, x[0])-x[1])<1e-7, \
                 param_dict.items())), self.sources)
-
-
-    def y_transformations_dict(self, data, scale, inch=1):
-        """
-        returns a dictionary with date as key and transormation as value.
-        Each transformation will distribute the concerning data on n *inch*es.
-        """
-        transformations = defaultdict()
-
-        for i, date in enumerate(data):
-            transformations[date] = transforms.ScaledTranslation(
-                                    0, spaces[i], scale)
-        return transformations
-
 
     def waveforms_plot(self):
         """
@@ -267,42 +264,91 @@ class TestCase(Object):
         """
         num_stations = len(self.targets)/3
         figures = [plt.figure(i, facecolor='grey') for i in range(num_stations)]
-        targets_nsl = set([t.codes[:3] for t in self.targets])
+        fig_dict = dict(zip(self.targets_nsl, figures))
 
-        fig_dict = dict(zip(targets_nsl, figures))
+
+        axes_dict = {}
         channel_map = {'N':1, 'E':2, 'Z':3}    
+        # overlapping axes objects <- google
+        for target in self.targets:
+            fig = fig_dict[target.codes[:3]]
+            axes_dict[target] = fig.add_subplot(1,3,channel_map[target.codes[3]])
 
-        lines = defaultdict(dict)
-    
+        processed_lines = self.lines_dict(self.processed_candidates)
+
         for source in self.sources:
-            for target, winner in self.processed_candidates[source].items():
-                fig = fig_dict[target.codes[:3]]
+            for target in self.targets:
+                axes_dict[target].add_line(processed_lines[source][target])
 
-                ax = fig.add_subplot(1, 3, channel_map[target.codes[3]])
-                ax.axes.get_yaxis().set_visible(False)
-                lines[source][target] = ax.plot(winner.get_xdata(), 
-                                                winner.get_ydata())
-        
         px=340.
-        y_scale_factor = 0.5
-
         y_shifts = dict(zip(self.sources, num.linspace(-px/2./72., px/2./72., 
             len(self.sources))))
         
-        
-        pdb.set_trace()
-
         # vertically distribute graphs
         for s in self.sources:
             for t in self.targets:
-                line = lines[s][t]
+                line = processed_lines[s][t]
                 fig = fig_dict[t.codes[:3]]
                 trans = transforms.ScaledTranslation(0, y_shifts[s], 
                                                      fig.dpi_scale_trans)
-                line[0].set_transform(line[0].get_transform()+trans)
 
-        plt.show()
-    
+                line.set_transform(line.get_transform()+trans)
+
+        for ax in axes_dict.values():
+            ax.axes.get_yaxis().set_visible(False)
+            ax.autoscale()
+        
+
+    def before_after(self, before_dict, after_dict):
+        """
+        return axes object with initial trace and processed trace.
+        """
+        before_after_dict = defaultdict(dict)
+        for source, target_trace_before in before_dict.items():
+            for target, before_trace in target_trace_before.items():
+                after_trace = after_dict[source][target]
+                ax = plt.subplot()
+                ax.plot(before_trace.get_xdata(), before_trace.get_ydata(),'--')
+                ax.plot(after_trace.get_xdata(), after_trace.get_ydata())
+                ax.autoscale()
+                before_after_dict[source][target] = ax
+
+        return before_after_dict
+
+    def before_after_plot(self, sources=[], targets=[]):
+        """
+
+        """
+        if not sources:
+            sources = self.sources
+
+        if not targets:
+            targets = self.targets
+        
+        axes_dict = {}
+        for s in sources:
+            figs, axs = plt.subplots(1, 3, sharex=True)
+            axes_dict[s] = figs
+
+        axes = self.before_after(self.raw_candidates, self.processed_candidates)
+
+        [figs[t].set_axes(axes[s][t]) for s in sources for t in targets]
+
+    def lines_dict(self, traces_dict):
+        """
+        Create matplotlib.lines.Line2D objects from traces dicts.
+        :return lines_dict: dict with lines
+        """
+        lines_dict = defaultdict(dict)
+
+        for source, target_traces in traces_dict.items():
+            for target, trac in target_traces.items():
+                x=trac.get_xdata()
+                y=trac.get_ydata()
+                lines_dict[source][target] = pltlines.Line2D(x,y)
+
+        return lines_dict 
+
     def stack_plot(self, param_dict=None):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
@@ -541,9 +587,11 @@ if __name__ ==  "__main__":
 
     map(lambda x: x.regularize(), location_test_sources)
 
-    reference_seismograms = make_reference_trace(ref_source,
+    reference_request = make_reference_trace(ref_source,
                                                  targets, 
                                                  engine)
+
+    reference_seismograms = du.response_to_dict(reference_request)
 
     # setup the misfit setup:
     norm = 2.
@@ -575,7 +623,7 @@ if __name__ ==  "__main__":
 
     test_case = TestCase( test_case_setup )
 
-    test_case.set_references(reference_seismograms)
+    test_case.set_raw_references(reference_seismograms)
 
     extended_ref_marker = du.chop_ranges(ref_source, 
                                         targets, 
@@ -588,5 +636,10 @@ if __name__ ==  "__main__":
     D = Doer(test_case)
     
     # plot jede Tiefe, jede station/ target: originale spur und bester candidate    
-    test_case.waveforms_plot()
+
+    #test_case.raw_candidates_lines = test_case.lines_dict(test_case.raw_candidates)
+    #test_case.waveforms_plot()
+    #test_case.before_after_plot(sources=test_case.get_sources_where({'depth':2000}))
+    test_case.before_after_plot()
+    plt.show()
     #test_case.stack_plot()
