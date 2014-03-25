@@ -6,8 +6,8 @@ from matplotlib import cm
 from matplotlib.mlab import griddata
 from gmtpy import griddata_auto
 from scipy.signal import butter
-from guts import *
 from scipy.ndimage import zoom
+from guts import *
 
 import matplotlib.transforms as transforms
 import time
@@ -83,6 +83,8 @@ class Doer():
                                 test_case.ref_markers, 
                                 t_shift_frac=0.1)
 
+        test_case.apply_stf(test_case.test_case_setup.source_time_function)
+
         print('chopping cand....')
         test_case.candidates = du.chop_using_markers(
                                 test_case.raw_candidates, 
@@ -90,6 +92,7 @@ class Doer():
                                 t_shift_frac=0.1,
                                 inplace=False)
 
+        
 
         du.calculate_misfit(test_case)
         #test_case.yaml_dump()
@@ -113,6 +116,8 @@ class TestCaseSetup(Object):
     store_id = String.T()
     test_parameters = List.T(String.T())
     misfit_setup = trace.MisfitSetup.T()
+    # would be nicer in an numpy array
+    source_time_function = List.T(List.T())
 
 
 class TestCase(Object):
@@ -121,9 +126,9 @@ class TestCase(Object):
     '''
 
     def __init__(self, test_case_setup):
-        self.targets=test_case_setup.targets
-        # sollte unnoetig sein:
-        self.sources =test_case_setup.sources
+        self.test_case_setup = test_case_setup
+        self.targets = test_case_setup.targets
+        self.sources = test_case_setup.sources
         self.engine = test_case_setup.engine
         self.test_parameters = test_case_setup.test_parameters 
         self.store_id = test_case_setup.store_id
@@ -173,19 +178,6 @@ class TestCase(Object):
         """
         self.candidates_markers = markers
 
-    def apply_stf(self, traces_dict, stf):
-        """
-        Apply a source time function, given in timedomain.
-
-        Bedenke den Time shift!
-        """
-        for s, target_traces in traces_dict.items():
-            for t, trac in target_traces.items():
-                x = trac.get_xdata()
-                y = trac.get_ydata()
-                dt = trac.deltat
-                stf_resampled = 
-
     def extend_markers(self, markers, c):
         markers = du.extend_markers(markers, scaling_factor=c)
         return markers
@@ -194,6 +186,12 @@ class TestCase(Object):
         """return a set of all network, station, location tuples contained
         in *targets*"""
         return set([t.codes[:3] for t in targets])
+
+    def apply_stf(self, stf):
+        """
+        Apply source time function on candidates.
+        """
+        self.raw_candidates = du.apply_stf(self.raw_candidates, stf)
 
     @property
     def targets_nsl(self):
@@ -650,16 +648,25 @@ if __name__ ==  "__main__":
                                      domain='time_domain',
                                      filter=fresponse)
 
+    rise_time=1.
+
+    stf = [[0,rise_time],[0,1]]
     test_case_setup = TestCaseSetup(reference_source=ref_source,
                                     sources=location_test_sources,
                                     targets=targets,
                                     engine=engine, 
                                     store_id=store_id,
-                                    misfit_setup=misfit_setup)
+                                    misfit_setup=misfit_setup,
+                                    source_time_function=stf)
 
     test_case = TestCase( test_case_setup )
 
     test_case.set_raw_references(reference_seismograms)
+
+    # considering that these traces are 'real' traces. Thus, 
+    # stf needs to be applied to raw traces.
+    test_case.raw_references = du.apply_stf(test_case.raw_references, 
+                            test_case_setup.source_time_function)
 
     extended_ref_marker = du.chop_ranges(ref_source, 
                                         targets, 

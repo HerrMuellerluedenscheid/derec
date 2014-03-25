@@ -11,6 +11,7 @@ from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model
 from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.parimap import parimap
+from scipy import interpolate
 
 from multiprocessing import Pool, Pipe, Process, Manager
 from itertools import izip
@@ -427,3 +428,23 @@ def response_to_dict(response_dict):
     for source, target, trac in response_dict.iter_results():
         store_dict[source][target] = trac
     return store_dict
+
+
+def apply_stf(traces_dict, stf):
+    """
+    Apply a source time function, given in timedomain.
+
+    Rethink the time shift.......
+    """
+    for s, target_traces in traces_dict.items():
+        for t, trac in target_traces.items():
+            x = trac.get_xdata()
+            y = trac.get_ydata()
+            dt = trac.deltat
+            x_stf_new = num.arange(stf[0][0], stf[0][-1], dt)
+            finterp = interpolate.interp1d(stf[0], stf[1])
+            y_stf_new = finterp(x_stf_new)
+            new_y = num.convolve(y_stf_new, y)
+            trac.set_ydata(new_y)
+
+    return traces_dict
