@@ -303,8 +303,7 @@ def calculate_misfit(test_case):
 
     print('calculating misfits...')
     pbar = progressbar.ProgressBar(maxval=len(sources)).start()
-    import pdb
-    pdb.set_trace()
+
     for si, source in enumerate(sources):
         pbar.update(si)
         ms = num.empty([len(targets)], dtype=float)
@@ -318,12 +317,12 @@ def calculate_misfit(test_case):
             M_tmp = 999.
 
             for c_d, r_d , m, n in reft.misfit(candidates=
-                        test_case.make_shifted_candidates(source, target), 
-                        setups=mfsetup):
+                        test_case.make_shifted_candidates(source, target,
+                                    t_shifts=num.linspace(-0.5,0.5,10)), 
+                            setups=mfsetup):
+
                 if m==None or n==None:
                     print 'm,n =None'
-                    import pdb
-                    pdb.set_trace()
                     continue
 
                 if m/n>=M_tmp:

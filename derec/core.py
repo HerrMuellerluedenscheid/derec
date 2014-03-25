@@ -137,7 +137,6 @@ class TestCase(Object):
         self.candidates= {}
         self.misfits = None
         self.misfit_setup = test_case_setup.misfit_setup
-        self.t_shifts = num.arange(-1, 1, 0.4)
         self.channel_map = {'N':1, 'E':2, 'Z':3}    
             
     def request_data(self):
@@ -174,15 +173,33 @@ class TestCase(Object):
         """
         self.candidates_markers = markers
 
+    def apply_stf(self, traces_dict, stf):
+        """
+        Apply a source time function, given in timedomain.
+
+        Bedenke den Time shift!
+        """
+        for s, target_traces in traces_dict.items():
+            for t, trac in target_traces.items():
+                x = trac.get_xdata()
+                y = trac.get_ydata()
+                dt = trac.deltat
+                stf_resampled = 
+
     def extend_markers(self, markers, c):
         markers = du.extend_markers(markers, scaling_factor=c)
         return markers
+
+    def targets_nsl_of(self, targets=[]):
+        """return a set of all network, station, location tuples contained
+        in *targets*"""
+        return set([t.codes[:3] for t in targets])
 
     @property
     def targets_nsl(self):
         """return a set of all network, station, location tuples contained
         in this Test Case"""
-        return set([t.codes[:3] for t in self.targets])
+        return self.targets_nsl(self.targets)
 
     def set_misfit(self, misfits):
         self.misfits=misfits 
@@ -195,12 +212,12 @@ class TestCase(Object):
         f.write(self.dump())
         f.close()
 
-    def make_shifted_candidates(self, source, target):
+    def make_shifted_candidates(self, source, target, t_shifts):
         """
         Generator generating shifted candidates.
         """
         shifted_candidates = []
-        for tshift in self.t_shifts:
+        for tshift in t_shifts:
             # needs to be copied or not?
             shifted_candidate = self.candidates[source][target].copy()
             shifted_candidate.shift(tshift)
@@ -300,52 +317,54 @@ class TestCase(Object):
             ax.axes.get_yaxis().set_visible(False)
             ax.autoscale()
 
-    def before_after_plot(self, sources=[], targets=[], focus=False):
+    def compare_plot(self, sources=[], targets=[], traces_dicts=[], focus_first=False):
         """
 
         """
-        if not sources:
-            sources = self.sources
+        def focus_data(ref_x, foc_x, foc_y):
+            """
+            return two lists with x- and y-data of x-range determined by *ref_x*
+            """
+            _foc_x = []
+            _foc_y = []
+            for ix,x in enumerate(ref_x):
+                if foc_x[0]<=x<=foc_x[-1]:
+                    _foc_y.append(foc_y[ix])
+                    _foc_x.append(x)
+            return _foc_x, _foc_y
 
-        if not targets:
-            targets = self.targets
-        targets_nsl = set([target.codes[:3] for target in targets]) 
+        sources = self.sources if not sources else sources
+        targets = self.targets if not targets else targets
+
+        targets_nsl = self.targets_nsl_of(targets) 
 
         axes_dict = defaultdict(dict) 
-        figs = defaultdict(dict) 
+        figs = {}
 
-        for s in sources:
-            for tnsl in self.targets_nsl:
-                fig = plt.figure()
-                fig.suptitle('z=%s; station=%s'%(s.depth, tnsl))
-                figs[s][tnsl] = fig
+        for tnsl in targets_nsl:
+            fig, axs = plt.subplots(3,1, sharex=True)
+            fig.suptitle('station=%s'%'.'.join(tnsl))
+            figs[tnsl] = fig
 
         for s in sources:
             for t in targets:
-                fig = figs[s][t.codes[:3]]
-                ax = fig.add_subplot(3,1, self.channel_map[t.codes[3]])
-                pro = self.processed_candidates[s][t]
-                pro_x = pro.get_xdata()
-                pro_y = pro.get_ydata()
+                fig = figs[t.codes[:3]]
+                ax = fig.get_axes()[self.channel_map[t.codes[3]]-1]
 
-                raw = self.raw_candidates[s][t]
-                raw_x = raw.get_xdata()
-                raw_x_f = []
-                raw_y = raw.get_ydata()
-                raw_y_f = []
+                X = [] 
+                Y = []
+                for trs in traces_dicts:
+                    tr = trs[s][t]
+                    X.append(tr.get_xdata())
+                    Y.append(tr.get_ydata())
 
-                if focus:
-                    for ix,x in enumerate(raw_x):
-                        if pro_x[0]<=x<=pro_x[-1]:
-                            raw_y_f.append(raw_y[ix])
-                            raw_x_f.append(x)
-                    raw_x = raw_x_f
-                    raw_y = raw_y_f
+                for i in range(len(X)-1):
+                    X[i+1], Y[i+1] = focus_data(X[0], X[i+1], Y[i+1])
 
-                ax.plot(raw_x, raw_y)
-                ax.plot(pro.get_xdata(), pro.get_ydata())
+                [ax.plot(X[i], Y[i]) for i in range(len(X))]
                 ax.set_title('%s'%t.codes[3])
                 ax.autoscale()
+
 
     def lines_dict(self, traces_dict):
         """
@@ -588,7 +607,8 @@ if __name__ ==  "__main__":
     zoffset= 0.
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
-    depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 1)
+    depths=[1800, 2000, 2200]
+    #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 1)
 
     print depths, '<- depths'
 
@@ -664,9 +684,9 @@ if __name__ ==  "__main__":
             ax.plot(dist, mark.tmin,'+')
             ax.plot(dist, mark.tmax,'o')
 
-    # Plot z-component
+    # Plot z-component for each station for each source in a different figure
     for source in test_case.sources:
-        i=0
+        i = 0
         fig, axs = plt.subplots(len(test_case.targets)/3, sharex=True)
         sorted_targets = sorted(test_case.targets, key=lambda tr: tr.distance_to(source))
         # only use vertical components. But sort by distance, first :
@@ -676,6 +696,11 @@ if __name__ ==  "__main__":
                 axs[i].plot(c.get_xdata(), c.get_ydata())
                 axs[i].axvline(m.tmin, label='P')
                 axs[i].axvline(m.tmax, label='P')
+
+                plt.text(1, 1, '.'.join(target.codes[:3]),
+                                horizontalalignment='right',
+                                verticalalignment='top',
+                                transform=axs[i].transAxes)
                 i+=1
 
         fig.subplots_adjust(hspace=0)
@@ -686,8 +711,13 @@ if __name__ ==  "__main__":
 
     #test_case.raw_candidates_lines = test_case.lines_dict(test_case.raw_candidates)
     #test_case.waveforms_plot()
-    test_case.before_after_plot(sources=test_case.get_sources_where({'depth':2000}),
-            focus=True)
-    #test_case.before_after_plot()
+
+    # TODO: traces_dicts liste erweitern um raw_references. Die haben andere
+    # sources als keys!!!
+
+    sources_z2200 = test_case.get_sources_where({'depth':2200})
+    test_case.compare_plot( traces_dicts=[test_case.processed_references,
+                        test_case.processed_candidates],
+                        focus_first=False)
     plt.show()
     #test_case.stack_plot()
