@@ -25,8 +25,6 @@ import pdb
 pjoin = os.path.join
 km = 1000.
 
-def get_earthmodel_from_engine(engine, store_id):
-    return engine.get_store(store_id).config.earthmodel_1d
 
 
 def equal_attributes(o1, o2):
@@ -71,9 +69,9 @@ class Doer():
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
-                                              phase_ids_start,
-                                              perc=0.2)
-                                              #phase_ids_end)
+                                              test_case.test_case_setup.phase_ids_start,
+                                              perc=1.0,
+                                              t_shift_frac=0.3)
         
         test_case.set_candidates_markers( extended_test_marker )
 
@@ -81,7 +79,7 @@ class Doer():
         test_case.references = du.chop_using_markers(
                                 test_case.raw_references, 
                                 test_case.ref_markers, 
-                                t_shift_frac=0.1)
+                                inplace=False)
 
         test_case.apply_stf(test_case.test_case_setup.source_time_function)
 
@@ -89,10 +87,7 @@ class Doer():
         test_case.candidates = du.chop_using_markers(
                                 test_case.raw_candidates, 
                                 extended_test_marker, 
-                                t_shift_frac=0.1,
                                 inplace=False)
-
-        
 
         du.calculate_misfit(test_case)
         #test_case.yaml_dump()
@@ -118,6 +113,9 @@ class TestCaseSetup(Object):
     misfit_setup = trace.MisfitSetup.T()
     # would be nicer in an numpy array
     source_time_function = List.T(List.T())
+    number_of_time_shifts = Int.T()
+    percentage_of_shift = Float.T()
+    phase_ids_start = String.T()
 
 
 class TestCase(Object):
@@ -197,7 +195,7 @@ class TestCase(Object):
     def targets_nsl(self):
         """return a set of all network, station, location tuples contained
         in this Test Case"""
-        return self.targets_nsl(self.targets)
+        return self.targets_nsl_of(self.targets)
 
     def set_misfit(self, misfits):
         self.misfits=misfits 
@@ -210,18 +208,28 @@ class TestCase(Object):
         f.write(self.dump())
         f.close()
 
-    def make_shifted_candidates(self, source, target, t_shifts):
+    def make_t_shifts(self, trac, num_samples, perc):
         """
-        Generator generating shifted candidates.
+        :param trac: pyrocko.trace.Trace
+        :param num_samples: number of time shifts
+        :param perc: percentage of trace length to be shifted 
+        :return: numpy array. 
+        """
+        t_shift_max = (trac.tmax - trac.tmin) / 100. * perc
+        return num.linspace(-t_shift_max/2., t_shift_max/2, num_samples)
+
+    def make_shifted_candidates(self, source, target):
+        """
+        returns shifted candidates.
         """
         shifted_candidates = []
-        for tshift in t_shifts:
-            # needs to be copied or not?
-            shifted_candidate = self.candidates[source][target].copy()
-            shifted_candidate.shift(tshift)
+        cand = self.candidates[source][target]
+        t_shifts = self.make_t_shifts(cand,
+                self.test_case_setup.number_of_time_shifts, 
+                self.test_case_setup.percentage_of_shift)
 
-            shifted_candidates.append(shifted_candidate)
-            
+        shifted_candidates = [cand.copy() for i in range(len(t_shifts))]
+        map(lambda t,s: t.shift(s), shifted_candidates, t_shifts)
         return shifted_candidates
 
     @staticmethod
@@ -277,7 +285,10 @@ class TestCase(Object):
 
     def waveforms_plot(self):
         """
-        plot waveforms.
+        plot waveforms. 
+        One figure per stations. 
+        Three subplots, one per channel.
+        several graphs in each subplot. One graph represents one source depth
         some ideas taken from
         http://wiki.scipy.org/Cookbook/Matplotlib/MultilinePlots
         """
@@ -297,7 +308,7 @@ class TestCase(Object):
             for target in self.targets:
                 axes_dict[target].add_line(processed_lines[source][target])
 
-        px=340.
+        px=140.
         y_shifts = dict(zip(self.sources, num.linspace(-px/2./72., px/2./72., 
             len(self.sources))))
         
@@ -314,6 +325,19 @@ class TestCase(Object):
         for ax in axes_dict.values():
             ax.axes.get_yaxis().set_visible(False)
             ax.autoscale()
+
+    def plot_marker_vs_distance(self):
+        """
+        Plot:
+            x-axis: Distance
+            y-axis: Marker tmin, and marker max
+        """
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        for source, target, mark in TestCase.iter_dict(self.ref_markers):
+            dist = source.distance_to(target)
+            ax.plot(dist, mark.tmin,'+')
+            ax.plot(dist, mark.tmax,'o')
 
     def compare_plot(self, sources=[], targets=[], traces_dicts=[], focus_first=False):
         """
@@ -370,14 +394,41 @@ class TestCase(Object):
         :return lines_dict: dict with lines
         """
         lines_dict = defaultdict(dict)
-
-        for source, target_traces in traces_dict.items():
-            for target, trac in target_traces.items():
-                x=trac.get_xdata()
-                y=trac.get_ydata()
-                lines_dict[source][target] = pltlines.Line2D(x,y)
+        for source, target, tr in TestCase.iter_dict(traces_dict):
+            lines_dict[source][target] = pltlines.Line2D(tr.get_xdata(),
+                    tr.get_ydata())
 
         return lines_dict 
+
+    def plot_z_components(self, traces_dict, sources=[], targets=[], markers_dict=[]):
+        """
+        Plot vertical components of each station. One figure per source, one
+        subplot per station.
+        """
+        sources = self.sources if not sources else sources
+        targets = self.targets if not targets else targets
+
+        for source in sources:
+            i = 0
+            fig, axs = plt.subplots(len(targets)/3, sharex=True)
+            sorted_targets = sorted(targets, key=lambda tr: tr.distance_to(source))
+
+            for target in [t for t in sorted_targets if t.codes[3]=='Z']:
+                    m = markers_dict[source][target]
+                    c = traces_dict[source][target]
+                    axs[i].plot(c.get_xdata(), c.get_ydata())
+                    axs[i].axvline(m.tmin, label='P')
+                    axs[i].axvline(m.tmax, label='P')
+
+                    plt.text(1, 1, '.'.join(target.codes[:3]),
+                                    horizontalalignment='right',
+                                    verticalalignment='top',
+                                    transform=axs[i].transAxes)
+                    i+=1
+
+            fig.subplots_adjust(hspace=0)
+            plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+            fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
 
     def stack_plot(self, param_dict=None):
         '''
@@ -537,12 +588,29 @@ class TestCase(Object):
     def store(self):
         return self.engine.get_store(self.store_id)
 
+    @staticmethod
+    def iter_dict(traces_dict, only_values=False):
+        """
+        Iterate over a 2D-dict, yield each value.
+        """
+        for key1, key_val in traces_dict.items():
+            for key2, val in key_val.items():
+                if only_values:
+                    yield val
+                else:
+                    yield key1, key2, val
+
 
 if __name__ ==  "__main__":
 
     selfdir = pjoin(os.getcwd(), __file__.rsplit('/', 1)[0])
     selfdir = selfdir.rsplit('/')[0]
     
+    derec_home = os.environ["DEREC_HOME"]
+    store_dirs = [derec_home + '/fomostos']
+
+    engine = LocalEngine(store_superdirs=store_dirs)
+    store_id = 'castor'
     # load stations from file:
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
@@ -550,30 +618,11 @@ if __name__ ==  "__main__":
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                 '../reference_marker_castor.txt'))
 
-    # Targets================================================
-    store_id = 'castor'
-
-    if store_id=='local1':
-        phase_ids_start = 'p|P|Pv20p|Pv35p'
-        phase_ids_end =   's|S|Sv20s|Sv35s'
-
-    if store_id=='very_local':
-        phase_ids_start = 'p|P|Pv3p|Pv8p|Pv20p|Pv35p'
-        phase_ids_end =   's|S|Sv3s|Sv8s|Sv20s|Sv35s'
-
-    if store_id=='very_local_20Hz':
-        phase_ids_start = 'begin_fallback|p|P|Pv1p|Pv3p|Pv8p|Pv20p|Pv35p'
-        phase_ids_end =   's|S|Sv1s|Sv3s|Sv8s|Sv20s|Sv35s'
-
-    if store_id=='castor':
-        # bug?! bei Pv1.5p gibt's bei nahen Entfernungen ein index ot of
-        # bounds
-        phase_ids_start = 'p|P|Pv12.5p|Pv2.5p|Pv18.5p|Pv20p|Pv35p'
-        phase_ids_end= 's|S|Sv12.5s|Sv2.5s|Sv18.5s|Sv20s|Sv35s'
-
-    phase_ids_start = 'p|P'
-    phase_ids_end = 's|S'
-
+    phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
+                                                       store_id, 
+                                                       ['p','P']))
+    
+    # load stations from file:
     # Event==================================================
     event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
     assert len(event) == 1
@@ -594,11 +643,7 @@ if __name__ ==  "__main__":
 
     targets = du.stations2targets(stations, store_id)
 
-    derec_home = os.environ["DEREC_HOME"]
-    store_dirs = [derec_home + '/fomostos']
-
-    engine = LocalEngine(store_superdirs=store_dirs)
-    model = get_earthmodel_from_engine(engine, store_id) 
+    model = du.get_earthmodel_from_engine(engine, store_id) 
 
     #TESTSOURCES===============================================
     
@@ -629,10 +674,9 @@ if __name__ ==  "__main__":
 
     # setup the misfit setup:
     norm = 2.
-    #taper = trace.CosFader(xfade=4) # Seconds or samples?
-    taper = trace.CosFader(xfrac=0.1) 
+    taper = trace.CosFader(xfrac=0.2) 
     
-    z, p, k = butter(4, (2.*num.pi*2. ,0.4*num.pi*2.) , 
+    z, p, k = butter(4, (1.*num.pi*2. ,0.4*num.pi*2.) , 
                                        'bandpass', 
                                        analog=True, 
                                        output='zpk')
@@ -649,22 +693,26 @@ if __name__ ==  "__main__":
                                      filter=fresponse)
 
     rise_time=1.
-
     stf = [[0,rise_time],[0,1]]
+
     test_case_setup = TestCaseSetup(reference_source=ref_source,
                                     sources=location_test_sources,
                                     targets=targets,
                                     engine=engine, 
                                     store_id=store_id,
                                     misfit_setup=misfit_setup,
-                                    source_time_function=stf)
+                                    source_time_function=stf,
+                                    number_of_time_shifts=9,
+                                    percentage_of_shift=10.,
+                                    phase_ids_start=phase_ids_start) 
 
     test_case = TestCase( test_case_setup )
 
+    for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
+        du.add_random_noise_to_trace(tr, A=0.00001)
+
     test_case.set_raw_references(reference_seismograms)
 
-    # considering that these traces are 'real' traces. Thus, 
-    # stf needs to be applied to raw traces.
     test_case.raw_references = du.apply_stf(test_case.raw_references, 
                             test_case_setup.source_time_function)
 
@@ -672,59 +720,27 @@ if __name__ ==  "__main__":
                                         targets, 
                                         test_case.store,
                                         phase_ids_start,
-                                        perc=0.2)
-                                        #phase_ids_end)
-
-            
+                                        perc=1.0,
+                                        t_shift_frac=0.3)
 
     test_case.set_reference_markers(extended_ref_marker)
 
     D = Doer(test_case)
 
-    # Plot Distance vs. start/end of chopping range.
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    for source, target_marker in extended_ref_marker.items():
-        for target, mark in target_marker.items():
-            trac = test_case.raw_references[source][target]
-            dist = source.distance_to(target)
-            ax.plot(dist, mark.tmin,'+')
-            ax.plot(dist, mark.tmax,'o')
+    test_case.waveforms_plot()
 
-    # Plot z-component for each station for each source in a different figure
-    for source in test_case.sources:
-        i = 0
-        fig, axs = plt.subplots(len(test_case.targets)/3, sharex=True)
-        sorted_targets = sorted(test_case.targets, key=lambda tr: tr.distance_to(source))
-        # only use vertical components. But sort by distance, first :
-        for target in [t for t in sorted_targets if t.codes[3]=='Z']:
-                m = test_case.candidates_markers[source][target]
-                c = test_case.raw_candidates[source][target]
-                axs[i].plot(c.get_xdata(), c.get_ydata())
-                axs[i].axvline(m.tmin, label='P')
-                axs[i].axvline(m.tmax, label='P')
+    print test_case.misfits
+    #test_case.compare_plot( traces_dicts=[test_case.processed_references,
+    #                    test_case.processed_candidates],
+    #                    focus_first=False)
 
-                plt.text(1, 1, '.'.join(target.codes[:3]),
-                                horizontalalignment='right',
-                                verticalalignment='top',
-                                transform=axs[i].transAxes)
-                i+=1
+    #test_case.plot_marker_vs_distance()
 
-        fig.subplots_adjust(hspace=0)
-        plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
-        fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
-    
-    # plot jede Tiefe, jede station/ target: originale spur und bester candidate    
+    test_case.plot_z_components(test_case.raw_candidates,
+            markers_dict=test_case.candidates_markers)
 
-    #test_case.raw_candidates_lines = test_case.lines_dict(test_case.raw_candidates)
-    #test_case.waveforms_plot()
+    test_case.plot_z_components(test_case.raw_references,
+            sources = [ref_source],
+            markers_dict=test_case.ref_markers)
 
-    # TODO: traces_dicts liste erweitern um raw_references. Die haben andere
-    # sources als keys!!!
-
-    sources_z2200 = test_case.get_sources_where({'depth':2200})
-    test_case.compare_plot( traces_dicts=[test_case.processed_references,
-                        test_case.processed_candidates],
-                        focus_first=False)
     plt.show()
-    #test_case.stack_plot()

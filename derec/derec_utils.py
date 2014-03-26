@@ -124,7 +124,7 @@ def cake_first_arrival(distance, depth, model, phases=None):
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-        perc=None, **kwargs):
+            perc=None, t_shift_frac=None, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -151,26 +151,33 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
         for target in targets:
             dist = source.distance_to(target)
-            print dist
             args = (source.depth, dist)
 
             tmin = store.t('first(%s)'%phase_ids_start, args)
             if tmin==None:
-                print 'tmin is None, using cake...(takes a little longer)'
+                print 'info: tmin is None, using cake...'
                 tmin = cake_first_arrival(dist, source.depth, model,
                         phases=phase_ids_start.split('|'))
 
             if phase_ids_end:
                 tmax = store.t('first(%s)'%phase_ids_end, args)
                 if tmax is None:
-                    raise Exception("cannot interpolate tmax. Target: \n%s."%target+\
-                                        '\n Source: %s'%source) 
+                    print 'info: tmax is None, using cake...'
+                    tmax = cake_first_arrival(dist, source.depth, model,
+                            phases=phase_ids_end.split('|'))
 
-            if perc:
+            elif perc:
                 tmax = tmin + tmin * perc
 
             tmin += source.time
             tmax += source.time
+
+            if t_shift_frac:
+                t_start_shift = -(tmax-tmin)*t_shift_frac
+                t_end_shift = t_start_shift
+
+                tmin += t_start_shift
+                tmax += t_end_shift 
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
@@ -184,7 +191,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
     phase_marker_dict = defaultdict()
 
-    if parallelize==True:
+    if parallelize:
         nworkers = 1
         #for source, tmp_dict in parimap(do_run, sources):
         manager = Manager()
@@ -207,34 +214,18 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
     return phase_marker_dict
 
 
-def chop_using_markers(traces, markers, static_offset=None, 
-                                    t_shift_frac=None, *args, **kwargs):
+def chop_using_markers(traces, markers, *args, **kwargs):
     '''
     Chop a list of traces or generator of traces using a list of markers.
     :rtype : list
     '''
-    t_shift = 0
-
     chopped_test_traces = defaultdict(dict)
     
     for source, targets_traces in traces.items():
         for target, tr in targets_traces.items():
             m = markers[source][target]
-            tmin = m.tmin
-            tmax = m.tmax
 
-            if static_offset:
-                tmax = tmin+static_offset
-
-            if t_shift_frac:
-                t_start_shift = -(tmax-tmin)*t_shift_frac
-                t_end_shift = t_start_shift
-
-                tmin += t_start_shift
-                tmax += t_end_shift 
-            chopped_tr = tr.chop(tmin, tmax, args, kwargs)
-
-            #chopped_tr.set_codes(str(source.lat), str(source.lon), str(source.depth))
+            chopped_tr = tr.chop(m.tmin, m.tmax, args, kwargs)
             chopped_test_traces[source][target] = chopped_tr
 
     return chopped_test_traces
@@ -314,12 +305,12 @@ def calculate_misfit(test_case):
         
         for ti, target in enumerate(targets):
             reft = references.values()[0][target]
-            #candidate = candidates[source][target]
             M_tmp = 999.
 
-            for c_d, r_d , m, n in reft.misfit(candidates=
-                        test_case.make_shifted_candidates(source, target,
-                                    t_shifts=num.linspace(-0.5,0.5,10)), 
+            shifted_candidates = test_case.make_shifted_candidates(source,
+                    target)
+
+            for c_d, r_d , m, n in reft.misfit(candidates=shifted_candidates,
                             setups=mfsetup):
 
                 if m==None or n==None:
@@ -448,3 +439,32 @@ def apply_stf(traces_dict, stf):
             trac.set_ydata(new_y)
 
     return traces_dict
+
+def add_random_noise_to_trace(trace, A):
+    """
+    Add noise to trace, scaled with *A*.
+    """
+    rand = 2*num.random.random(len(trace.ydata))-1.
+    trace.set_ydata(trace.get_ydata()+rand*A)
+
+
+def get_tabulated_phases(engine, store_id, ids=['p']):
+    """
+    Extract a list of the tabulated phases within a fomosto store. 
+    :param engine: pyrocko.gf.seismsizer.Engine Object
+    :param store_id: string identifying the exact store to use
+    :param ids: a single or a list of phase ids (strings)
+    """
+    if not isinstance(ids, list):
+        ids = list(ids)
+
+    ids_store = [i.id for i in  engine.get_store(store_id).config.tabulated_phases ]
+    return filter(lambda x: any([x.startswith(ph) for ph in ids]), ids_store)
+    
+
+def get_earthmodel_from_engine(engine, store_id):
+    """
+    :return: earthmodel instance used in store of engine.
+    """
+    return engine.get_store(store_id).config.earthmodel_1d
+
