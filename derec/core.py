@@ -104,6 +104,7 @@ class Doer():
 
 
 class TestCaseSetup(Object):
+    tagname = String.T(default='TestCaseSetup')
     reference_source = Source.T()
     sources = List.T(Source.T()) 
     targets = List.T(Target.T()) 
@@ -177,8 +178,23 @@ class TestCase(Object):
         self.candidates_markers = markers
 
     def extend_markers(self, markers, c):
+        """
+        Scale a markers extension with factor *c*
+        """
         markers = du.extend_markers(markers, scaling_factor=c)
         return markers
+
+    def get_lowest_misfit_data(self):
+        """
+        Return source, target and the value of the lowest misfit.
+        """
+        misfit_value = 999.
+        for s, mf in self.misfits.items():
+            if mf < misfit_value:
+                source = s
+                misfit_value = mf
+        
+        return source, misfit_value
 
     def targets_nsl_of(self, targets=[]):
         """return a set of all network, station, location tuples contained
@@ -705,6 +721,14 @@ if __name__ ==  "__main__":
                                     number_of_time_shifts=9,
                                     percentage_of_shift=10.,
                                     phase_ids_start=phase_ids_start) 
+
+    fn = 'sample_test_case_setup.yaml'
+    f=open(fn, 'w')
+
+    test_case_setup.regularize()
+    test_case_setup.validate()
+    f.write(test_case_setup.dump())
+    f.close()
 
     test_case = TestCase( test_case_setup )
 

@@ -27,6 +27,9 @@ km = 1000.
 
 if __name__ ==  "__main__":
 
+    fn = 'sample_test_case_setup.yaml'
+    test_case_setup = load_string(open(fn,'r').read())
+
     selfdir = pjoin(os.getcwd(), __file__.rsplit('/', 1)[0])
     selfdir = selfdir.rsplit('/')[0]
     
@@ -74,8 +77,9 @@ if __name__ ==  "__main__":
     zoffset= 0.
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
-    depths=[1800, 2000, 2200]
-    #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 1)
+    #depths=[1800,1900, 2000,2100, 2200]
+    zoffset = 2000
+    depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 20)
 
     print depths, '<- depths'
 
@@ -117,10 +121,9 @@ if __name__ ==  "__main__":
                                      filter=fresponse)
     test_case_dict = {}
 
-    rise_times = num.linspace(0.,10,5)
+    rise_times = num.linspace(1.0,10,15)
     for rise_time in rise_times:
 
-        rise_time = 1.
         stf = [[0,rise_time], [0,1]]
 
         test_case_setup = TestCaseSetup(reference_source=ref_source,
@@ -157,5 +160,16 @@ if __name__ ==  "__main__":
 
         D = Doer(test_case)
         test_case_dict[rise_time] = test_case
+
+    fig = plt.figure()
+
+    for key, test_case in test_case_dict.items():
+        true_z = test_case.test_case_setup.reference_source.depth
+        best_source, best_fit = test_case.get_lowest_misfit_data()
+        zdiff = true_z - best_source.depth
+        plt.plot(key, zdiff, 'o')
+
+    plt.show()
+ 
 
 
