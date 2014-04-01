@@ -7,7 +7,7 @@ import types
 import ctypes 
 import progressbar
 from collections import defaultdict
-from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model
+from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model, io
 from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.parimap import parimap
@@ -467,4 +467,12 @@ def get_earthmodel_from_engine(engine, store_id):
     :return: earthmodel instance used in store of engine.
     """
     return engine.get_store(store_id).config.earthmodel_1d
+
+
+def noise_adder(noise_traces, traces):
+    """
+    Add noise to traces.
+    """
+    for i,t in enumerate(traces):
+        t.ydata = t.ydata+noise_traces[i].ydata[:len(t.ydata)]
 

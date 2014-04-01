@@ -7,6 +7,8 @@ from gmtpy import griddata_auto
 from scipy.signal import butter
 from scipy.ndimage import zoom
 from guts import *
+from derec import core
+from derec.core import TestCaseSetup
 
 import matplotlib.transforms as transforms
 import time

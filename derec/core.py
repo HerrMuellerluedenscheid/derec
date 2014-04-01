@@ -20,11 +20,12 @@ import os
 import derec_utils as du
 import numpy as num
 import copy
+import glob
+
 import pdb
 
 pjoin = os.path.join
 km = 1000.
-
 
 
 def equal_attributes(o1, o2):
@@ -32,21 +33,6 @@ def equal_attributes(o1, o2):
     Return true if two objects are equal as for their attributes. 
     '''
     return o1.__dict__ == o2.__dict__
-
-
-def set_refine_parameter(ref_event, **kwargs):
-    '''
-    Returns dict. Key is the value of **kwargs. 
-    '''
-    events = {}
-    for k, vals in kwargs.iteritems():
-        for val in vals:
-            # mit event.copy ersetzen?
-            event_copy = copy.copy(ref_event)
-            exec('event_copy.%s=%s' % (k, val))
-            events[val]=event_copy
-
-    return events
 
 
 def make_reference_trace(source, targets, engine):
@@ -102,9 +88,8 @@ class Doer():
         #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
         #optics.gmt_map(stations=True, events=True)
 
-
+guts_prefix='derec.core'
 class TestCaseSetup(Object):
-    tagname = String.T(default='TestCaseSetup')
     reference_source = Source.T()
     sources = List.T(Source.T()) 
     targets = List.T(Target.T()) 
@@ -112,7 +97,7 @@ class TestCaseSetup(Object):
     store_id = String.T()
     test_parameters = List.T(String.T())
     misfit_setup = trace.MisfitSetup.T()
-    # would be nicer in an numpy array
+    # would be nicer in a numpy array
     source_time_function = List.T(List.T())
     number_of_time_shifts = Int.T()
     percentage_of_shift = Float.T()
@@ -632,7 +617,7 @@ if __name__ ==  "__main__":
                             '../reference_stations_castor_selection.txt'))
 
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
-                                                '../reference_marker_castor.txt'))
+                                        '../reference_marker_castor.txt'))
 
     phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                        store_id, 
@@ -643,7 +628,12 @@ if __name__ ==  "__main__":
     event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
     assert len(event) == 1
     event = event[0].get_event()
-    event.magnitude = 4.3
+
+
+    event.magnitude = 3.0
+    # magnitute veraendert
+    
+    
     event.moment_tensor = moment_tensor.MomentTensor(
                                     m=num.array([[0.0, 0.0, 1.0],
                                                  [0.0, 0.0, 0.0],
@@ -692,6 +682,9 @@ if __name__ ==  "__main__":
     norm = 2.
     taper = trace.CosFader(xfrac=0.2) 
     
+    # post taper test
+    post_taper = trace.CosFader(xfrac=0.2) 
+    
     z, p, k = butter(4, (1.*num.pi*2. ,0.4*num.pi*2.) , 
                                        'bandpass', 
                                        analog=True, 
@@ -706,7 +699,8 @@ if __name__ ==  "__main__":
     misfit_setup = trace.MisfitSetup(norm=norm,
                                      taper=taper,
                                      domain='time_domain',
-                                     filter=fresponse)
+                                     filter=fresponse,
+                                     post_taper=post_taper)
 
     rise_time=1.
     stf = [[0,rise_time],[0,1]]
@@ -730,10 +724,18 @@ if __name__ ==  "__main__":
     f.write(test_case_setup.dump())
     f.close()
 
+    f=open(fn,'r')
+
     test_case = TestCase( test_case_setup )
 
-    for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
-        du.add_random_noise_to_trace(tr, A=0.00001)
+    #for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
+    #    du.add_random_noise_to_trace(tr, A=0.00001)
+
+    noise_files = glob.glob(pjoin(derec_home, 'mseeds/iris_data/restitute/*'))
+    noise_traces = []
+    [noise_traces.extend(io.load(t)) for t in noise_files]
+    du.noise_adder(noise_traces, TestCase.iter_dict(reference_seismograms,
+                                                    only_values=True))
 
     test_case.set_raw_references(reference_seismograms)
 
