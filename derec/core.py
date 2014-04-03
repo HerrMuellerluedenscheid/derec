@@ -1,30 +1,23 @@
+from yaml_derec import *
 from pyrocko.gf import *
-from pyrocko import model, gui_util, pile, trace, moment_tensor, io
-from vtkOptics import *
+from pyrocko import model, gui_util, trace, moment_tensor, io
+#from vtkOptics import *
 from collections import defaultdict
-from matplotlib import cm
-from matplotlib.mlab import griddata
-from gmtpy import griddata_auto
 from scipy.signal import butter
 from scipy.ndimage import zoom
-from guts import *
+from guts import Object, Float, Int, String, Complex, Tuple, List, Dict, load_string
+from guts_array import Array
 
-import matplotlib.transforms as transforms
 import time
-import matplotlib.mlab as mlab
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
 import matplotlib.lines as pltlines
 import progressbar
 import os
 import derec_utils as du
 import numpy as num
 import copy
-import pdb
 
 pjoin = os.path.join
 km = 1000.
-
 
 
 def equal_attributes(o1, o2):
@@ -78,7 +71,7 @@ class Doer():
         print('chopping ref....')
         test_case.references = du.chop_using_markers(
                                 test_case.raw_references, 
-                                test_case.ref_markers, 
+                                test_case.reference_markers, 
                                 inplace=False)
 
         test_case.apply_stf(test_case.test_case_setup.source_time_function)
@@ -90,42 +83,16 @@ class Doer():
                                 inplace=False)
 
         du.calculate_misfit(test_case)
-        #test_case.yaml_dump()
 
-        # Display results===================================================
-        #test_case.plot1d(order, event.lon)
-        #test_case.contourf(xkey='lat', ykey='lon')
-        
-        #test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
-
-        #optics = OpticBase(test_case)
-        #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
-        #optics.gmt_map(stations=True, events=True)
-
-
-class TestCaseSetup(Object):
-    tagname = String.T(default='TestCaseSetup')
-    reference_source = Source.T()
-    sources = List.T(Source.T()) 
-    targets = List.T(Target.T()) 
-    engine = Engine.T()
-    store_id = String.T()
-    test_parameters = List.T(String.T())
-    misfit_setup = trace.MisfitSetup.T()
-    # would be nicer in an numpy array
-    source_time_function = List.T(List.T())
-    number_of_time_shifts = Int.T()
-    percentage_of_shift = Float.T()
-    phase_ids_start = String.T()
 
 
 class TestCase(Object):
     '''
     In one test case, up to 3 parameters can be modified
     '''
-
     def __init__(self, test_case_setup):
         self.test_case_setup = test_case_setup
+
         self.targets = test_case_setup.targets
         self.sources = test_case_setup.sources
         self.engine = test_case_setup.engine
@@ -134,14 +101,14 @@ class TestCase(Object):
 
         self.raw_references = None
         self.processed_references = defaultdict(dict)
-        self.references = {}
+        self.references = {} 
 
         self.raw_candidates = None
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
-        self.misfits = None
+        self.misfits = defaultdict
         self.misfit_setup = test_case_setup.misfit_setup
-        self.channel_map = {'N':1, 'E':2, 'Z':3}    
+        self.channel_map = test_case_setup.channel_map    
             
     def request_data(self):
         print 'requesting data....'
@@ -168,7 +135,7 @@ class TestCase(Object):
         Reference markers are the ones used as stencil to chop the reference
         traces.
         """
-        self.ref_markers = markers
+        self.reference_markers = markers
 
     def set_candidates_markers(self, markers):
         """
@@ -189,14 +156,15 @@ class TestCase(Object):
         Return source, target and the value of the lowest misfit.
         """
         misfit_value = 999.
-        for s, mf in self.misfits.items():
+        for s, mf in self.misfits.iteritems():
             if mf < misfit_value:
                 source = s
                 misfit_value = mf
         
         return source, misfit_value
 
-    def targets_nsl_of(self, targets=[]):
+    @staticmethod
+    def targets_nsl_of(targets=[]):
         """return a set of all network, station, location tuples contained
         in *targets*"""
         return set([t.codes[:3] for t in targets])
@@ -214,14 +182,51 @@ class TestCase(Object):
         return self.targets_nsl_of(self.targets)
 
     def set_misfit(self, misfits):
-        self.misfits=misfits 
+        self.misfits = misfits 
 
-    def yaml_dump(self, fn='test.yaml'):
-        '''
-        Dump TestCase Object to yaml file.
-        '''
+    def yaml_dump(self, fn=''):
+
+        def convert_to_yaml_dict(_dict):
+            outdict = defaultdict(dict)
+            for source, target_o in _dict.iteritems():
+                for target, o in target_o.iteritems():
+                    if isinstance(o, trace.Trace):
+                        yaml_o = yamlTrace(ydata=o.ydata,
+                                tmin=o.tmin,
+                                deltat=o.deltat, 
+                                codes=o.nslc_id)
+                    elif isinstance(o, gui_util.Marker):
+                        yaml_o = yamlMarker(nslc_ids=o.nslc_ids,
+                                tmin=o.tmin,
+                                tmax=o.tmax,
+                                kind=o.kind)
+
+                    outdict[source][target] = yaml_o
+
+            return outdict
+
+        test_case_data = TestCaseData()
+        test_case_data.references = convert_to_yaml_dict(self.references)
+        test_case_data.candidates = convert_to_yaml_dict(self.candidates)
+        test_case_data.processed_references = convert_to_yaml_dict(
+                                                self.processed_references)
+        test_case_data.processed_candidates = convert_to_yaml_dict(
+                                                self.processed_candidates)
+
+        test_case_data.test_case_setup = self.test_case_setup
+
+        misfit_float_dict = dict(zip(self.misfits.keys(),
+                                [float(i) for i in self.misfits.values()]))
+
+        test_case_data.results = dict(misfit_float_dict)
+
+        test_case_data.reference_markers = convert_to_yaml_dict(
+                self.reference_markers)
+        test_case_data.candidates_markers = convert_to_yaml_dict(
+                self.candidates_markers)
+
         f = open(fn, 'w')
-        f.write(self.dump())
+        f.write(test_case_data.dump())
         f.close()
 
     def make_t_shifts(self, trac, num_samples, perc):
@@ -249,14 +254,20 @@ class TestCase(Object):
         return shifted_candidates
 
     @staticmethod
-    def yaml_2_TestCase(fn):
+    def yaml_read(fn):
         '''
         Create a TestCase Object from file. 
 
         :param fn: (str) filename
         '''
-        f = open(fn, 'r')
-        tc = load_string(f.read())
+        try:
+            f = open(fn, 'r')
+            tc = load_string(f.read())
+        except:
+            pass
+        finally:
+            f.close()
+            raise
         
     def update_progressbar(self, a, b):
         try:
@@ -264,9 +275,6 @@ class TestCase(Object):
         except AttributeError:
             self.progressbar = progressbar.ProgressBar(maxval=b).start()
             self.progressbar.update(a)
-
-    def dump_pile(self, fn='test_dumped_seismograms.mseed'):
-        pile.make_pile(seismograms.values(), fn=fn)
 
     def snuffle(self):
         trace.snuffle(self.seismograms)
@@ -290,308 +298,33 @@ class TestCase(Object):
 
         self.num_array = self.num_array.T
 
-    def get_sources_where(self, param_dict):
+    @staticmethod
+    def get_sources_where(param_dict, sources=None):
         '''
         param_dict is something like {latitude:10, longitude:10}
 
         :returns: list of sources, matching the required parameters in the param_dict.
         '''
         return filter(lambda s: all(map(lambda x: abs(getattr(s, x[0])-x[1])<1e-7, \
-                param_dict.items())), self.sources)
-
-    def waveforms_plot(self):
-        """
-        plot waveforms. 
-        One figure per stations. 
-        Three subplots, one per channel.
-        several graphs in each subplot. One graph represents one source depth
-        some ideas taken from
-        http://wiki.scipy.org/Cookbook/Matplotlib/MultilinePlots
-        """
-        num_stations = len(self.targets)/3
-        figures = [plt.figure(i, facecolor='grey') for i in range(num_stations)]
-        fig_dict = dict(zip(self.targets_nsl, figures))
-
-        axes_dict = {}
-        # overlapping axes objects <- google
-        for target in self.targets:
-            fig = fig_dict[target.codes[:3]]
-            axes_dict[target] = fig.add_subplot(1,3,self.channel_map[target.codes[3]])
-
-        processed_lines = self.lines_dict(self.processed_candidates)
-
-        for source in self.sources:
-            for target in self.targets:
-                axes_dict[target].add_line(processed_lines[source][target])
-
-        px=140.
-        y_shifts = dict(zip(self.sources, num.linspace(-px/2./72., px/2./72., 
-            len(self.sources))))
-        
-        # vertically distribute graphs
-        for s in self.sources:
-            for t in self.targets:
-                line = processed_lines[s][t]
-                fig = fig_dict[t.codes[:3]]
-                trans = transforms.ScaledTranslation(0, y_shifts[s], 
-                                                     fig.dpi_scale_trans)
-
-                line.set_transform(line.get_transform()+trans)
-
-        for ax in axes_dict.values():
-            ax.axes.get_yaxis().set_visible(False)
-            ax.autoscale()
-
-    def plot_marker_vs_distance(self):
-        """
-        Plot:
-            x-axis: Distance
-            y-axis: Marker tmin, and marker max
-        """
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-        for source, target, mark in TestCase.iter_dict(self.ref_markers):
-            dist = source.distance_to(target)
-            ax.plot(dist, mark.tmin,'+')
-            ax.plot(dist, mark.tmax,'o')
-
-    def compare_plot(self, sources=[], targets=[], traces_dicts=[], focus_first=False):
-        """
-
-        """
-        def focus_data(ref_x, foc_x, foc_y):
-            """
-            return two lists with x- and y-data of x-range determined by *ref_x*
-            """
-            _foc_x = []
-            _foc_y = []
-            for ix,x in enumerate(ref_x):
-                if foc_x[0]<=x<=foc_x[-1]:
-                    _foc_y.append(foc_y[ix])
-                    _foc_x.append(x)
-            return _foc_x, _foc_y
-
-        sources = self.sources if not sources else sources
-        targets = self.targets if not targets else targets
-
-        targets_nsl = self.targets_nsl_of(targets) 
-
-        axes_dict = defaultdict(dict) 
-        figs = {}
-
-        for tnsl in targets_nsl:
-            fig, axs = plt.subplots(3,1, sharex=True)
-            fig.suptitle('station=%s'%'.'.join(tnsl))
-            figs[tnsl] = fig
-
-        for s in sources:
-            for t in targets:
-                fig = figs[t.codes[:3]]
-                ax = fig.get_axes()[self.channel_map[t.codes[3]]-1]
-
-                X = [] 
-                Y = []
-                for trs in traces_dicts:
-                    tr = trs[s][t]
-                    X.append(tr.get_xdata())
-                    Y.append(tr.get_ydata())
-
-                for i in range(len(X)-1):
-                    X[i+1], Y[i+1] = focus_data(X[0], X[i+1], Y[i+1])
-
-                [ax.plot(X[i], Y[i]) for i in range(len(X))]
-                ax.set_title('%s'%t.codes[3])
-                ax.autoscale()
+                param_dict.iteritems())), sources)
 
 
-    def lines_dict(self, traces_dict):
+    @staticmethod
+    def lines_dict(traces_dict):
         """
         Create matplotlib.lines.Line2D objects from traces dicts.
         :return lines_dict: dict with lines
         """
         lines_dict = defaultdict(dict)
         for source, target, tr in TestCase.iter_dict(traces_dict):
+            # this is ugly and shouldn't be necessary if get_xdata() worked:
+            if isinstance(tr, yamlTrace):
+                tr = du.yamlTrace2pyrockoTrace(tr)
+
             lines_dict[source][target] = pltlines.Line2D(tr.get_xdata(),
                     tr.get_ydata())
 
         return lines_dict 
-
-    def plot_z_components(self, traces_dict, sources=[], targets=[], markers_dict=[]):
-        """
-        Plot vertical components of each station. One figure per source, one
-        subplot per station.
-        """
-        sources = self.sources if not sources else sources
-        targets = self.targets if not targets else targets
-
-        for source in sources:
-            i = 0
-            fig, axs = plt.subplots(len(targets)/3, sharex=True)
-            sorted_targets = sorted(targets, key=lambda tr: tr.distance_to(source))
-
-            for target in [t for t in sorted_targets if t.codes[3]=='Z']:
-                    m = markers_dict[source][target]
-                    c = traces_dict[source][target]
-                    axs[i].plot(c.get_xdata(), c.get_ydata())
-                    axs[i].axvline(m.tmin, label='P')
-                    axs[i].axvline(m.tmax, label='P')
-
-                    plt.text(1, 1, '.'.join(target.codes[:3]),
-                                    horizontalalignment='right',
-                                    verticalalignment='top',
-                                    transform=axs[i].transAxes)
-                    i+=1
-
-            fig.subplots_adjust(hspace=0)
-            plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
-            fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
-
-    def stack_plot(self, param_dict=None):
-        '''
-        param_dict is something like {latitude:10, longitude:10}, defining the 
-        area of source, that you would like to look at.
-        '''
-        if param_dict:
-            sources = self.get_sources_where(param_dict)
-
-        else:
-            sources = self.sources
-
-        # google maps snuffling
-        gs = gridspec.GridSpec(len(self.targets)/3,3)
-        gs_dict= dict(zip(self.targets, gs))
-
-        if self.misfit_setup.domain=='frequency_domain':
-            gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
-            gs_traces_dict= dict(zip(self.targets, gs_traces))
-
-        for source  in sources:
-            for t,pr_cand in self.processed_candidates[source].items():
-                ax = plt.subplot(gs_dict[t])
-                pr_ref = self.processed_references[source][t]
-
-                if self.misfit_setup.domain=='frequency_domain':
-                    cand = pr_cand[0]
-                    x = pr_cand[1]
-                    y = num.log10(num.abs(pr_cand[2]))
-                    ref = pr_ref[0]
-                    x_ref = pr_ref[1]
-                    y_ref = num.log10(num.abs(pr_ref[2]))
-
-                    c_tracex = pr_cand[0].get_xdata()
-                    c_tracey = pr_cand[0].get_ydata()
-
-                    r_tracex = pr_ref[0].get_xdata()
-                    r_tracey = pr_ref[0].get_ydata()
-
-                    ax_t = plt.subplot(gs_traces_dict[t])
-                    ax_t.set_title(t.codes, fontsize=8)
-                    ax_t.plot(c_tracex, c_tracey)
-                    p = ax_t.fill_between(r_tracex,
-                                        0,
-                                        r_tracey,
-                                        facecolor='grey',
-                                        alpha=0.2)
-
-                else:
-                    x = pr_cand.get_xdata()
-                    y = pr_cand.get_ydata() 
-                    x_ref = pr_ref.get_xdata()
-                    y_ref = pr_ref.get_ydata()
-                    
-                ax.set_title('.'.join(t.codes), fontsize=11)
-                ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
-                                                   source.lon, 
-                                                   source.depth))
-
-                marker_min = self.candidates_markers[source][t].tmin
-                marker_max = self.candidates_markers[source][t].tmax
-
-                plt.annotate('p', xy=(marker_min, 0))
-                plt.annotate('s', xy=(marker_max, 0))
-                p = ax.fill_between(x_ref,
-                                    0,
-                                    y_ref,
-                                    facecolor='grey',
-                                    alpha=0.5)
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-                plt.tick_params(axis='both', which='major', labelsize=10)
-                if self.misfit_setup.domain=='frequency_domain':
-                    plt.xscale('log')
-
-        plt.subplots_adjust(left=None, 
-                            bottom=None, 
-                            right=None, 
-                            top=None, 
-                            wspace=None, 
-                            hspace=0.6)
-
-        plt.legend(loc=2, prop={'size':8})
-        #plt.tight_layout()
-        plt.show()
-
-    def plot1d(self, order, fix_parameter_value):
-        self.numpy_it(order=order)
-
-        x=self.num_array[0]
-        y=self.num_array[1]
-        z=self.num_array[2]
-        v=self.num_array[3]
-        X,Y,Z = griddata_auto(x,y,v)
-        index = num.where(Y==fix_parameter_value)
-
-        plt.plot(X, Z[index[0][0]])
-        plt.show()
-
-    def contourf(self, fix_parameter=None, xkey=None, ykey=None):
-        '''
-        :param fix_parameter: dict like {'lat':10}
-
-        parameters are sorted beforehand. This also defines the x and y axis.
-        (By alphabetical order)
-        '''
-        p = self.test_parameters.keys()
-        p.sort()
-
-        if fix_parameter:
-        #sort parameters with fix_parameter key as last item
-            p.insert(2, p.pop(p.index(fix_parameter.keys()[0])))
-            xkey, ykey, lastkey = p
-
-        elif xkey and ykey:
-            lastkey = str((set(p)-set([xkey, ykey])).pop())
-            p = [xkey, ykey, lastkey]
-        self.numpy_it(order=p)
-
-        xraw = self.num_array[0]
-        yraw = self.num_array[1]
-        zraw = self.num_array[2]
-        vraw = self.num_array[3]
-
-        # TODO: Ersetzen durch test parameter keys
-        x=xraw.reshape(len(self.test_parameters[xkey]),
-                len(self.test_parameters[ykey]))
-        y=yraw.reshape(len(self.test_parameters[xkey]),
-                len(self.test_parameters[ykey]))
-        v=vraw.reshape(len(self.test_parameters[xkey]),
-                len(self.test_parameters[ykey]))
-
-        x = zoom(x, 4, order=1)
-        y = zoom(y, 4, order=1)
-        v = zoom(v, 4, order=1)
-        v = num.ma.masked_where(v>2.5, v)
-
-        palette = cm.bone_r
-        cf = plt.contourf(x,y,v, 20,  cmap=cm.bone_r)
-
-        plt.plot(getattr(self.reference_source, xkey), getattr(self.reference_source, ykey), '*')
-        plt.plot(xraw, yraw, '+', color='w', markersize=4)
-        plt.xlabel(self.xkey)
-        plt.ylabel(self.ykey)
-        cbar = plt.colorbar()
-        cbar.ax.set_ylabel('L%s misfit'%int(self.misfit_setup.norm))
-
-        plt.show()
 
     def ydata_of_target(self, sources, target):
         if sources == []:
@@ -609,8 +342,8 @@ class TestCase(Object):
         """
         Iterate over a 2D-dict, yield each value.
         """
-        for key1, key_val in traces_dict.items():
-            for key2, val in key_val.items():
+        for key1, key_val in traces_dict.iteritems():
+            for key2, val in key_val.iteritems():
                 if only_values:
                     yield val
                 else:
@@ -671,6 +404,7 @@ if __name__ ==  "__main__":
 
     print depths, '<- depths'
 
+    # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = [DCSource(lat=ref_source.lat,
                            lon=ref_source.lon,
                            depth=depth,
@@ -697,9 +431,11 @@ if __name__ ==  "__main__":
                                        analog=True, 
                                        output='zpk')
 
-    z = num.array(z, dtype=complex)
-    p = num.array(p, dtype=complex)
-    k = num.complex(k)
+    #z = num.array(z, dtype=complex)
+    z = [complex(zi) for zi in z]
+    p = [complex(pi) for pi in p]
+    #p = num.array(p, dtype=complex)
+    k = complex(k)
     fresponse = trace.PoleZeroResponse(z,p,k)
     fresponse.regularize()
 
@@ -751,20 +487,26 @@ if __name__ ==  "__main__":
 
     D = Doer(test_case)
 
-    test_case.waveforms_plot()
-
-    print test_case.misfits
     #test_case.compare_plot( traces_dicts=[test_case.processed_references,
     #                    test_case.processed_candidates],
     #                    focus_first=False)
 
     #test_case.plot_marker_vs_distance()
 
-    test_case.plot_z_components(test_case.raw_candidates,
-            markers_dict=test_case.candidates_markers)
+    #test_case.plot_z_components(test_case.raw_candidates,
+    #        markers_dict=test_case.candidates_markers)
+    #
+    #test_case.plot_z_components(test_case.raw_references,
+    #        sources = [ref_source],
+    #        markers_dict=test_case.ref_markers)
 
-    test_case.plot_z_components(test_case.raw_references,
-            sources = [ref_source],
-            markers_dict=test_case.ref_markers)
-
-    plt.show()
+    #yaml_trace = yamlTrace()
+    #for s,t,tr in TestCase.iter_dict(test_case.raw_references):
+    #    yaml_trace.ydata = tr.ydata
+    #    yaml_trace.dt = tr.deltat
+    #f = open('dump_test.yaml', 'w')
+    #f.write(yaml_trace.dump())
+    #f.close()
+    #plt.show()
+    #print 'dumping...'
+    test_case.yaml_dump(fn='test_case_dump.yaml')

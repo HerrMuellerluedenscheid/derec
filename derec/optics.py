@@ -1,25 +1,15 @@
 # An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
+from derec.core import TestCaseData, TestCaseSetup, yamlTrace, TestCase
+import derec.derec_utils as du
+import matplotlib.transforms as transforms
+import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
 
 import vtk
 import numpy as num
 from collections import defaultdict
-import matplotlib.pyplot as plt
 from gmtpy import GMT
 
-def make_3D_pseudo_data():
-    n_samples = 75
-
-    D2_data = {}
-    D3_data = {}
-
-    for i in range(n_samples):
-        D2_data[i] = num.array(num.random.random(n_samples))
-
-    for i in range(n_samples):
-        D2_data[i] *= i
-        D3_data[i] = D2_data
-
-    return D3_data 
 
 def scale_2_int_perc(a):
     '''
@@ -85,18 +75,161 @@ def gmt_map(event_lats=None, event_lons=None, station_lats=None,
 
 
 class OpticBase():
+
+    def __init__(self, test_case=None, test_case_data=None):
+        if test_case:
+            self.test_case = test_case
+            data_input = self.test_case
+
+        elif test_case_data:
+            data_input = self.test_case_data
+
+        self.candidates = data_input.candidates
+        self.references = data_input.references
+        self.processed_candidates = data_input.processed_candidates
+        self.processed_references = data_input.processed_references
+        self.channel_map = data_input.test_case_setup.channel_map
+
+        self.test_case_setup = data_input.test_case_setup
+        self.targets = self.test_case_setup.targets
+        self.sources = self.test_case_setup.sources
+
+    def gmt_map(self, **kwargs):
+        sources_lon_lat = set()
+        for s in self.sources:
+            sources_lon_lat.add((s.lon, s.lat))
+        sources_lon_lat = zip(*list(sources_lon_lat))
+
+        targets_lon_lat = set()
+        for t in self.targets:
+            targets_lon_lat.add((t.lon, t.lat))
+        targets_lon_lat = zip(*list(targets_lon_lat))
+        gmt_map(sources_lon_lat[1], sources_lon_lat[0],
+                targets_lon_lat[1], targets_lon_lat[0],
+                    **kwargs)
+
+
+    def waveforms_plot(self):
+        """
+        plot waveforms. 
+        One figure per stations. 
+        Three subplots, one per channel.
+        several graphs in each subplot. One graph represents one source depth
+        some ideas taken from
+        http://wiki.scipy.org/Cookbook/Matplotlib/MultilinePlots
+        """
+        
+        stats = TestCase.targets_nsl_of(self.targets)
+        num_stations = len(stats)
+        figures = [plt.figure(i, facecolor='grey') for i in range(num_stations)]
+        fig_dict = dict(zip(stats, figures))
+
+        axes_dict = {}
+        # overlapping axes objects <- google
+        for target in self.targets:
+            fig = fig_dict[target.codes[:3]]
+            axes_dict[target] = fig.add_subplot(1,3,self.channel_map[target.codes[3]])
+
+        processed_lines = TestCase.lines_dict(self.processed_candidates)
+
+        for source in self.sources:
+            for target in self.targets:
+                axes_dict[target].add_line(processed_lines[source][target])
+
+        px=140.
+        y_shifts = dict(zip(self.sources, num.linspace(-px/2./72., px/2./72., 
+            len(self.sources))))
+        
+        # vertically distribute graphs
+        for s in self.sources:
+            for t in self.targets:
+                line = processed_lines[s][t]
+                fig = fig_dict[t.codes[:3]]
+                trans = transforms.ScaledTranslation(0, y_shifts[s], 
+                                                     fig.dpi_scale_trans)
+
+                line.set_transform(line.get_transform()+trans)
+
+        for ax in axes_dict.values():
+            ax.axes.get_yaxis().set_visible(False)
+            ax.autoscale()
+
+    def plot_marker_vs_distance(self):
+        """
+        Plot:
+            x-axis: Distance
+            y-axis: Marker tmin, and marker max
+        """
+        fig = plt.figure()
+    
+    def plot_z_components(self, traces_dict, markers_dict, sources=[], targets=[]):
+        """
+        Plot vertical components of each station. One figure per source, one
+        subplot per station.
+        """
+        sources = self.sources if not sources else sources
+        targets = self.targets if not targets else targets
+
+        for source in sources:
+            i = 0
+            fig, axs = plt.subplots(len(targets)/3, sharex=True)
+            sorted_targets = sorted(targets, key=lambda tr: tr.distance_to(source))
+
+            for target in [t for t in sorted_targets if t.codes[3]=='Z']:
+                    m = markers_dict[source][target]
+                    c = traces_dict[source][target]
+
+                    if isinstance(c, yamlTrace):
+                        c = du.yamlTrace2pyrockoTrace(c)
+
+                    axs[i].plot(c.get_xdata(), c.get_ydata())
+                    axs[i].axvline(m.tmin, label='P')
+                    axs[i].axvline(m.tmax, label='P')
+
+                    plt.text(1, 1, '.'.join(target.codes[:3]),
+                                    horizontalalignment='right',
+                                    verticalalignment='top',
+                                    transform=axs[i].transAxes)
+                    i+=1
+
+            fig.subplots_adjust(hspace=0)
+            plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+            fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
+
+    def stack_plot(self, param_dict=None, sources=None):
+        '''
+        param_dict is something like {latitude:10, longitude:10}, defining the 
+        area of source, that you would like to look at.
+        '''
+        if param_dict and sources:
+            sources = TestCase.get_sources_where(param_dict, sources)
+
+        else:
+            sources = self.sources
+
+        # google maps snuffling
+        gs = gridspec.GridSpec(len(self.targets)/3,3)
+        gs_dict= dict(zip(self.targets, gs))
+
+        if self.misfit_setup.domain=='frequency_domain':
+            gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
+            gs_traces_dict= dict(zip(self.targets, gs_traces))
+
+        #for source  in sources:
+
+class Cube():
     def __init__(self, test_case):
 
         self.test_case=test_case 
-        self.test_case.numpy_it()
-        self.xdim = len(self.test_case.test_parameters[test_case.xkey])
-        self.ydim = len(self.test_case.test_parameters[test_case.ykey])
-        self.zdim = len(self.test_case.test_parameters[test_case.zkey])
+        #self.test_case.numpy_it()
+        #self.xdim = len(self.test_case.test_parameters[test_case.xkey])
+        #self.ydim = len(self.test_case.test_parameters[test_case.ykey])
+        #self.zdim = len(self.test_case.test_parameters[test_case.zkey])
 
-        data=test_case.num_array[3].reshape(self.xdim,
-                                            self.ydim,
-                                            self.zdim)
-        data = scale_2_int_perc(data)
+        #data=test_case.num_array[3].reshape(self.xdim,
+        #                                    self.ydim,
+        #                                    self.zdim)
+        #data = scale_2_int_perc(data)
         #self.vtkCube(data)
 
     def value_to_index(k, val):
@@ -105,40 +238,6 @@ class OpticBase():
     def add_cases(self, cases):
         self.test_tin.extend(cases)
         self.update_dimensions(cases)
-
- 
-    def plot_1d(self, fix_parameters={}):
-        '''
-        fix parameters is a dict, e.g. {lat:10, lon:10}
-        '''
-        x, y = self.test_tin.numpyrize_1d(fix_parameters)
-        plt.plot(x,y, 'o')
-        plt.show()
-
-
-    def plot_2d(self, fix_parameters={}):
-        '''
-        fix parameters is a dict, e.g. {lat:10, lon:10}
-        '''
-        x, y = self.test_tin.numpyrize_2d(fix_parameters)
-        plt.plot(x,y, 'o')
-        plt.show()
-
-
-    def gmt_map(self, **kwargs):
-        sources_lon_lat = set()
-        for s in self.test_case.sources:
-            sources_lon_lat.add((s.lon, s.lat))
-        sources_lon_lat = zip(*list(sources_lon_lat))
-
-        targets_lon_lat = set()
-        for t in self.test_case.targets:
-            targets_lon_lat.add((t.lon, t.lat))
-        targets_lon_lat = zip(*list(targets_lon_lat))
-        gmt_map(sources_lon_lat[1], sources_lon_lat[0],
-                targets_lon_lat[1], targets_lon_lat[0],
-                    **kwargs)
-
 
     def vtkCube(self, data_matrix=None):
 
@@ -278,9 +377,3 @@ class OpticBase():
         renderWin.Render()
         renderInteractor.Start()
 
-
-if __name__=='__main__':
-    data_matrix = dict_2_3d_array(make_3D_pseudo_data())
-
-    data_matrix = scale_2_int_perc(data_matrix)
-    vtkCube(data_matrix)
