@@ -1,4 +1,4 @@
---- !TestCaseSetup
+--- !derec.core.TestCaseSetup
 tagname: TestCaseSetup
 reference_source: !pyrocko.gf.seismosizer.DCSource
   lat: 40.399999999999999
@@ -7,8 +7,8 @@ reference_source: !pyrocko.gf.seismosizer.DCSource
   time: 2013-10-01 03:32:45
   magnitude: 4.2999999999999998
   strike: 37.299999999999997
-  dip: 30
-  rake: -3
+  dip: 30.0
+  rake: -3.0
 sources:
 - !pyrocko.gf.seismosizer.DCSource
   lat: 40.399999999999999
@@ -249,28 +249,19 @@ targets:
   elevation: 0.0
   store_id: castor
 engine: !pyrocko.gf.seismosizer.LocalEngine
-  store_superdirs: [/home/zmaw/u254061/Programming/derec/fomostos]
+  store_superdirs: [/Users/marius/prog/derec/fomostos]
 store_id: castor
 misfit_setup: !pyrocko.trace.MisfitSetup
   norm: 2
   taper: !pyrocko.trace.CosFader
     xfrac: 0.20000000000000001
   filter: !pyrocko.trace.PoleZeroResponse
-    zeros: |2
-       (           0+           0j)
-       (           0+           0j)
-       (           0+           0j)
-       (           0+           0j)
-    poles: |2
-       (    1.014276+   -6.029778j)
-       (    1.014276+    6.029778j)
-       (     2.08468+   -4.381501j)
-       (    1.398264+   -2.938818j)
-       (   0.4284061+   -2.546834j)
-       (     2.08468+    4.381501j)
-       (    1.398264+    2.938818j)
-       (   0.4284061+    2.546834j)
-    constant: [201.98749116810743, 0.0]
+    zeros: [0j, 0j, 0j, 0j]
+    poles: [(1.0142764182125958-6.0297779847473016j), (1.0142764182125874+6.0297779847472919j),
+      (2.0846797639314971-4.3815007769923611j), (1.3982640186358144-2.9388182252698987j),
+      (0.42840613350985113-2.546834202179983j), (2.0846797639314913+4.3815007769923442j),
+      (1.3982640186358142+2.938818225269904j), (0.42840613350985085+2.5468342021799804j)]
+    constant: (201.98749116810743+0j)
   domain: time_domain
 source_time_function:
 - [0, 1.0]
