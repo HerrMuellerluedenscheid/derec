@@ -1,20 +1,14 @@
+from yaml_derec import *
 from pyrocko.gf import *
-from pyrocko import model, gui_util, pile, trace, moment_tensor, io
-from vtkOptics import *
+from pyrocko import model, gui_util, trace, moment_tensor, io
+#from vtkOptics import *
 from collections import defaultdict
-from matplotlib import cm
-from matplotlib.mlab import griddata
-from gmtpy import griddata_auto
 from scipy.signal import butter
 from scipy.ndimage import zoom
 from guts import Object, Float, Int, String, Complex, Tuple, List, Dict, load_string
 from guts_array import Array
 
-import matplotlib.transforms as transforms
 import time
-import matplotlib.mlab as mlab
-import matplotlib.gridspec as gridspec
-import matplotlib.pyplot as plt
 import matplotlib.lines as pltlines
 import progressbar
 import os
@@ -78,7 +72,7 @@ class Doer():
         print('chopping ref....')
         test_case.references = du.chop_using_markers(
                                 test_case.raw_references, 
-                                test_case.ref_markers, 
+                                test_case.reference_markers, 
                                 inplace=False)
 
         test_case.apply_stf(test_case.test_case_setup.source_time_function)
@@ -90,53 +84,8 @@ class Doer():
                                 inplace=False)
 
         du.calculate_misfit(test_case)
-        #test_case.yaml_dump()
 
-        # Display results===================================================
-        #test_case.plot1d(order, event.lon)
-        #test_case.contourf(xkey='lat', ykey='lon')
-        
-        #test_case.check_plot({'lat':ref_source.lat, 'depth':ref_source.depth})
 
-        #optics = OpticBase(test_case)
-        #optics.plot_1d(fix_parameters={'lat':event.lat, 'lon':event.lon})
-        #optics.gmt_map(stations=True, events=True)
-
-guts_prefix = 'derec.core'
-
-class yamlTrace(Object):
-    ydata = Array.T(shape=(None,), dtype=num.float, serialize_as='list', optional=True)
-    deltat = Float.T(optional=True)
-    tmin = Float.T()
-    codes = String.T()
-
-class TestCaseSetup(Object):
-    tagname = String.T(default='TestCaseSetup')
-    reference_source = Source.T()
-    sources = List.T(Source.T()) 
-    targets = List.T(Target.T()) 
-    engine = Engine.T()
-    store_id = String.T()
-    test_parameters = List.T(String.T())
-    misfit_setup = trace.MisfitSetup.T()
-    # would be nicer in an numpy array
-    source_time_function = List.T(List.T())
-    number_of_time_shifts = Int.T()
-    percentage_of_shift = Float.T()
-    phase_ids_start = String.T()
-
-class TestCaseData(Object):
-    references = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()), 
-            optional=True)
-    candidates = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()), 
-            optional=True)
-    processed_references = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()),
-            optional=True)
-    processed_candidates = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()), 
-            optional=True)
-
-    test_case_setup = TestCaseSetup.T(optional=True)
-    results = Dict.T(Source.T(), Float.T(), optional=True) 
 
 class TestCase(Object):
     '''
@@ -158,9 +107,9 @@ class TestCase(Object):
         self.raw_candidates = None
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
-        self.misfits = None
+        self.misfits = defaultdict
         self.misfit_setup = test_case_setup.misfit_setup
-        self.channel_map = {'N':1, 'E':2, 'Z':3}    
+        self.channel_map = test_case_setup.channel_map    
             
     def request_data(self):
         print 'requesting data....'
@@ -187,7 +136,7 @@ class TestCase(Object):
         Reference markers are the ones used as stencil to chop the reference
         traces.
         """
-        self.ref_markers = markers
+        self.reference_markers = markers
 
     def set_candidates_markers(self, markers):
         """
@@ -215,7 +164,8 @@ class TestCase(Object):
         
         return source, misfit_value
 
-    def targets_nsl_of(self, targets=[]):
+    @staticmethod
+    def targets_nsl_of(targets=[]):
         """return a set of all network, station, location tuples contained
         in *targets*"""
         return set([t.codes[:3] for t in targets])
@@ -233,19 +183,26 @@ class TestCase(Object):
         return self.targets_nsl_of(self.targets)
 
     def set_misfit(self, misfits):
-        self.misfits=misfits 
+        self.misfits = misfits 
 
     def yaml_dump(self, fn=''):
 
-        def convert_to_yaml_dict(traces_dict):
+        def convert_to_yaml_dict(_dict):
             outdict = defaultdict(dict)
-            for source, target_tr in traces_dict.iteritems():
-                for target, tr in target_tr.iteritems():
-                    yamltr = yamlTrace(ydata=tr.ydata,
-                            tmin=tr.tmin,
-                            deltat=tr.deltat, 
-                            codes=tr.nslc_id)
-                    outdict[source][target] = yamltr
+            for source, target_o in _dict.iteritems():
+                for target, o in target_o.iteritems():
+                    if isinstance(o, trace.Trace):
+                        yaml_o = yamlTrace(ydata=tr.ydata,
+                                tmin=o.tmin,
+                                deltat=o.deltat, 
+                                codes=o.nslc_id)
+                    elif isinstance(o, gui_util.Marker):
+                        yaml_o = yamlMarker(nslc_ids=o.nslc_ids,
+                                tmin=o.tmin,
+                                tmax=o.tmax,
+                                kind=o.kind)
+
+                    outdict[source][target] = yaml_o
 
             return outdict
 
@@ -258,6 +215,16 @@ class TestCase(Object):
                                                 self.processed_candidates)
 
         test_case_data.test_case_setup = self.test_case_setup
+
+        misfit_float_dict = dict(zip(self.misfits.keys(),
+                                [float(i) for i in self.misfits.values()]))
+
+        test_case_data.results = dict(misfit_float_dict)
+
+        test_case_data.reference_markers = convert_to_yaml_dict(
+                self.reference_markers)
+        test_case_data.candidates_markers = convert_to_yaml_dict(
+                self.candidates_markers)
 
         f = open(fn, 'w')
         f.write(test_case_data.dump())
@@ -310,9 +277,6 @@ class TestCase(Object):
             self.progressbar = progressbar.ProgressBar(maxval=b).start()
             self.progressbar.update(a)
 
-    def dump_pile(self, fn='test_dumped_seismograms.mseed'):
-        pile.make_pile(seismograms.values(), fn=fn)
-
     def snuffle(self):
         trace.snuffle(self.seismograms)
 
@@ -354,11 +318,14 @@ class TestCase(Object):
         """
         lines_dict = defaultdict(dict)
         for source, target, tr in TestCase.iter_dict(traces_dict):
+            # this is ugly and shouldn't be necessary if get_xdata() worked:
+            if isinstance(tr, yamlTrace):
+                tr = du.yamlTrace2pyrockoTrace(tr)
+
             lines_dict[source][target] = pltlines.Line2D(tr.get_xdata(),
                     tr.get_ydata())
 
         return lines_dict 
-
 
     def ydata_of_target(self, sources, target):
         if sources == []:
@@ -433,11 +400,12 @@ if __name__ ==  "__main__":
     zoffset= 0.
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
-    depths=[1800, 2000]
+    depths=[1800, 2000, 2200]
     #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 1)
 
     print depths, '<- depths'
 
+    # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = [DCSource(lat=ref_source.lat,
                            lon=ref_source.lon,
                            depth=depth,

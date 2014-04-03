@@ -468,3 +468,12 @@ def get_earthmodel_from_engine(engine, store_id):
     """
     return engine.get_store(store_id).config.earthmodel_1d
 
+def yamlTrace2pyrockoTrace(yaml_trace):
+    """
+    Convert a derec.core.yamlTrace into a pyrocko.trace.Trace object.
+    """
+    t = trace.Trace(ydata=yaml_trace.ydata, 
+                        tmin=yaml_trace.tmin, 
+                        deltat=yaml_trace.deltat)
+    t.nslc_id = yaml_trace.codes
+    return t

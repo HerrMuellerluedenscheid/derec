@@ -16,22 +16,27 @@ km = 1000.
 if __name__ ==  "__main__":
 
     fn = 'sample_test_case_setup.yaml'
+
+    # loading default setup:
     test_case_setup = load_string(open(fn,'r').read())
 
-    selfdir = pjoin(os.getcwd(), __file__.rsplit('/', 1)[0])
-    selfdir = selfdir.rsplit('/')[0]
-
-    # load stations from file:
-    stations = model.load_stations(pjoin(selfdir,
-                            '../reference_stations_castor_selection.txt'))
-
-    zoffset = 2000
+    zoffset = 1000
     depths=num.linspace(test_case_setup.reference_source.depth-zoffset, 
                         test_case_setup.reference_source.depth+zoffset, 
-                        9)
+                        3)
+
+    # overwriting sources:
+    test_case_setup.sources = [DCSource(lat=test_case_setup.reference_source.lat,
+                            lon=test_case_setup.reference_source.lon,
+                            depth=float(depth),
+                            time=test_case_setup.reference_source.time,
+                            strike=test_case_setup.reference_source.strike,
+                            dip=test_case_setup.reference_source.dip,
+                            rake=test_case_setup.reference_source.rake,
+                            magnitude=test_case_setup.reference_source.magnitude) 
+                                          for depth in depths]
 
     print depths, '<- depths'
-
     reference_request = make_reference_trace(test_case_setup.reference_source,
                                              test_case_setup.targets, 
                                              test_case_setup.engine)
@@ -47,6 +52,7 @@ if __name__ ==  "__main__":
 
         test_case = TestCase( test_case_setup )
 
+        print 'adding noise....'
         for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
             du.add_random_noise_to_trace(tr, A=0.00001)
 
@@ -70,8 +76,8 @@ if __name__ ==  "__main__":
         test_case_dict[rise_time] = test_case
         test_case.yaml_dump(fn='results/depth_error_%s.yaml'%rise_time)
 
-    fig = plt.figure()
 
+    fig = plt.figure()
 
     for key, test_case in test_case_dict.items():
         
@@ -82,6 +88,5 @@ if __name__ ==  "__main__":
         plt.plot(key, zdiff, 'o')
 
     plt.show()
- 
 
 
