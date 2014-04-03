@@ -1,5 +1,6 @@
 # An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
 from derec.core import TestCaseData, TestCaseSetup, yamlTrace, TestCase
+import derec.derec_utils as du
 import matplotlib.transforms as transforms
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -161,7 +162,7 @@ class OpticBase():
         """
         fig = plt.figure()
     
-    def plot_z_components(self, traces_dict, sources=[], targets=[], markers_dict=[]):
+    def plot_z_components(self, traces_dict, markers_dict, sources=[], targets=[]):
         """
         Plot vertical components of each station. One figure per source, one
         subplot per station.
@@ -177,6 +178,10 @@ class OpticBase():
             for target in [t for t in sorted_targets if t.codes[3]=='Z']:
                     m = markers_dict[source][target]
                     c = traces_dict[source][target]
+
+                    if isinstance(c, yamlTrace):
+                        c = du.yamlTrace2pyrockoTrace(c)
+
                     axs[i].plot(c.get_xdata(), c.get_ydata())
                     axs[i].axvline(m.tmin, label='P')
                     axs[i].axvline(m.tmax, label='P')

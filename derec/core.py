@@ -15,7 +15,6 @@ import os
 import derec_utils as du
 import numpy as num
 import copy
-import pdb
 
 pjoin = os.path.join
 km = 1000.
@@ -192,7 +191,7 @@ class TestCase(Object):
             for source, target_o in _dict.iteritems():
                 for target, o in target_o.iteritems():
                     if isinstance(o, trace.Trace):
-                        yaml_o = yamlTrace(ydata=tr.ydata,
+                        yaml_o = yamlTrace(ydata=o.ydata,
                                 tmin=o.tmin,
                                 deltat=o.deltat, 
                                 codes=o.nslc_id)
@@ -488,7 +487,6 @@ if __name__ ==  "__main__":
 
     D = Doer(test_case)
 
-    print test_case.misfits
     #test_case.compare_plot( traces_dicts=[test_case.processed_references,
     #                    test_case.processed_candidates],
     #                    focus_first=False)
@@ -510,9 +508,5 @@ if __name__ ==  "__main__":
     #f.write(yaml_trace.dump())
     #f.close()
     #plt.show()
-    print 'dumping...'
+    #print 'dumping...'
     test_case.yaml_dump(fn='test_case_dump.yaml')
-    #print 'reading...'
-    #import pdb
-    #pdb.set_trace()
-    # test_case.yaml_read(fn='test.yaml')

@@ -11,7 +11,7 @@ class yamlMarker(Object):
     """
     yaml version of the pyrocko.gui_util.Marker class
     """
-    nslc_ids = Tuple.T()
+    nslc_ids = Tuple.T(4, String.T())
     tmin = Timestamp.T()
     tmax = Timestamp.T(optional=True)
     kind = Int.T(optional=True)
@@ -20,8 +20,11 @@ class yamlTrace(Object):
     """
     To be replaced with pyrocko.gf.SeismosizerTrace
     """
-    ydata = Array.T(shape=(None,), dtype=num.float, serialize_as='list', 
-            optional=True)
+    ydata = Array.T(shape=(None,), 
+                    dtype=num.float32, 
+                    serialize_as='base64',
+                    serialize_dtype=('<f4'), 
+                    optional=True)
 
     deltat = Float.T(optional=True)
     tmin = Float.T()
