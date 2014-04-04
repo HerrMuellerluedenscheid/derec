@@ -1,7 +1,7 @@
 import numpy as num
 
-from guts import Object, Int, Float, Dict, List, String, Tuple, Timestamp
-from guts_array import Array
+from pyrocko.guts import Object, Int, Float, List, String, Tuple, Timestamp, Dict
+from pyrocko.guts_array import Array
 from pyrocko.gf import *
 from pyrocko import trace
 
