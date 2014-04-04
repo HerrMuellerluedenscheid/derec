@@ -1,6 +1,6 @@
 from pyrocko.gf import *
 from pyrocko import model, gui_util, pile, trace, moment_tensor, io
-from guts import *
+from pyrocko.guts import *
 from matplotlib import pyplot as plt
 
 import progressbar

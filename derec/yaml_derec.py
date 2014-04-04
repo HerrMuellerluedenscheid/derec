@@ -5,7 +5,7 @@ from pyrocko.guts_array import Array
 from pyrocko.gf import *
 from pyrocko import trace
 
-guts_prefix = 'derec.core'
+guts_prefix = 'derec.yaml_derec'
 
 class yamlMarker(Object):
     """
