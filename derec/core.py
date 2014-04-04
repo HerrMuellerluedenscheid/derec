@@ -1,12 +1,11 @@
 from yaml_derec import *
 from pyrocko.gf import *
 from pyrocko import model, gui_util, trace, moment_tensor, io
-#from vtkOptics import *
 from collections import defaultdict
 from scipy.signal import butter
 from scipy.ndimage import zoom
-from guts import Object, Float, Int, String, Complex, Tuple, List, Dict, load_string
-from guts_array import Array
+from pyrocko.guts import Object, Float, Int, String, Complex, Tuple, List, load_string, Dict
+from pyrocko.guts_array import Array
 
 import time
 import matplotlib.lines as pltlines
@@ -457,7 +456,6 @@ if __name__ ==  "__main__":
                                     number_of_time_shifts=9,
                                     percentage_of_shift=10.,
                                     phase_ids_start=phase_ids_start) 
-
     fn = 'sample_test_case_setup.yaml'
     f=open(fn, 'w')
 
