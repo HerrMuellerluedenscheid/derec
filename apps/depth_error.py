@@ -52,9 +52,9 @@ if __name__ ==  "__main__":
 
         test_case = TestCase( test_case_setup )
 
-        print 'adding noise....'
-        for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
-            du.add_random_noise_to_trace(tr, A=0.00001)
+        #print 'adding noise....'
+        #for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
+        #    du.add_random_noise_to_trace(tr, A=0.00001)
 
         test_case.set_raw_references(reference_seismograms)
 
@@ -68,7 +68,8 @@ if __name__ ==  "__main__":
                                             test_case.store,
                                             test_case_setup.phase_ids_start,
                                             perc=1.0,
-                                            t_shift_frac=0.3)
+                                            t_shift_frac=0.3,
+                                            use_cake=True)
 
         test_case.set_reference_markers(extended_ref_marker)
 
