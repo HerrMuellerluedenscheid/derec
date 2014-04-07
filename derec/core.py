@@ -221,7 +221,7 @@ class TestCase(Object):
         misfit_float_dict = dict(zip(self.misfits.keys(),
                                 [float(i) for i in self.misfits.values()]))
 
-        test_case_data.results = dict(misfit_float_dict)
+        test_case_data.misfits = dict(misfit_float_dict)
 
         test_case_data.reference_markers = convert_to_yaml_dict(
                 self.reference_markers)

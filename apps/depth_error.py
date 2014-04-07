@@ -38,6 +38,9 @@ if __name__ ==  "__main__":
                                           for depth in depths]
 
     print depths, '<- depths'
+    derec_home = os.environ["DEREC_HOME"]
+    store_dirs = [derec_home + '/fomostos']
+    test_case_setup.engine.store_superdirs = store_dirs
     reference_request = make_reference_trace(test_case_setup.reference_source,
                                              test_case_setup.targets, 
                                              test_case_setup.engine)
