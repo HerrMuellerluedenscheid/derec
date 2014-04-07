@@ -138,7 +138,11 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
     parallelize = False 
     if kwargs.get('parallelize', False):
-        paralellize=True
+        paralellize = True
+
+    use_cake = False
+    if kwargs.get('use_cake', False):
+        use_cake = True
 
     model = store.config.earthmodel_1d
 
@@ -152,16 +156,20 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         for target in targets:
             dist = source.distance_to(target)
             args = (source.depth, dist)
-
-            tmin = store.t('first(%s)'%phase_ids_start, args)
-            if tmin==None:
+    
+            tmin = None
+            if not use_cake:
+                tmin = store.t('first(%s)'%phase_ids_start, args)
+            if tmin is None or use_cake:
                 print 'info: tmin is None, using cake...'
                 tmin = cake_first_arrival(dist, source.depth, model,
                         phases=phase_ids_start.split('|'))
 
             if phase_ids_end:
-                tmax = store.t('first(%s)'%phase_ids_end, args)
-                if tmax is None:
+                tmax = None
+                if not use_cake:
+                    tmax = store.t('first(%s)'%phase_ids_end, args)
+                if tmax is None or use_cake:
                     print 'info: tmax is None, using cake...'
                     tmax = cake_first_arrival(dist, source.depth, model,
                             phases=phase_ids_end.split('|'))

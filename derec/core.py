@@ -63,7 +63,8 @@ class Doer():
                                               test_case.store,
                                               test_case.test_case_setup.phase_ids_start,
                                               perc=1.0,
-                                              t_shift_frac=0.3)
+                                              t_shift_frac=0.3,
+                                              use_cake=True)
         
         test_case.set_candidates_markers( extended_test_marker )
 
@@ -85,12 +86,14 @@ class Doer():
 
 
 guts_prefix ='derec.yaml_derec'
+
 class TestCase(Object):
     '''
     In one test case, up to 3 parameters can be modified
     '''
     def __init__(self, test_case_setup):
         self.test_case_setup = test_case_setup
+        self.reference_source = test_case_setup.reference_source
 
         self.targets = test_case_setup.targets
         self.sources = test_case_setup.sources
@@ -105,9 +108,10 @@ class TestCase(Object):
         self.raw_candidates = None
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
-        self.misfits = defaultdict
+        #self.misfits = defaultdict
         self.misfit_setup = test_case_setup.misfit_setup
         self.channel_map = test_case_setup.channel_map    
+        self.phase_ids_start = test_case_setup.phase_ids_start
             
     def request_data(self):
         print 'requesting data....'
@@ -181,7 +185,7 @@ class TestCase(Object):
         return self.targets_nsl_of(self.targets)
 
     def set_misfit(self, misfits):
-        self.misfits = misfits 
+        self.misfits = dict(misfits)
 
     def yaml_dump(self, fn=''):
 
@@ -425,16 +429,19 @@ if __name__ ==  "__main__":
     norm = 2.
     taper = trace.CosFader(xfrac=0.2) 
     
-    z, p, k = butter(4, (1.*num.pi*2. ,0.4*num.pi*2.) , 
-                                       'bandpass', 
-                                       analog=True, 
-                                       output='zpk')
+    z, p, k = butter(4, 2.0*num.pi*2., 
+                       'low', 
+                       analog=True, 
+                       output='zpk')
 
     #z = num.array(z, dtype=complex)
     z = [complex(zi) for zi in z]
+    print z
     p = [complex(pi) for pi in p]
     #p = num.array(p, dtype=complex)
     k = complex(k)
+
+    # TODO: fresponse.dump() schmeisst zeros weg. Warum?
     fresponse = trace.PoleZeroResponse(z,p,k)
     fresponse.regularize()
 
@@ -456,6 +463,7 @@ if __name__ ==  "__main__":
                                     number_of_time_shifts=9,
                                     percentage_of_shift=10.,
                                     phase_ids_start=phase_ids_start) 
+
     fn = 'sample_test_case_setup.yaml'
     f=open(fn, 'w')
 
@@ -466,8 +474,8 @@ if __name__ ==  "__main__":
 
     test_case = TestCase( test_case_setup )
 
-    for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
-        du.add_random_noise_to_trace(tr, A=0.00001)
+    #for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
+    #    du.add_random_noise_to_trace(tr, A=0.00001)
 
     test_case.set_raw_references(reference_seismograms)
 
@@ -507,4 +515,5 @@ if __name__ ==  "__main__":
     #f.close()
     #plt.show()
     #print 'dumping...'
+    print test_case.misfits
     test_case.yaml_dump(fn='test_case_dump.yaml')
