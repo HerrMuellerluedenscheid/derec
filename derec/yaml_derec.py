@@ -50,8 +50,8 @@ class TestCaseSetup(Object):
     test_parameters = List.T(String.T())
     misfit_setup = trace.MisfitSetup.T()
     # would be nicer in an numpy array
-    source_time_function = List.T(List.T())
-    number_of_time_shifts = Int.T()
+    source_time_function = list.t(list.t(float.t()))
+    number_of_time_shifts = int.t()
     percentage_of_shift = Float.T()
     phase_ids_start = String.T()
     channel_map = Dict.T(String.T(), Int.T(), 
