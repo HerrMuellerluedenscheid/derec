@@ -9,6 +9,7 @@ import vtk
 import numpy as num
 from collections import defaultdict
 from gmtpy import GMT
+from copy import copy
 
 
 def scale_2_int_perc(a):
@@ -215,7 +216,70 @@ class OpticBase():
             gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
             gs_traces_dict= dict(zip(self.targets, gs_traces))
 
-        #for source  in sources:
+    def blinded_key(self, _key, ignore):
+        """
+        make a new key entry for dict, neglecting one key/value pair, defined by
+        :param ignore: string
+        """
+        if ignore:
+            key_copy = copy(_key)
+            key_copy.pop(ignore)
+            return key_copy
+        else: 
+            return key
+
+    def blinded_compare(self, item, test_list, ignore):
+        """
+        Check if item is in list, by means of their __dict__ representation,
+        neglecting the parameter defined by *ignore*. 
+        :param ignore: string of key, to be ignored in comparison
+        """
+        item_dict = copy(item.__dict__)
+        item_dict.pop(ignore)
+        for item_i in test_list:
+            item_i_dict = copy(item_i.__dict__)
+            item_i_dict.pop(ignore)
+            if item_i_dict==item:
+                return True
+
+        return False 
+
+    def make_blinded_dict(self, sources, targets, the_dict, ignore=None):
+        """
+        make a dict with items if key sources and targets are in *sources* and
+        *tagets*.
+        """
+        match_dict = defaultdict(dict) 
+        for s,t,l in TestCase.iter_dict(the_dict):
+            if self.blinded_compare(s, sources, ignore) and t in targets:
+                if match_dict[self.blinded_key(s, ignore)] is not None:
+                    print 'warning: blinded key already exists'
+                    raise Exception
+                else:
+                    match_dict[self.blinded_key(s, ignore)][t] = l
+
+    def process_compare(self, sources=None, targets=None):
+        """
+        4 lines plot (raw/processed reference/candidat) for given sources and
+        targets.
+        One plot per target.
+        If omitted, use all sources and targets possible
+        :param ignoe: when comparing reference sources and candidates' sources,
+        ignore this parameter.
+        """
+        sources = self.sources if not sources else sources
+        targets = self.targets if not targets else targets
+
+        lines1 = TestCase.lines_dict(self.candidates)
+        lines2 = TestCase.lines_dict(self.processed_candidates)
+
+        lines3 = TestCase.lines_dict(self.references)
+        lines4 = TestCase.lines_dict(self.processed_references)
+
+        for line_dict in [lines1, lines2, lines3, lines4]:
+            ignored_line_dict = self.make_blinded_dict(sources, targets,
+                    line_dict, ignore=self.test_case_setup.test_parameter)
+
 
 class Cube():
     def __init__(self, test_case):

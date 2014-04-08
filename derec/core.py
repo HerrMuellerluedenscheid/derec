@@ -57,7 +57,7 @@ class Doer():
         test_case.request_data()
 
         #print 'source location: ', test_case.ref_source
-        print('test data marker....')
+        print('chopping candidates....')
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
@@ -82,6 +82,7 @@ class Doer():
                                 extended_test_marker, 
                                 inplace=False)
 
+        print('calculating misfits...')
         du.calculate_misfit(test_case)
 
 

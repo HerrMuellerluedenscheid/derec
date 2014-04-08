@@ -136,6 +136,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
     '''
     assert not phase_ids_end==perc and None in (phase_ids_end, perc)
 
+    tmin_phase_cache = defaultdict()
+    tmax_phase_cache = defaultdict()
+
     parallelize = False 
     if kwargs.get('parallelize', False):
         paralellize = True
@@ -152,33 +155,35 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
     def do_run(source, return_dict=None):
         if return_dict is None:
             return_dict = defaultdict()
-
+        
         for target in targets:
             dist = source.distance_to(target)
             args = (source.depth, dist)
-    
-            tmin = None
-            if not use_cake:
-                tmin = store.t('first(%s)'%phase_ids_start, args)
-            if tmin is None or use_cake:
-                print 'info: tmin is None, using cake...'
-                tmin = cake_first_arrival(dist, source.depth, model,
-                        phases=phase_ids_start.split('|'))
-
-            if phase_ids_end:
-                tmax = None
+            if not tmin_phase_cache.get(args, False):
+                tmin = None
                 if not use_cake:
-                    tmax = store.t('first(%s)'%phase_ids_end, args)
-                if tmax is None or use_cake:
-                    print 'info: tmax is None, using cake...'
-                    tmax = cake_first_arrival(dist, source.depth, model,
-                            phases=phase_ids_end.split('|'))
+                    tmin = store.t('first(%s)'%phase_ids_start, args)
+                if tmin is None or use_cake:
+                    tmin = cake_first_arrival(dist, source.depth, model,
+                            phases=phase_ids_start.split('|'))
+                tmin_phase_cache[args] = tmin
+            else:
+                tmin = tmin_phase_cache[args]
 
-            elif perc:
-                tmax = tmin + tmin * perc
+            if not tmax_phase_cache.get(args, False):
+                if phase_ids_end:
+                    tmax = None
+                    if not use_cake:
+                        tmax = store.t('first(%s)'%phase_ids_end, args)
+                    if tmax is None or use_cake:
+                        tmax = cake_first_arrival(dist, source.depth, model,
+                                phases=phase_ids_end.split('|'))
 
-            tmin += source.time
-            tmax += source.time
+                elif perc:
+                    tmax = tmin + tmin * perc
+                tmax_phase_cache[args] = tmax
+            else:
+                tmax = tmax_phase_cache[args]
 
             if t_shift_frac:
                 t_start_shift = -(tmax-tmin)*t_shift_frac
@@ -186,6 +191,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
                 tmin += t_start_shift
                 tmax += t_end_shift 
+
+            tmin += source.time
+            tmax += source.time
 
             m = PhaseMarker(nslc_ids=target.codes,
                             tmin=tmin,
@@ -301,7 +309,6 @@ def calculate_misfit(test_case):
     mfsetup = test_case.misfit_setup
     norm = mfsetup.norm
 
-    print('calculating misfits...')
     pbar = progressbar.ProgressBar(maxval=len(sources)).start()
 
     for si, source in enumerate(sources):
@@ -320,7 +327,6 @@ def calculate_misfit(test_case):
 
             for c_d, r_d , m, n in reft.misfit(candidates=shifted_candidates,
                             setups=mfsetup):
-
                 if m==None or n==None:
                     print 'm,n =None'
                     continue
@@ -437,9 +443,13 @@ def apply_stf(traces_dict, stf):
     """
     for s, target_traces in traces_dict.items():
         for t, trac in target_traces.items():
-            x = trac.get_xdata()
-            y = trac.get_ydata()
             dt = trac.deltat
+            assert(stf[0][1]-stf[0][0] >= 3* dt)
+
+            x = trac.get_xdata()
+
+            y = trac.get_ydata()
+
             x_stf_new = num.arange(stf[0][0], stf[0][-1], dt)
             finterp = interpolate.interp1d(stf[0], stf[1])
             y_stf_new = finterp(x_stf_new)
@@ -480,6 +490,8 @@ def yamlTrace2pyrockoTrace(yaml_trace):
     """
     Convert a derec.core.yamlTrace into a pyrocko.trace.Trace object.
     """
+    if isinstance(yaml_trace, trace.Trace):
+        return yaml_trace
     t = trace.Trace(ydata=yaml_trace.ydata, 
                         tmin=yaml_trace.tmin, 
                         deltat=yaml_trace.deltat)

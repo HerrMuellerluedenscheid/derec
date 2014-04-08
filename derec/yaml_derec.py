@@ -57,6 +57,8 @@ class TestCaseSetup(Object):
     channel_map = Dict.T(String.T(), Int.T(), 
                          optional=True, 
                          default={'N':1, 'E':2, 'Z':3})
+    test_parameter = String.T(optional=True, default=None)
+    test_parameter_value = Float.T(optional=True, default=None)
 
 
 class TestCaseData(Object):
