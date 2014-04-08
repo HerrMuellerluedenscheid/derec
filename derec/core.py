@@ -101,11 +101,11 @@ class TestCase(Object):
         self.test_parameters = test_case_setup.test_parameters 
         self.store_id = test_case_setup.store_id
 
-        self.raw_references = None
+        self.raw_references = None       #(unchopped, unfiltered)
         self.processed_references = defaultdict(dict)
         self.references = {} 
 
-        self.raw_candidates = None
+        self.raw_candidates = None       #(unchopped, unfiltered)
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
         #self.misfits = defaultdict

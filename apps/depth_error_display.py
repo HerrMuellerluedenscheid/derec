@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from derec import derec_utils as du
 
-fn = 'results/depth_error_4.0.yaml'
+fn = 'results/depth_error_1.yaml'
 f = open(fn, 'r')
 data1 = load_string(f.read())
 f.close()
@@ -25,31 +25,43 @@ for s1,t1,l1 in TestCase.iter_dict(data1.candidates):
             traces_match[0].set_codes('a','','','')
             traces_match[1].set_codes('b','','','')
             traces_resort[s1][t1] = traces_match 
+#import pdb
 
-for s1,t1,l1 in TestCase.iter_dict(lines1):
-    for s2, t2, l2 in TestCase.iter_dict(lines2):
-        for s3, t3, l3 in TestCase.iter_dict(lines3):
-            for s4, t4, l4 in TestCase.iter_dict(lines4):
+#for s1,t1,l1 in TestCase.iter_dict(lines1):
+#    for s2, t2, l2 in TestCase.iter_dict(lines2):
+#        for s3, t3, l3 in TestCase.iter_dict(lines3):
+#            for s4, t4, l4 in TestCase.iter_dict(lines4):
+for s1,t1,l1 in TestCase.iter_dict(data1.candidates):
+    for s2, t2, l2 in TestCase.iter_dict(data1.references):
+        for s3, t3, l3 in TestCase.iter_dict(data1.processed_candidates):
+            for s4, t4, l4 in TestCase.iter_dict(data1.processed_references):
 
                 if s1.__dict__==s2.__dict__==s3.__dict__==s4.__dict__ and t1.__dict__==t2.__dict__==t3.__dict__==t4.__dict__:
-                    l3.set_linestyle('--')
-                    l4.set_linestyle('--')
-                    l1.set_color('r')
-                    l3.set_color('r')
+
+                    #pdb.set_trace()
+                    #l3.set_linestyle('--')
+                    #l4.set_linestyle('--')
+                    #l1.set_color('r')
                     lines_match = [l1, l2, l3, l4]
-                    lines_resort[s1][t1] = lines_match
+                    ptrac = [du.yamlTrace2pyrockoTrace(l) for l in lines_match]
+                    print ptrac
+                    #l3.set_color('r')
+                    #lines_resort[s1][t1] = lines_match
+                    
+                    fig = plt.figure()
+                    ax = fig.add_subplot(111)
+                    [ax.plot(l.get_xdata(), l.get_ydata()) for l in ptrac]
+                    #[ax.add_line(L) for L in lines_match]
+                    ax.autoscale()
 
-fig = plt.figure()
-ax = fig.add_subplot(111)
-[ax.add_line(L) for L in lines_match]
 
-ax.autoscale()
 #plt.plot(lines2.values()[0].values()[0])
+plt.figure()
 
-#opticbase = OpticBase(data)
+#opticbase = OpticBase(data1)
 #opticbase.waveforms_plot()
 #opticbase.plot_marker_vs_distance()
-#opticbase.plot_z_components(data.candidates, data.candidates_markers)
+#opticbase.plot_z_components(data1.candidates, data1.candidates_markers)
 
 
 # Plot rise time vs. depth
