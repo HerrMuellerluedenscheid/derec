@@ -180,9 +180,6 @@ class OpticBase():
                     m = markers_dict[source][target]
                     c = traces_dict[source][target]
 
-                    if isinstance(c, yamlTrace):
-                        c = du.yamlTrace2pyrockoTrace(c)
-
                     axs[i].plot(c.get_xdata(), c.get_ydata())
                     axs[i].axvline(m.tmin, label='P')
                     axs[i].axvline(m.tmax, label='P')

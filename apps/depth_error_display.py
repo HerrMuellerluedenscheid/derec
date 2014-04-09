@@ -6,10 +6,14 @@ from collections import defaultdict
 from derec import derec_utils as du
 import glob
 
-fn = 'results/depth_error_1.0.yaml'
+fn = 'results/depth_error_1.yaml'
 f = open(fn, 'r')
 data1 = load_string(f.read())
 f.close()
+
+ttt=data1.candidates.values()[0].values()[0]
+print ttt.get_xdata()
+print type(ttt)
 
 lines1 = TestCase.lines_dict(data1.candidates)
 lines2 = TestCase.lines_dict(data1.references)
@@ -30,6 +34,7 @@ def make_compare_plots(d1, d2, d3, d4):
                 for s4, t4, l4 in TestCase.iter_dict(d4):
 
                     if s1.__dict__==s2.__dict__==s3.__dict__==s4.__dict__ and t1.__dict__==t2.__dict__==t3.__dict__==t4.__dict__:
+
 
                         lines_match = [l1, l2, l3, l4]
                         ptrac = [du.yamlTrace2pyrockoTrace(l) for l in lines_match]

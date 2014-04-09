@@ -34,14 +34,15 @@ class LinkSnufflingFiles(SetupBuildCommand):
     def run(self):
         snufflings = pjoin(os.getenv('HOME'), '.snufflings')
         cwd = os.getcwd()
-        files = glob.glob(pjoin(cwd, 'derec/*'))
+        #files = glob.glob(pjoin(cwd, 'derec/*py'))
+        files = [pjoin(cwd, 'derec_snuffling.py')]
 
         if not os.path.exists(pjoin(snufflings, 'derec')):
             os.makedirs(pjoin(snufflings, 'derec'))
 
         for fn in files:
-            copy_file(src=os.path.join(cwd, 'derec', fn.rsplit('/').pop()),
-                      dst=os.path.join(snufflings, 'derec',fn.rsplit('/').pop()),
+            copy_file(src=os.path.join(cwd, fn.rsplit('/').pop()),
+                      dst=os.path.join(snufflings, fn.rsplit('/').pop()),
                       link='sym')
 
 

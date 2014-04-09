@@ -99,7 +99,6 @@ class TestCase(Object):
         self.targets = test_case_setup.targets
         self.sources = test_case_setup.sources
         self.engine = test_case_setup.engine
-        self.test_parameters = test_case_setup.test_parameters 
         self.store_id = test_case_setup.store_id
 
         self.raw_references = None       #(unchopped, unfiltered)
@@ -188,7 +187,18 @@ class TestCase(Object):
     def set_misfit(self, misfits):
         self.misfits = dict(misfits)
 
+    def yaml_dump_setup(self, fn=''):
+        """
+        Write the setup to an individual file.
+        """
+        f = open(fn,'w')
+        f.write(self.test_case_setup.dump())
+        f.close()
+
     def yaml_dump(self, fn=''):
+        """
+        Write to yaml file.
+        """
 
         def convert_to_yaml_dict(_dict):
             outdict = defaultdict(dict)
@@ -214,6 +224,7 @@ class TestCase(Object):
         test_case_data.candidates = convert_to_yaml_dict(self.candidates)
         test_case_data.processed_references = convert_to_yaml_dict(
                                                 self.processed_references)
+
         test_case_data.processed_candidates = convert_to_yaml_dict(
                                                 self.processed_candidates)
 
@@ -226,6 +237,7 @@ class TestCase(Object):
 
         test_case_data.reference_markers = convert_to_yaml_dict(
                 self.reference_markers)
+
         test_case_data.candidates_markers = convert_to_yaml_dict(
                 self.candidates_markers)
 
@@ -321,10 +333,6 @@ class TestCase(Object):
         """
         lines_dict = defaultdict(dict)
         for source, target, tr in TestCase.iter_dict(traces_dict):
-            # this is ugly and shouldn't be necessary if get_xdata() worked:
-            if isinstance(tr, yamlTrace):
-                tr = du.yamlTrace2pyrockoTrace(tr)
-
             lines_dict[source][target] = pltlines.Line2D(tr.get_xdata(),
                     tr.get_ydata())
 
@@ -385,6 +393,7 @@ if __name__ ==  "__main__":
                                     m=num.array([[0.0, 0.0, 1.0],
                                                  [0.0, 0.0, 0.0],
                                                  [0.0, 0.0, 0.0]]))
+    gui_util.Marker.save_markers([event], 'reference_marker.dat')
 
 
     # generate stations from olat, olon:
@@ -403,7 +412,7 @@ if __name__ ==  "__main__":
     zoffset= 0.
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
-    depths=[1800, 2000, 2200]
+    depths=[1500, 2000, 2500]
     #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 1)
 
     print depths, '<- depths'
@@ -437,7 +446,6 @@ if __name__ ==  "__main__":
 
     #z = num.array(z, dtype=complex)
     z = [complex(zi) for zi in z]
-    print z
     p = [complex(pi) for pi in p]
     #p = num.array(p, dtype=complex)
     k = complex(k)
@@ -483,12 +491,16 @@ if __name__ ==  "__main__":
     test_case.raw_references = du.apply_stf(test_case.raw_references, 
                             test_case_setup.source_time_function)
 
+    io.save(test_case.raw_references.values()[0].values(),
+            '../mseeds/core_traces.mseed')
+
     extended_ref_marker = du.chop_ranges(ref_source, 
                                         targets, 
                                         test_case.store,
                                         phase_ids_start,
                                         perc=1.0,
-                                        t_shift_frac=0.3)
+                                        t_shift_frac=0.3,
+                                        use_cake=True)
 
     test_case.set_reference_markers(extended_ref_marker)
 

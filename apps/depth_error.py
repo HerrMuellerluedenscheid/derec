@@ -22,7 +22,7 @@ if __name__ ==  "__main__":
 
     depths=num.linspace(test_case_setup.reference_source.depth-zoffset, 
                         test_case_setup.reference_source.depth+zoffset, 
-                        21)
+                        3)
 
     # overwriting sources:
     test_case_setup.sources = [DCSource(lat=test_case_setup.reference_source.lat,
@@ -44,7 +44,7 @@ if __name__ ==  "__main__":
                                              test_case_setup.engine)
 
 
-    rise_times = num.linspace(0.5,4.5,30)
+    rise_times = num.linspace(0.5,4.5,3)
     for rise_time in rise_times:
         test_case = TestCase( test_case_setup )
         test_case_setup.test_parameter = 'rise_time'

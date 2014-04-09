@@ -16,6 +16,18 @@ class yamlMarker(Object):
     tmax = Timestamp.T(optional=True)
     kind = Int.T(optional=True)
 
+    def __init__(self, nslc_ids, tmin, tmax, kind):
+        Object.__init__(self, nslc_ids=nslc_ids, tmin=tmin, tmax=tmax,
+                kind=kind)
+        
+    @staticmethod
+    def from_pyrocko_marker(self, marker):
+        """
+        Create yamlMarker instance from pyrocko.gui_util.Marker instance.
+        """
+        return self.__init__(marker.nslc_ids, marker.tmin, \
+                marker.tmax, marker.kind)
+
 class yamlTrace(Object):
     """
     To be replaced with pyrocko.gf.SeismosizerTrace
@@ -32,13 +44,13 @@ class yamlTrace(Object):
     def __init__(self, ydata, deltat, tmin, codes):
         Object.__init__(self, ydata=ydata, deltat=deltat, tmin=tmin, codes=codes)
 
-        def get_xdata(self):
-            '''
-            WARUM FUNKTIONIERT DAS NICHT???
-            '''
-            if self.ydata is None: raise trace.NoData()
-            return self.tmin + num.arange(len(self.ydata), dtype=float64) \
-                    * self.deltat
+    def get_xdata(self):
+        if self.ydata is None: raise trace.NoData()
+        return self.tmin + num.arange(len(self.ydata), dtype=num.float64) \
+                * self.deltat
+
+    def get_ydata(self):
+        return self.ydata
 
 class TestCaseSetup(Object):
     tagname = String.T(default='TestCaseSetup')
@@ -47,7 +59,6 @@ class TestCaseSetup(Object):
     targets = List.T(Target.T()) 
     engine = Engine.T()
     store_id = String.T()
-    test_parameters = List.T(String.T())
     misfit_setup = trace.MisfitSetup.T()
     # would be nicer in an numpy array
     source_time_function = List.T(List.T(Float.T()))
