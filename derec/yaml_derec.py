@@ -54,13 +54,14 @@ class yamlTrace(Object):
 
 class TestCaseSetup(Object):
     tagname = String.T(default='TestCaseSetup')
-    reference_source = Source.T()
-    sources = List.T(Source.T()) 
-    targets = List.T(Target.T()) 
-    engine = Engine.T()
-    store_id = String.T()
+    reference_source = Source.T(optional=True)
+    sources = List.T(Source.T(), optional=True) 
+    targets = List.T(Target.T(), optional=True) 
+    engine = Engine.T(optional=True)
+    store_id = String.T(optional=True)
+
+    depths = List.T()
     misfit_setup = trace.MisfitSetup.T()
-    # would be nicer in an numpy array
     source_time_function = List.T(List.T(Float.T()))
     number_of_time_shifts = Int.T()
     percentage_of_shift = Float.T()
@@ -68,6 +69,13 @@ class TestCaseSetup(Object):
     channel_map = Dict.T(String.T(), Int.T(), 
                          optional=True, 
                          default={'N':1, 'E':2, 'Z':3})
+
+    # duration of stencil: 
+    marker_perc_length = Float.T(default=1.0)
+
+    # time shift of stencil:
+    marker_shift_frac = Float.T(default=0.3)
+
     test_parameter = String.T(optional=True, default=None)
     test_parameter_value = Float.T(optional=True, default=None)
 

@@ -497,3 +497,14 @@ def yamlTrace2pyrockoTrace(yaml_trace):
                         deltat=yaml_trace.deltat)
     t.nslc_id = yaml_trace.codes
     return t
+
+def test_event_generator(ref_source, depths):
+    return [DCSource(lat=ref_source.lat, 
+                            lon=ref_source.lon, 
+                            depth=depth, 
+                            time=ref_source.time, 
+                            strike=ref_source.strike, 
+                            dip=ref_source.dip, 
+                            rake=ref_source.rake, 
+                            magnitude=ref_source.magnitude) for depth in depths] 
+

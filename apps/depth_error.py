@@ -25,16 +25,9 @@ if __name__ ==  "__main__":
                         3)
 
     # overwriting sources:
-    test_case_setup.sources = [DCSource(lat=test_case_setup.reference_source.lat,
-                            lon=test_case_setup.reference_source.lon,
-                            depth=float(depth),
-                            time=test_case_setup.reference_source.time,
-                            strike=test_case_setup.reference_source.strike,
-                            dip=test_case_setup.reference_source.dip,
-                            rake=test_case_setup.reference_source.rake,
-                            magnitude=test_case_setup.reference_source.magnitude) 
-                                          for depth in depths]
-
+    test_case_setup.sources = du.test_event_generator(
+                            test_case_setup.reference_source, depths)
+    
     print depths, '<- depths'
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [derec_home + '/fomostos']

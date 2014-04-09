@@ -56,14 +56,13 @@ class Doer():
 
         test_case.request_data()
 
-        #print 'source location: ', test_case.ref_source
         print('chopping candidates....')
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
                                               test_case.test_case_setup.phase_ids_start,
-                                              perc=1.0,
-                                              t_shift_frac=0.3,
+                                              perc=test_case_setup.marker_perc_length,
+                                              t_shift_frac=test_case_setup.marker_shift_frac,
                                               use_cake=True)
         
         test_case.set_candidates_markers( extended_test_marker )
@@ -393,8 +392,8 @@ if __name__ ==  "__main__":
                                     m=num.array([[0.0, 0.0, 1.0],
                                                  [0.0, 0.0, 0.0],
                                                  [0.0, 0.0, 0.0]]))
-    gui_util.Marker.save_markers([event], 'reference_marker.dat')
 
+    event.dump('core_event.dat')
 
     # generate stations from olat, olon:
     if not stations:
@@ -413,25 +412,14 @@ if __name__ ==  "__main__":
     ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
     depths=[1500, 2000, 2500]
-    #depths=num.linspace(ref_source.depth-zoffset, ref_source.depth+zoffset, 1)
-
     print depths, '<- depths'
 
     # Das kann mit als Funktion in TestCaseSetup...
-    location_test_sources = [DCSource(lat=ref_source.lat,
-                           lon=ref_source.lon,
-                           depth=depth,
-                           time=event.time,
-                           strike=ref_source.strike,
-                           dip=ref_source.dip,
-                           rake=ref_source.rake,
-                           magnitude=event.magnitude) for depth in depths]
+    location_test_sources = du.test_event_generator(ref_source, depths)
 
     map(lambda x: x.regularize(), location_test_sources)
 
-    reference_request = make_reference_trace(ref_source,
-                                                 targets, 
-                                                 engine)
+    reference_request = make_reference_trace(ref_source, targets, engine)
 
     reference_seismograms = du.response_to_dict(reference_request)
 
@@ -471,15 +459,8 @@ if __name__ ==  "__main__":
                                     source_time_function=stf,
                                     number_of_time_shifts=9,
                                     percentage_of_shift=10.,
-                                    phase_ids_start=phase_ids_start) 
-
-    fn = 'sample_test_case_setup.yaml'
-    f=open(fn, 'w')
-
-    test_case_setup.regularize()
-    test_case_setup.validate()
-    f.write(test_case_setup.dump())
-    f.close()
+                                    phase_ids_start=phase_ids_start,
+                                    depths=depths) 
 
     test_case = TestCase( test_case_setup )
 
@@ -492,14 +473,14 @@ if __name__ ==  "__main__":
                             test_case_setup.source_time_function)
 
     io.save(test_case.raw_references.values()[0].values(),
-            '../mseeds/core_traces.mseed')
+            'core_traces.mseed')
 
     extended_ref_marker = du.chop_ranges(ref_source, 
                                         targets, 
                                         test_case.store,
                                         phase_ids_start,
-                                        perc=1.0,
-                                        t_shift_frac=0.3,
+                                        perc=test_case_setup.marker_perc_length,
+                                        t_shift_frac=test_case_setup.marker_shift_frac,
                                         use_cake=True)
 
     test_case.set_reference_markers(extended_ref_marker)
@@ -519,14 +500,6 @@ if __name__ ==  "__main__":
     #        sources = [ref_source],
     #        markers_dict=test_case.ref_markers)
 
-    #yaml_trace = yamlTrace()
-    #for s,t,tr in TestCase.iter_dict(test_case.raw_references):
-    #    yaml_trace.ydata = tr.ydata
-    #    yaml_trace.dt = tr.deltat
-    #f = open('dump_test.yaml', 'w')
-    #f.write(yaml_trace.dump())
-    #f.close()
-    #plt.show()
-    #print 'dumping...'
-    print test_case.misfits
+    print 'dumping...'
     test_case.yaml_dump(fn='test_case_dump.yaml')
+    test_case.yaml_dump_setup(fn='test_case_setup.yaml')
