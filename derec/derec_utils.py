@@ -486,16 +486,16 @@ def get_earthmodel_from_engine(engine, store_id):
     """
     return engine.get_store(store_id).config.earthmodel_1d
 
-def yamlTrace2pyrockoTrace(yaml_trace):
+def seismosizerTrace2pyrockoTrace(seismosizer_trace):
     """
-    Convert a derec.core.yamlTrace into a pyrocko.trace.Trace object.
+    Convert a seismosizer.SeismosizerTrace into a pyrocko.trace.Trace object.
     """
-    if isinstance(yaml_trace, trace.Trace):
-        return yaml_trace
-    t = trace.Trace(ydata=yaml_trace.ydata, 
-                        tmin=yaml_trace.tmin, 
-                        deltat=yaml_trace.deltat)
-    t.nslc_id = yaml_trace.codes
+    if isinstance(seismosizer_trace, trace.Trace):
+        return seismosizer_trace
+    t = trace.Trace(ydata=map(num.float32,seismosizer_trace.ydata), 
+                        tmin=seismosizer_trace.tmin, 
+                        deltat=seismosizer_trace.deltat)
+    t.nslc_id = seismosizer_trace.codes
     return t
 
 def test_event_generator(ref_source, depths):

@@ -15,20 +15,25 @@ km = 1000.
 
 if __name__ ==  "__main__":
 
-    fn = 'sample_test_case_setup.yaml'
+    name = 'regional'
+    description = 'noise free test'
+
+    fn = 'test_case_setup.yaml'
     test_case_setup = load_string(open(fn,'r').read())
 
-    zoffset = 2000
+    zoffset = 1000
 
     depths=num.linspace(test_case_setup.reference_source.depth-zoffset, 
                         test_case_setup.reference_source.depth+zoffset, 
                         3)
 
+    depths = [float(d) for d in depths]
+    print depths, '<- depths'
+
     # overwriting sources:
     test_case_setup.sources = du.test_event_generator(
                             test_case_setup.reference_source, depths)
     
-    print depths, '<- depths'
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [derec_home + '/fomostos']
     test_case_setup.engine.store_superdirs = store_dirs
@@ -36,12 +41,12 @@ if __name__ ==  "__main__":
                                              test_case_setup.targets, 
                                              test_case_setup.engine)
 
-
     rise_times = num.linspace(0.5,4.5,3)
     for rise_time in rise_times:
         test_case = TestCase( test_case_setup )
         test_case_setup.test_parameter = 'rise_time'
         test_case_setup.test_parameter_value = float(rise_time)
+        test_case_setup.depths = depths
 
         # overwriting reference sources' stf.
         # the stf of the candidates is taken from the setup and therefore stays
@@ -67,9 +72,8 @@ if __name__ ==  "__main__":
         test_case.set_reference_markers(extended_ref_marker)
 
         D = Doer(test_case)
-        test_case.yaml_dump(fn='results/depth_error_%s.yaml'%rise_time)
         #from depth_error_display import make_compare_plots as mcp
         #mcp(test_case.candidates, test_case.references,
         #        test_case.processed_candidates, test_case.processed_references)
-
-
+        #plt.show()
+        test_case.yaml_dump(fn='results/depth_error_%s.yaml'%rise_time)

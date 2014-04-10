@@ -1,5 +1,5 @@
 # An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
-from derec.core import TestCaseData, TestCaseSetup, yamlTrace, TestCase
+from derec.core import TestCaseData, TestCaseSetup, TestCase
 import derec.derec_utils as du
 import matplotlib.transforms as transforms
 import matplotlib.gridspec as gridspec

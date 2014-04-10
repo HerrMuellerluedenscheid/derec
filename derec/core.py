@@ -61,8 +61,8 @@ class Doer():
                                               test_case.targets,
                                               test_case.store,
                                               test_case.test_case_setup.phase_ids_start,
-                                              perc=test_case_setup.marker_perc_length,
-                                              t_shift_frac=test_case_setup.marker_shift_frac,
+                                              perc=test_case.test_case_setup.marker_perc_length,
+                                              t_shift_frac=test_case.test_case_setup.marker_shift_frac,
                                               use_cake=True)
         
         test_case.set_candidates_markers( extended_test_marker )
@@ -107,7 +107,7 @@ class TestCase(Object):
         self.raw_candidates = None       #(unchopped, unfiltered)
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
-        #self.misfits = defaultdict
+
         self.misfit_setup = test_case_setup.misfit_setup
         self.channel_map = test_case_setup.channel_map    
         self.phase_ids_start = test_case_setup.phase_ids_start
@@ -190,6 +190,7 @@ class TestCase(Object):
         """
         Write the setup to an individual file.
         """
+        self.test_case_setup.regularize()
         f = open(fn,'w')
         f.write(self.test_case_setup.dump())
         f.close()
@@ -204,19 +205,16 @@ class TestCase(Object):
             for source, target_o in _dict.iteritems():
                 for target, o in target_o.iteritems():
                     if isinstance(o, trace.Trace):
-                        yaml_o = yamlTrace(ydata=o.ydata,
-                                tmin=o.tmin,
-                                deltat=o.deltat, 
-                                codes=o.nslc_id)
+                        yaml_o = SeismosizerTrace.from_pyrocko_trace(o)
                     elif isinstance(o, gui_util.Marker):
                         yaml_o = yamlMarker(nslc_ids=o.nslc_ids,
-                                tmin=o.tmin,
-                                tmax=o.tmax,
-                                kind=o.kind)
+                                            tmin=o.tmin,
+                                            tmax=o.tmax,
+                                            kind=o.kind)
 
                     outdict[source][target] = yaml_o
 
-            return outdict
+            return dict(outdict)
 
         test_case_data = TestCaseData()
         test_case_data.references = convert_to_yaml_dict(self.references)
@@ -227,7 +225,7 @@ class TestCase(Object):
         test_case_data.processed_candidates = convert_to_yaml_dict(
                                                 self.processed_candidates)
 
-        test_case_data.test_case_setup = self.test_case_setup
+        #test_case_data.test_case_setup = self.test_case_setup
 
         misfit_float_dict = dict(zip(self.misfits.keys(),
                                 [float(i) for i in self.misfits.values()]))
@@ -239,6 +237,11 @@ class TestCase(Object):
 
         test_case_data.candidates_markers = convert_to_yaml_dict(
                 self.candidates_markers)
+
+        import pdb
+        pdb.set_trace()
+        test_case_data.regularize()
+        test_case_data.validate()
 
         f = open(fn, 'w')
         f.write(test_case_data.dump())
@@ -381,26 +384,23 @@ if __name__ ==  "__main__":
     phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                        store_id, 
                                                        ['p','P']))
+
+    event = model.Event(load='castor_event_2013-10-01.dat')
     
     # load stations from file:
     # Event==================================================
-    event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
-    assert len(event) == 1
-    event = event[0].get_event()
-    event.magnitude = 4.3
-    event.moment_tensor = moment_tensor.MomentTensor(
-                                    m=num.array([[0.0, 0.0, 1.0],
-                                                 [0.0, 0.0, 0.0],
-                                                 [0.0, 0.0, 0.0]]))
-
-    event.dump('core_event.dat')
+    #event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
+    #assert len(event) == 1
+    #event = event[0].get_event()
+    #event.magnitude = 4.3
+    #event.moment_tensor = moment_tensor.MomentTensor(
+    #                                m=num.array([[0.0, 0.0, 1.0],
+    #                                             [0.0, 0.0, 0.0],
+    #                                             [0.0, 0.0, 0.0]]))
+    #
+    #event.dump('core_event.dat')
 
     # generate stations from olat, olon:
-    if not stations:
-        print 'Generating station distribution.'
-        stations = du.station_distribution((event.lat,event.lon),
-                                       [[10000., 4], [130000., 8]], 
-                                       rotate={3000.:45, 130000.:0})
 
     targets = du.stations2targets(stations, store_id)
 
@@ -408,8 +408,9 @@ if __name__ ==  "__main__":
 
     #TESTSOURCES===============================================
     
-    zoffset= 0.
-    ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
+    ref_source = DCSource.from_pyrocko_event(event)
+    
+    #ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
     depths=[1500, 2000, 2500]
     print depths, '<- depths'
@@ -432,13 +433,10 @@ if __name__ ==  "__main__":
                        analog=True, 
                        output='zpk')
 
-    #z = num.array(z, dtype=complex)
     z = [complex(zi) for zi in z]
     p = [complex(pi) for pi in p]
-    #p = num.array(p, dtype=complex)
     k = complex(k)
 
-    # TODO: fresponse.dump() schmeisst zeros weg. Warum?
     fresponse = trace.PoleZeroResponse(z,p,k)
     fresponse.regularize()
 
@@ -502,4 +500,6 @@ if __name__ ==  "__main__":
 
     print 'dumping...'
     test_case.yaml_dump(fn='test_case_dump.yaml')
+    import pdb; pdb.set_trace()
+    print 'dumping setup'
     test_case.yaml_dump_setup(fn='test_case_setup.yaml')

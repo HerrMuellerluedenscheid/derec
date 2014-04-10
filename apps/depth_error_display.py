@@ -6,21 +6,20 @@ from collections import defaultdict
 from derec import derec_utils as du
 import glob
 
-fn = 'results/depth_error_1.yaml'
-f = open(fn, 'r')
-data1 = load_string(f.read())
-f.close()
-
-ttt=data1.candidates.values()[0].values()[0]
-print ttt.get_xdata()
-print type(ttt)
-
-lines1 = TestCase.lines_dict(data1.candidates)
-lines2 = TestCase.lines_dict(data1.references)
-lines3 = TestCase.lines_dict(data1.processed_candidates)
-lines4 = TestCase.lines_dict(data1.processed_references)
-
-lines_resort = defaultdict(dict)
+#fn = 'results/depth_error_1.yaml'
+#f = open(fn, 'r')
+#data1 = load_string(f.read())
+#f.close()
+#
+#ttt=data1.candidates.values()[0].values()[0]
+#print ttt.get_xdata()
+#print type(ttt)
+#
+#lines1 = TestCase.lines_dict(data1.candidates)
+#lines2 = TestCase.lines_dict(data1.references)
+#lines3 = TestCase.lines_dict(data1.processed_candidates)
+#lines4 = TestCase.lines_dict(data1.processed_references)
+#
 
 #for s1,t1,l1 in TestCase.iter_dict(lines1):
 #    for s2, t2, l2 in TestCase.iter_dict(lines2):
@@ -44,6 +43,7 @@ def make_compare_plots(d1, d2, d3, d4):
                         ax = fig.add_subplot(111)
                         [ax.plot(l.get_xdata(), l.get_ydata()) for l in ptrac]
                         ax.autoscale()
+
 
 
     #plt.plot(lines2.values()[0].values()[0])

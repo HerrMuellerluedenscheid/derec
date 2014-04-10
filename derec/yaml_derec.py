@@ -33,7 +33,7 @@ class yamlTrace(Object):
     To be replaced with pyrocko.gf.SeismosizerTrace
     """
     ydata = Array.T(shape=(None,), 
-                    dtype=num.float32, 
+                    dtype=num.float64, 
                     serialize_as='base64',
                     serialize_dtype=('<f4'), 
                     optional=True)
@@ -60,6 +60,7 @@ class TestCaseSetup(Object):
     engine = Engine.T(optional=True)
     store_id = String.T(optional=True)
 
+    # depths have to given as a list of floats!
     depths = List.T()
     misfit_setup = trace.MisfitSetup.T()
     source_time_function = List.T(List.T(Float.T()))
@@ -85,13 +86,14 @@ class TestCaseData(Object):
     A TestCaseData object contains all waveforms, misfit results as dictionary
     and a TestCaseSetup object.
     """
-    references = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()), 
+    description = String.T(optional=True)
+    references = Dict.T(Source.T(), Dict.T(Target.T(), SeismosizerTrace.T()), 
             optional=True)
-    candidates = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()), 
+    candidates = Dict.T(Source.T(), Dict.T(Target.T(), SeismosizerTrace.T()), 
             optional=True)
-    processed_references = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()),
+    processed_references = Dict.T(Source.T(), Dict.T(Target.T(), SeismosizerTrace.T()),
             optional=True)
-    processed_candidates = Dict.T(Source.T(), Dict.T(Target.T(), yamlTrace.T()), 
+    processed_candidates = Dict.T(Source.T(), Dict.T(Target.T(), SeismosizerTrace.T()), 
             optional=True)
 
     candidates_markers = Dict.T(Source.T(), Dict.T(Target.T(), yamlMarker.T()))
