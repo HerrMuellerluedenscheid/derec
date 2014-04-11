@@ -16,16 +16,17 @@ km = 1000.
 if __name__ ==  "__main__":
 
     name = 'regional'
-    description = 'noise free test'
+    description = 'noise free test. This time using more shifts to see if the'+\
+    'errors decrease.'
 
     fn = 'test_case_setup.yaml'
     test_case_setup = load_string(open(fn,'r').read())
 
-    zoffset = 1000
+    zoffset = 2000
 
     depths=num.linspace(test_case_setup.reference_source.depth-zoffset, 
                         test_case_setup.reference_source.depth+zoffset, 
-                        3)
+                        41)
 
     depths = [float(d) for d in depths]
     print depths, '<- depths'
@@ -41,8 +42,9 @@ if __name__ ==  "__main__":
                                              test_case_setup.targets, 
                                              test_case_setup.engine)
 
-    rise_times = num.linspace(0.5,4.5,3)
-    for rise_time in rise_times:
+    rise_times = num.arange(0.4,6.0,0.1)
+    for i, rise_time in enumerate(rise_times):
+        print '%s of %s'%(i+1, len(rise_times))
         test_case = TestCase( test_case_setup )
         test_case_setup.test_parameter = 'rise_time'
         test_case_setup.test_parameter_value = float(rise_time)
@@ -76,4 +78,4 @@ if __name__ ==  "__main__":
         #mcp(test_case.candidates, test_case.references,
         #        test_case.processed_candidates, test_case.processed_references)
         #plt.show()
-        test_case.yaml_dump(fn='results/depth_error_%s.yaml'%rise_time)
+        test_case.yaml_dump(fn='results_more_shifts/depth_error_%s.yaml'%rise_time)

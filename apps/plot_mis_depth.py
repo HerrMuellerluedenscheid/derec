@@ -1,5 +1,5 @@
 from guts import *
-from derec.core import yamlTrace, TestCase, TestCaseData, TestCaseSetup
+from derec.core import TestCase, TestCaseData, TestCaseSetup
 from derec.optics import OpticBase 
 import matplotlib.pyplot as plt
 from collections import defaultdict
@@ -27,4 +27,6 @@ for date in data:
 ax.autoscale()
 ax.set_xlabel(test_parameter)
 plt.show()
+
+
 

@@ -1,0 +1,272 @@
+--- !derec.yaml_derec.TestCaseSetup
+tagname: TestCaseSetup
+reference_source: !pyrocko.gf.seismosizer.DCSource
+  lat: 40.399999999999999
+  lon: 0.71999999999999997
+  depth: 2000.0
+  name: R
+  time: 2013-10-01 03:32:45
+  magnitude: -6.0333332942824116
+  strike: 129.59867858384143
+  dip: 88.50051252760457
+  rake: -119.96600701724373
+sources:
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 40.399999999999999
+  lon: 0.71999999999999997
+  depth: 1500.0
+  time: 2013-10-01 03:32:45
+  magnitude: -6.0333332942824116
+  strike: 129.59867858384143
+  dip: 88.50051252760457
+  rake: -119.96600701724373
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 40.399999999999999
+  lon: 0.71999999999999997
+  depth: 2000.0
+  time: 2013-10-01 03:32:45
+  magnitude: -6.0333332942824116
+  strike: 129.59867858384143
+  dip: 88.50051252760457
+  rake: -119.96600701724373
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 40.399999999999999
+  lon: 0.71999999999999997
+  depth: 2500.0
+  time: 2013-10-01 03:32:45
+  magnitude: -6.0333332942824116
+  strike: 129.59867858384143
+  dip: 88.50051252760457
+  rake: -119.96600701724373
+targets:
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.026899999999998
+  lon: 1.3435999999999999
+  depth: 0.0
+  codes: ['', EIBI, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.026899999999998
+  lon: 1.3435999999999999
+  depth: 0.0
+  codes: ['', EIBI, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.026899999999998
+  lon: 1.3435999999999999
+  depth: 0.0
+  codes: ['', EIBI, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.767800000000001
+  lon: 2.8144
+  depth: 0.0
+  codes: ['', ETOS, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.767800000000001
+  lon: 2.8144
+  depth: 0.0
+  codes: ['', ETOS, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.767800000000001
+  lon: 2.8144
+  depth: 0.0
+  codes: ['', ETOS, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.714100000000002
+  lon: 1.3573
+  depth: 0.0
+  codes: ['', COBS, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.714100000000002
+  lon: 1.3573
+  depth: 0.0
+  codes: ['', COBS, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.714100000000002
+  lon: 1.3573
+  depth: 0.0
+  codes: ['', COBS, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.5593
+  lon: 0.48089999999999999
+  depth: 0.0
+  codes: ['', ALCN, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.5593
+  lon: 0.48089999999999999
+  depth: 0.0
+  codes: ['', ALCN, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.5593
+  lon: 0.48089999999999999
+  depth: 0.0
+  codes: ['', ALCN, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.7256
+  lon: 0.31380000000000002
+  depth: 0.0
+  codes: ['', CMAS, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.7256
+  lon: 0.31380000000000002
+  depth: 0.0
+  codes: ['', CMAS, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.7256
+  lon: 0.31380000000000002
+  depth: 0.0
+  codes: ['', CMAS, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.820300000000003
+  lon: 0.49390000000000001
+  depth: 0.0
+  codes: ['', EBR, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.820300000000003
+  lon: 0.49390000000000001
+  depth: 0.0
+  codes: ['', EBR, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.820300000000003
+  lon: 0.49390000000000001
+  depth: 0.0
+  codes: ['', EBR, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.8232
+  lon: 0.4088
+  depth: 0.0
+  codes: ['', EROQ, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.8232
+  lon: 0.4088
+  depth: 0.0
+  codes: ['', EROQ, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.8232
+  lon: 0.4088
+  depth: 0.0
+  codes: ['', EROQ, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.261200000000002
+  lon: 0.26690000000000003
+  depth: 0.0
+  codes: ['', ALCX, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.261200000000002
+  lon: 0.26690000000000003
+  depth: 0.0
+  codes: ['', ALCX, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.261200000000002
+  lon: 0.26690000000000003
+  depth: 0.0
+  codes: ['', ALCX, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.363900000000001
+  lon: -0.47210000000000002
+  depth: 0.0
+  codes: ['', EMOS, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.363900000000001
+  lon: -0.47210000000000002
+  depth: 0.0
+  codes: ['', EMOS, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.363900000000001
+  lon: -0.47210000000000002
+  depth: 0.0
+  codes: ['', EMOS, '', Z]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.956699999999998
+  lon: 0.33350000000000002
+  depth: 0.0
+  codes: ['', ERTA, '', N]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.956699999999998
+  lon: 0.33350000000000002
+  depth: 0.0
+  codes: ['', ERTA, '', E]
+  elevation: 0.0
+  store_id: castor
+- !pyrocko.gf.seismosizer.Target
+  lat: 40.956699999999998
+  lon: 0.33350000000000002
+  depth: 0.0
+  codes: ['', ERTA, '', Z]
+  elevation: 0.0
+  store_id: castor
+engine: !pyrocko.gf.seismosizer.LocalEngine
+  store_superdirs: [/home/zmaw/u254061/Programming/derec/fomostos]
+store_id: castor
+depths: [1500, 2000, 2500]
+misfit_setup: !pyrocko.trace.MisfitSetup
+  norm: 2
+  taper: !pyrocko.trace.CosFader
+    xfrac: 0.20000000000000001
+  filter: !pyrocko.trace.PoleZeroResponse
+    poles: [(-4.8089418390747687+11.609812608557721j), (-11.609812608557714+4.8089418390747856j),
+      (-11.609812608557725-4.8089418390747944j), (-4.8089418390747714-11.609812608557721j)]
+    constant: (24936.727304704618+0j)
+  domain: time_domain
+source_time_function:
+- [0.0, 1.0]
+- [0.0, 1.0]
+number_of_time_shifts: 15 
+percentage_of_shift: 12.0
+phase_ids_start: P|p|Pv2.5p|Pv12.5p|Pv18.5p|Pv20p|Pv35p
+marker_perc_length: 1.0
+marker_shift_frac: 0.29999999999999999
