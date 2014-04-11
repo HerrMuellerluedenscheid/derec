@@ -28,29 +28,6 @@ class yamlMarker(Object):
         return self.__init__(marker.nslc_ids, marker.tmin, \
                 marker.tmax, marker.kind)
 
-class yamlTrace(Object):
-    """
-    To be replaced with pyrocko.gf.SeismosizerTrace
-    """
-    ydata = Array.T(shape=(None,), 
-                    dtype=num.float64, 
-                    serialize_as='base64',
-                    serialize_dtype=('<f4'), 
-                    optional=True)
-
-    deltat = Float.T(optional=True)
-    tmin = Float.T()
-    codes = String.T()
-    def __init__(self, ydata, deltat, tmin, codes):
-        Object.__init__(self, ydata=ydata, deltat=deltat, tmin=tmin, codes=codes)
-
-    def get_xdata(self):
-        if self.ydata is None: raise trace.NoData()
-        return self.tmin + num.arange(len(self.ydata), dtype=num.float64) \
-                * self.deltat
-
-    def get_ydata(self):
-        return self.ydata
 
 class TestCaseSetup(Object):
     tagname = String.T(default='TestCaseSetup')

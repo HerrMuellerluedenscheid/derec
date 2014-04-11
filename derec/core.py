@@ -206,12 +206,12 @@ class TestCase(Object):
                 for target, o in target_o.iteritems():
                     if isinstance(o, trace.Trace):
                         yaml_o = SeismosizerTrace.from_pyrocko_trace(o)
+
                     elif isinstance(o, gui_util.Marker):
                         yaml_o = yamlMarker(nslc_ids=o.nslc_ids,
-                                            tmin=o.tmin,
-                                            tmax=o.tmax,
+                                            tmin=float(o.tmin),
+                                            tmax=float(o.tmax),
                                             kind=o.kind)
-
                     outdict[source][target] = yaml_o
 
             return dict(outdict)
@@ -225,7 +225,7 @@ class TestCase(Object):
         test_case_data.processed_candidates = convert_to_yaml_dict(
                                                 self.processed_candidates)
 
-        #test_case_data.test_case_setup = self.test_case_setup
+        test_case_data.test_case_setup = self.test_case_setup
 
         misfit_float_dict = dict(zip(self.misfits.keys(),
                                 [float(i) for i in self.misfits.values()]))
@@ -238,10 +238,8 @@ class TestCase(Object):
         test_case_data.candidates_markers = convert_to_yaml_dict(
                 self.candidates_markers)
 
-        import pdb
-        pdb.set_trace()
-        test_case_data.regularize()
         test_case_data.validate()
+        test_case_data.regularize()
 
         f = open(fn, 'w')
         f.write(test_case_data.dump())
@@ -413,7 +411,8 @@ if __name__ ==  "__main__":
     #ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
     depths=[1500, 2000, 2500]
-    print depths, '<- depths'
+    print 
+    depths, '<- depths'
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)
@@ -500,6 +499,5 @@ if __name__ ==  "__main__":
 
     print 'dumping...'
     test_case.yaml_dump(fn='test_case_dump.yaml')
-    import pdb; pdb.set_trace()
     print 'dumping setup'
     test_case.yaml_dump_setup(fn='test_case_setup.yaml')
