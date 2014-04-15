@@ -92,6 +92,7 @@ class OpticBase():
         self.channel_map = data_input.test_case_setup.channel_map
 
         self.test_case_setup = data_input.test_case_setup
+        self.misfit_setup = self.test_case_setup.misfit_setup
         self.targets = self.test_case_setup.targets
         self.sources = self.test_case_setup.sources
 
@@ -213,6 +214,46 @@ class OpticBase():
         if self.misfit_setup.domain=='frequency_domain':
             gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
             gs_traces_dict= dict(zip(self.targets, gs_traces))
+        
+        #for source,t, pr_cand in TestCase.iter_dict(self.processed_candidates):
+        #    ax = plt.subplot(gs_dict[t])
+        #    pr_ref = self.processed_references[source][t]
+
+                    x = pr_cand.pyrocko_trace().get_xdata()
+                    y = pr_cand.pyrocko_trace().get_ydata()
+                    x_ref = pr_ref.pyrocko_trace().get_xdata()
+                    y_ref = pr_ref.pyrocko_trace().get_ydata()
+                    
+                ax.set_title('.'.join(t.codes), fontsize=11)
+                ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
+                                                   source.lon,
+                                                   source.depth))
+
+                marker_min = self.candidates_markers[source][t].tmin
+                marker_max = self.candidates_markers[source][t].tmax
+
+                plt.annotate('p', xy=(marker_min, 0))
+                plt.annotate('s', xy=(marker_max, 0))
+                p = ax.fill_between(x_ref,
+                                    0,
+                                    y_ref,
+                                    facecolor='grey',
+                                    alpha=0.5)
+                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+                plt.tick_params(axis='both', which='major', labelsize=10)
+                if self.misfit_setup.domain=='frequency_domain':
+                    plt.xscale('log')
+
+        plt.subplots_adjust(left=None,
+                            bottom=None,
+                            right=None,
+                            top=None,
+                            wspace=None,
+                            hspace=0.6)
+
+        plt.legend(loc=2, prop={'size':8})
+        #plt.tight_layout()
+        plt.show()
 
     def blinded_key(self, _key, ignore):
         """
