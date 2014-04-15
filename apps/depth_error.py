@@ -30,10 +30,8 @@ if __name__ ==  "__main__":
 
     depths = [float(d) for d in depths]
     print depths, '<- depths'
+    test_case_setup.depths = depths
 
-    # overwriting sources:
-    test_case_setup.sources = du.test_event_generator(
-                            test_case_setup.reference_source, depths)
     
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [derec_home + '/fomostos']
@@ -42,23 +40,27 @@ if __name__ ==  "__main__":
                                              test_case_setup.targets, 
                                              test_case_setup.engine)
 
-    rise_times = num.arange(0.4,6.0,0.1)
-    for i, rise_time in enumerate(rise_times):
-        print '%s of %s'%(i+1, len(rise_times))
+    stf = [[0., 1.0], [0.,1.]]
+    reference_seismograms = du.response_to_dict(reference_request)
+    reference_seismograms = du.apply_stf(reference_seismograms, 
+                                                    stf)
+
+    strikes = num.arange(100.,160., 2.)
+
+    for i, strike in enumerate(strikes):
+        test_case_setup.reference_source.strike = float(strike)
+
+        # overwriting sources:
+        test_case_setup.sources = du.test_event_generator(
+                                test_case_setup.reference_source, depths)
+
+        print '%s of %s'%(i+1, len(strikes))
         test_case = TestCase( test_case_setup )
-        test_case_setup.test_parameter = 'rise_time'
-        test_case_setup.test_parameter_value = float(rise_time)
-        test_case_setup.depths = depths
 
-        # overwriting reference sources' stf.
-        # the stf of the candidates is taken from the setup and therefore stays
-        # the same.
-        stf = [[0., float(rise_time)], [0.,1.]]
-        reference_seismograms = du.response_to_dict(reference_request)
+        test_case_setup.test_parameter = 'strike'
+        test_case_setup.test_parameter_value = float(strike)
+
         test_case_dict = {}
-        reference_seismograms = du.apply_stf(reference_seismograms, 
-                                                        stf)
-
         test_case.set_raw_references(reference_seismograms)
 
         #perc ist die Ausdehnung des zeitmarkers. perc=1 heisst (tmin-t0)*perc,
@@ -78,4 +80,6 @@ if __name__ ==  "__main__":
         #mcp(test_case.candidates, test_case.references,
         #        test_case.processed_candidates, test_case.processed_references)
         #plt.show()
-        test_case.yaml_dump(fn='results_more_shifts/depth_error_%s.yaml'%rise_time)
+        test_case.yaml_dump(fn='%s/%s%s/depth_error_%s.yaml'%(name,
+            test_case_setup.test_parameter,'',
+            test_case_setup.test_parameter_value))
