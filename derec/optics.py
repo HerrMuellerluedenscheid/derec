@@ -91,6 +91,11 @@ class OpticBase():
         self.processed_references = data_input.processed_references
         self.channel_map = data_input.test_case_setup.channel_map
 
+        self.processed_candidates_lines = None
+        self.processed_references_lines = None
+        self.candidates_lines = None
+        self.references_lines = None
+        
         self.test_case_setup = data_input.test_case_setup
         self.misfit_setup = self.test_case_setup.misfit_setup
         self.targets = self.test_case_setup.targets
@@ -132,11 +137,12 @@ class OpticBase():
             fig = fig_dict[target.codes[:3]]
             axes_dict[target] = fig.add_subplot(1,3,self.channel_map[target.codes[3]])
 
-        processed_lines = TestCase.lines_dict(self.processed_candidates)
+        if not self.processed_candidates_lines:
+            self.processed_candidates_lines = TestCase.lines_dict(self.processed_candidates)
 
         for source in self.sources:
             for target in self.targets:
-                axes_dict[target].add_line(processed_lines[source][target])
+                axes_dict[target].add_line(self.processed_candidates_lines[source][target])
 
         px=140.
         y_shifts = dict(zip(self.sources, num.linspace(-px/2./72., px/2./72., 
@@ -145,7 +151,7 @@ class OpticBase():
         # vertically distribute graphs
         for s in self.sources:
             for t in self.targets:
-                line = processed_lines[s][t]
+                line = self.processed_candidates_lines[s][t]
                 fig = fig_dict[t.codes[:3]]
                 trans = transforms.ScaledTranslation(0, y_shifts[s], 
                                                      fig.dpi_scale_trans)
@@ -196,53 +202,54 @@ class OpticBase():
             plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
             fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
 
-    def stack_plot(self, param_dict=None, sources=None):
+    def stack_plot(self, markers_dict=None, sources=None, depths=None ):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
         area of source, that you would like to look at.
         '''
-        if param_dict and sources:
-            sources = TestCase.get_sources_where(param_dict, sources)
+        #if param_dict and sources:
+        #    sources = TestCase.get_sources_where(param_dict, sources)
+        #
+        #else:
+        #    sources = self.sources
 
-        else:
-            sources = self.sources
-
-        # google maps snuffling
         gs = gridspec.GridSpec(len(self.targets)/3,3)
         gs_dict= dict(zip(self.targets, gs))
 
-        if self.misfit_setup.domain=='frequency_domain':
-            gs_traces = gridspec.GridSpec(len(self.targets)/3,3)
-            gs_traces_dict= dict(zip(self.targets, gs_traces))
-        
-        #for source,t, pr_cand in TestCase.iter_dict(self.processed_candidates):
-        #    ax = plt.subplot(gs_dict[t])
-        #    pr_ref = self.processed_references[source][t]
+        axes_dict = defaultdict()
 
-                    x = pr_cand.pyrocko_trace().get_xdata()
-                    y = pr_cand.pyrocko_trace().get_ydata()
-                    x_ref = pr_ref.pyrocko_trace().get_xdata()
-                    y_ref = pr_ref.pyrocko_trace().get_ydata()
-                    
-                ax.set_title('.'.join(t.codes), fontsize=11)
-                ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
-                                                   source.lon,
-                                                   source.depth))
+        if not self.processed_candidates_lines:
+            self.processed_candidates_lines = TestCase.lines_dict(self.processed_candidates)
 
-                marker_min = self.candidates_markers[source][t].tmin
-                marker_max = self.candidates_markers[source][t].tmax
+        #if not self.processed_references_lines:
+        #    self.processed_references_lines = TestCase.lines_dict(self.processed_references)
 
-                plt.annotate('p', xy=(marker_min, 0))
-                plt.annotate('s', xy=(marker_max, 0))
-                p = ax.fill_between(x_ref,
-                                    0,
-                                    y_ref,
-                                    facecolor='grey',
-                                    alpha=0.5)
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-                plt.tick_params(axis='both', which='major', labelsize=10)
-                if self.misfit_setup.domain=='frequency_domain':
-                    plt.xscale('log')
+        for source,t, pr_cand_line in\
+            TestCase.iter_dict(self.processed_candidates_lines):
+            if depths and not source.depth in depths:
+                continue
+
+            ax = plt.subplot(gs_dict[t])
+            pr_ref = self.processed_references[source][t]
+
+            #x = pr_cand.pyrocko_trace().get_xdata()
+            #y = pr_cand.pyrocko_trace().get_ydata()
+            x_ref = pr_ref.pyrocko_trace().get_xdata()
+            y_ref = pr_ref.pyrocko_trace().get_ydata()
+                
+            ax.set_title('.'.join(t.codes), fontsize=11)
+            #ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
+            pr_cand_line.set_label("%s m"%float(source.depth))
+            ax.add_line(pr_cand_line)
+
+            marker_min = markers_dict[source][t].tmin
+            marker_max = markers_dict[source][t].tmax
+
+            p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=0.5)
+            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+            plt.tick_params(axis='both', which='major', labelsize=10)
+
+            axes_dict[t] = ax
 
         plt.subplots_adjust(left=None,
                             bottom=None,
@@ -253,8 +260,31 @@ class OpticBase():
 
         plt.legend(loc=2, prop={'size':8})
         #plt.tight_layout()
-        plt.show()
+        #plt.show()
+        return axes_dict
 
+    def get_processed_references_lines(self):
+        if not self.processed_references_lines:
+            self.processed_references_lines=\
+                            TestCase.lines_dict(self.processed_references)
+        return self.processed_references_lines
+
+    def get_processed_candidates_lines(self):
+        if not self.processed_candidates_lines:
+            self.processed_candidates_lines =\
+                            TestCase.lines_dict(self.processed_candidates)
+        return self.processed_candidates_lines
+        
+    def get_candidates_lines(self):
+        if not self.candidates_lines:
+            self.candidates_lines = TestCase.lines_dict(self.candidates)
+        return self.candidates_lines
+
+    def get_references_lines(self):
+        if not self.references_lines:
+            self.references_lines= TestCase.lines_dict(self.references)
+        return self.references_lines
+    
     def blinded_key(self, _key, ignore):
         """
         make a new key entry for dict, neglecting one key/value pair, defined by
@@ -309,13 +339,22 @@ class OpticBase():
         sources = self.sources if not sources else sources
         targets = self.targets if not targets else targets
 
-        lines1 = TestCase.lines_dict(self.candidates)
-        lines2 = TestCase.lines_dict(self.processed_candidates)
+        if not self.processed_references_lines:
+            self.processed_references_lines=\
+                            TestCase.lines_dict(self.processed_references)
+        if not self.processed_candidates_lines:
+            self.processed_candidates_lines =\
+                            TestCase.lines_dict(self.processed_candidates)
+        if not self.candidates_lines:
+            self.candidates_lines = TestCase.lines_dict(self.candidates)
+        if not self.references_lines:
+            self.references_lines= TestCase.lines_dict(self.references)
 
-        lines3 = TestCase.lines_dict(self.references)
-        lines4 = TestCase.lines_dict(self.processed_references)
+        for line_dict in [self.processed_candidates_lines, 
+                          self.processed_references_lines, 
+                          self.candidates_lines, 
+                          self.references_lines]:
 
-        for line_dict in [lines1, lines2, lines3, lines4]:
             ignored_line_dict = self.make_blinded_dict(sources, targets,
                     line_dict, ignore=self.test_case_setup.test_parameter)
 
