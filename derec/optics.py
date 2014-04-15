@@ -179,8 +179,9 @@ class OpticBase():
             for target in [t for t in sorted_targets if t.codes[3]=='Z']:
                     m = markers_dict[source][target]
                     c = traces_dict[source][target]
+                    pt = c.pyrocko_trace()
 
-                    axs[i].plot(c.get_xdata(), c.get_ydata())
+                    axs[i].plot(pt.get_xdata(), pt.get_ydata())
                     axs[i].axvline(m.tmin, label='P')
                     axs[i].axvline(m.tmax, label='P')
 
@@ -276,6 +277,9 @@ class OpticBase():
         for line_dict in [lines1, lines2, lines3, lines4]:
             ignored_line_dict = self.make_blinded_dict(sources, targets,
                     line_dict, ignore=self.test_case_setup.test_parameter)
+
+    def get_sources_where(self, param_dict):
+        return TestCase.get_sources_where(param_dict, self.sources)
 
 
 class Cube():
