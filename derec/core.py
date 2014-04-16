@@ -55,14 +55,16 @@ class Doer():
     def __init__(self, test_case):
 
         test_case.request_data()
+        setup = test_case.test_case_setup
 
         print('chopping candidates....')
         extended_test_marker = du.chop_ranges(test_case.sources,
                                               test_case.targets,
                                               test_case.store,
-                                              test_case.test_case_setup.phase_ids_start,
-                                              perc=test_case.test_case_setup.marker_perc_length,
-                                              t_shift_frac=test_case.test_case_setup.marker_shift_frac,
+                                              setup.phase_ids_start,
+                                              perc=setup.marker_perc_length,
+                                              static_length=setup.static_length,
+                                              t_shift_frac=setup.marker_shift_frac,
                                               use_cake=True)
         
         test_case.set_candidates_markers( extended_test_marker )
@@ -73,7 +75,7 @@ class Doer():
                                 test_case.reference_markers, 
                                 inplace=False)
 
-        test_case.apply_stf(test_case.test_case_setup.source_time_function)
+        test_case.apply_stf(setup.source_time_function)
 
         print('chopping cand....')
         test_case.candidates = du.chop_using_markers(
@@ -333,6 +335,9 @@ class TestCase(Object):
         """
         lines_dict = defaultdict(dict)
         for source, target, tr in TestCase.iter_dict(traces_dict):
+            if isinstance(tr, seismosizer.SeismosizerTrace):
+                tr = tr.pyrocko_trace()
+
             lines_dict[source][target] = pltlines.Line2D(tr.get_xdata(),
                     tr.get_ydata())
 
@@ -424,7 +429,7 @@ if __name__ ==  "__main__":
     reference_seismograms = du.response_to_dict(reference_request)
 
     # setup the misfit setup:
-    norm = 2.
+    norm = 2
     taper = trace.CosFader(xfrac=0.2) 
     
     z, p, k = butter(4, 2.0*num.pi*2., 
@@ -445,7 +450,7 @@ if __name__ ==  "__main__":
                                      filter=fresponse)
 
     rise_time=1.
-    stf = [[0,rise_time],[0,1]]
+    stf = [[0.,rise_time],[0.,1.]]
 
     test_case_setup = TestCaseSetup(reference_source=ref_source,
                                     sources=location_test_sources,
@@ -457,6 +462,9 @@ if __name__ ==  "__main__":
                                     number_of_time_shifts=9,
                                     percentage_of_shift=10.,
                                     phase_ids_start=phase_ids_start,
+                                    static_length=4.,
+                                    marker_perc_length=0.5,
+                                    marker_shift_frac=0.2,
                                     depths=depths) 
 
     test_case = TestCase( test_case_setup )
@@ -477,6 +485,7 @@ if __name__ ==  "__main__":
                                         test_case.store,
                                         phase_ids_start,
                                         perc=test_case_setup.marker_perc_length,
+                                        static_length=test_case_setup.static_length,
                                         t_shift_frac=test_case_setup.marker_shift_frac,
                                         use_cake=True)
 

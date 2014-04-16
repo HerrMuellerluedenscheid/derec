@@ -45,7 +45,7 @@ if __name__ ==  "__main__":
     reference_seismograms = du.apply_stf(reference_seismograms, 
                                                     stf)
 
-    strikes = num.arange(100.,160., 2.)
+    strikes = num.arange(100.,160., 10.)
 
     for i, strike in enumerate(strikes):
         test_case_setup.reference_source.strike = float(strike)
@@ -69,8 +69,9 @@ if __name__ ==  "__main__":
                                     test_case.targets, 
                                     test_case.store,
                                     test_case.phase_ids_start,
-                                    perc=1.0,
-                                    t_shift_frac=0.3,
+                                    perc=test_case_setup.marker_perc_length,
+                                    static_length=test_case_setup.static_length,
+                                    t_shift_frac=test_case_setup.marker_shift_frac,
                                     use_cake=True)
 
         test_case.set_reference_markers(extended_ref_marker)

@@ -48,7 +48,9 @@ class TestCaseSetup(Object):
                          optional=True, 
                          default={'N':1, 'E':2, 'Z':3})
 
-    # duration of stencil: 
+    static_length = Float.T()
+
+    # to be added to duration of stencil: 
     marker_perc_length = Float.T(default=1.0)
 
     # time shift of stencil:

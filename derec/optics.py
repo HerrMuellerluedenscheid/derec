@@ -100,6 +100,7 @@ class OpticBase():
         self.misfit_setup = self.test_case_setup.misfit_setup
         self.targets = self.test_case_setup.targets
         self.sources = self.test_case_setup.sources
+        self.reference_source = self.test_case_setup.reference_source
 
     def gmt_map(self, **kwargs):
         sources_lon_lat = set()
@@ -115,6 +116,10 @@ class OpticBase():
                 targets_lon_lat[1], targets_lon_lat[0],
                     **kwargs)
 
+    @staticmethod
+    def figure_dict(keys):
+        figures = [plt.figure(i, facecolor='grey') for i in range(len(keys))]
+        return dict(zip(keys, figures))
 
     def waveforms_plot(self):
         """
@@ -128,8 +133,9 @@ class OpticBase():
         
         stats = TestCase.targets_nsl_of(self.targets)
         num_stations = len(stats)
-        figures = [plt.figure(i, facecolor='grey') for i in range(num_stations)]
-        fig_dict = dict(zip(stats, figures))
+
+        # TODO check if static method can be
+        fig_dict = self.figure_dict(stats)
 
         axes_dict = {}
         # overlapping axes objects <- google
@@ -169,6 +175,13 @@ class OpticBase():
             y-axis: Marker tmin, and marker max
         """
         fig = plt.figure()
+
+    def distance_sort_targets(self, ref_source, targets=[]):
+        """
+        return a list of targets sorted by distance to given event
+        """
+        targets = self.targets if not targets else targets
+        return sorted(targets, key=lambda tr: tr.distance_to(ref_source))
     
     def plot_z_components(self, traces_dict, markers_dict, sources=[], targets=[]):
         """
@@ -181,9 +194,9 @@ class OpticBase():
         for source in sources:
             i = 0
             fig, axs = plt.subplots(len(targets)/3, sharex=True)
-            sorted_targets = sorted(targets, key=lambda tr: tr.distance_to(source))
 
-            for target in [t for t in sorted_targets if t.codes[3]=='Z']:
+            for target in [t for t in self.distance_sort_targets(source,targets=targets)\
+                        if t.codes[3]=='Z']:
                     m = markers_dict[source][target]
                     c = traces_dict[source][target]
                     pt = c.pyrocko_trace()
@@ -218,14 +231,8 @@ class OpticBase():
 
         axes_dict = defaultdict()
 
-        if not self.processed_candidates_lines:
-            self.processed_candidates_lines = TestCase.lines_dict(self.processed_candidates)
-
-        #if not self.processed_references_lines:
-        #    self.processed_references_lines = TestCase.lines_dict(self.processed_references)
-
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.processed_candidates_lines):
+            TestCase.iter_dict(self.get_processed_candidates_lines()):
             if depths and not source.depth in depths:
                 continue
 
@@ -263,11 +270,34 @@ class OpticBase():
         #plt.show()
         return axes_dict
 
-    def get_processed_references_lines(self):
+    def get_candidate_line(self, source, target):
+        if not self.candidates_lines:
+            self.get_candidates_lines()
+        return self.candidates_lines[source][target]
+    
+    def get_reference_line(self, source, target):
+        if not self.references_lines:
+            self.get_references_lines()
+        return self.references_lines[source][target]
+
+    def get_processed_candidate_line(self, source, target):
+        if not self.processed_candidates_lines:
+            self.get_processed_candidates_lines()
+        return self.processed_candidates_lines[source][target]
+
+    def get_processed_reference_line(self, source, target):
+        if not self.processed_references_lines:
+            self.get_processed_references_lines()
+        return self.processed_references_lines[source][target]
+
+    def get_processed_references_lines(self, sources=[]):
+        sources=sources if sources else self.sources
         if not self.processed_references_lines:
             self.processed_references_lines=\
                             TestCase.lines_dict(self.processed_references)
-        return self.processed_references_lines
+        out_dict = dict((s, l) for s,l in\
+                self.processed_references_lines.iteritems() if s in sources)
+        return out_dict
 
     def get_processed_candidates_lines(self):
         if not self.processed_candidates_lines:

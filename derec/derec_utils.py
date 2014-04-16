@@ -124,13 +124,15 @@ def cake_first_arrival(distance, depth, model, phases=None):
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-            perc=None, t_shift_frac=None, **kwargs):
+            static_length=None, perc=None, t_shift_frac=None, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
     If no phase_end value is given, takes tmax as the time of the 
     last arriving phase of phase_start.
     :return:
+    :param static_length: length of marker
+    :param perc: Percentage of tmin-t0 to add to base.
 
     static offset soll ersetzt werden....
     '''
@@ -180,7 +182,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                                 phases=phase_ids_end.split('|'))
 
                 elif perc:
-                    tmax = tmin + tmin * perc
+                    tmax = tmin + static_length + tmin * perc
                 tmax_phase_cache[args] = tmax
             else:
                 tmax = tmax_phase_cache[args]
