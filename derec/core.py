@@ -463,7 +463,7 @@ if __name__ ==  "__main__":
                                     percentage_of_shift=10.,
                                     phase_ids_start=phase_ids_start,
                                     static_length=4.,
-                                    marker_perc_length=0.5,
+                                    marker_perc_length=50.,
                                     marker_shift_frac=0.2,
                                     depths=depths) 
 

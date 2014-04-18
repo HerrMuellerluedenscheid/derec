@@ -182,7 +182,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                                 phases=phase_ids_end.split('|'))
 
                 elif perc:
-                    tmax = tmin + static_length + tmin * perc
+                    tmax = tmin + static_length + tmin * perc / 100.
                 tmax_phase_cache[args] = tmax
             else:
                 tmax = tmax_phase_cache[args]
@@ -234,13 +234,14 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
 def chop_using_markers(traces, markers, *args, **kwargs):
     '''
-    Chop a list of traces or generator of traces using a list of markers.
+    Chop a list of traces or generator of traces using a list of markers as
+    stencils.
     :rtype : list
     '''
     chopped_test_traces = defaultdict(dict)
     
-    for source, targets_traces in traces.items():
-        for target, tr in targets_traces.items():
+    for source, targets_traces in traces.iteritems():
+        for target, tr in targets_traces.iteritems():
             m = markers[source][target]
 
             chopped_tr = tr.chop(m.tmin, m.tmax, args, kwargs)
