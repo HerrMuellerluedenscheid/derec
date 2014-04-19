@@ -12,6 +12,17 @@ from gmtpy import GMT
 from copy import copy
 
 
+def gca_label(label_string):
+    """
+    Add target codes to top right corner in axes object.
+    """
+    ax = plt.gca()
+    plt.text(1, 1, label_string,
+                    horizontalalignment='right',
+                    verticalalignment='top',
+                    transform=ax.transAxes)
+
+
 def scale_2_int_perc(a):
     '''
     Scale entire matrix to range between 0 and 100 uint8.
@@ -205,20 +216,20 @@ class OpticBase():
                     axs[i].axvline(m.tmin, label='P')
                     axs[i].axvline(m.tmax, label='P')
 
-                    plt.text(1, 1, '.'.join(target.codes[:3]),
-                                    horizontalalignment='right',
-                                    verticalalignment='top',
-                                    transform=axs[i].transAxes)
+                    gca_label('.'.join(target.codes[:3]))
+
                     i+=1
 
             fig.subplots_adjust(hspace=0)
             plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
             fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
 
-    def stack_plot(self, markers_dict=None, sources=None, depths=None ):
+    def stack_plot(self, sources=None, depths=None ):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
         area of source, that you would like to look at.
+
+        TODO: marker_dict unused?
         '''
         #if param_dict and sources:
         #    sources = TestCase.get_sources_where(param_dict, sources)
@@ -248,9 +259,6 @@ class OpticBase():
             #ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
             pr_cand_line.set_label("%s m"%float(source.depth))
             ax.add_line(pr_cand_line)
-
-            marker_min = markers_dict[source][t].tmin
-            marker_max = markers_dict[source][t].tmax
 
             p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=0.5)
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))

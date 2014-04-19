@@ -2,7 +2,7 @@ import copy
 import progressbar
 import os
 import numpy as num
-import multiprocessing
+#import multiprocessing
 from matplotlib import pyplot as plt
 
 from pyrocko.gf import *
@@ -10,18 +10,19 @@ from pyrocko import model, gui_util, pile, trace, moment_tensor, io, parimap
 from pyrocko.guts import *
 from derec import derec_utils as du
 from derec.core import *
+from derec import forkmap
 
 
 pjoin = os.path.join
 km = 1000.
 
-def run(param_value):    
-    test_parameter = param_value[0]
-    test_parameter_values = param_value[1]
-    #test_case_setup = param_values[2]
-
-    setattr(test_case_setup, 'test_parameter', test_parameter)
+def do_run(tpvalues):    
+    test_parameter = tpvalues[0]
+    test_parameter_values = tpvalues[1]
     for i, parameter_value in enumerate(test_parameter_values):
+
+        setattr(test_case_setup, 'test_parameter', test_parameter)
+
         test_case_setup.test_parameter_value = float(parameter_value)
 
         if test_case_setup.test_parameter=='source_time_function':
@@ -34,7 +35,7 @@ def run(param_value):
         test_case_setup.sources = du.test_event_generator(
                                                 reference_source_copy, depths)
 
-        print '%s of %s'%(i+1, len(test_parameter_values))
+        #print '%s of %s'%(i+1, len(test_parameter_values))
         test_case = TestCase( test_case_setup )
         test_case.set_raw_references(reference_seismograms)
         test_case_dict = {}
@@ -55,11 +56,12 @@ def run(param_value):
         if not os.path.exists(base_dir):
             os.makedirs(base_dir)
 
-        print 'dump'
+        #print 'dump'
         test_case.yaml_dump(fn='%s/%s%s/depth_error_%s.yaml'%(name,
                                     test_case_setup.test_parameter,
                                     descriptor,
                                     test_case_setup.test_parameter_value))
+
 
 if __name__ ==  "__main__":
 
@@ -79,7 +81,7 @@ if __name__ ==  "__main__":
 
     depths=num.linspace(test_case_setup.reference_source.depth-zoffset, 
                         test_case_setup.reference_source.depth+zoffset, 
-                        11)
+                        21)
 
     depths = [float(d) for d in depths]
     print depths, '<- depths'
@@ -96,14 +98,50 @@ if __name__ ==  "__main__":
     reference_seismograms = du.response_to_dict(reference_request)
     reference_seismograms = du.apply_stf(reference_seismograms, stf)
     
-    test_parameter = 'source_time_function'
-    test_parameter_values = num.linspace(0.4, 5.1, 10.)
+    test_parameter = ['source_time_function',
+                      'strike',
+                      'dip',
+                      'rake',
+                      'latitude',
+                      'longitude' ]
 
-    pool = multiprocessing.Pool()
-    pool.map(run, [[test_parameter, test_parameter_values]])
+    # TODO relative shift!!!
+    n_shift = 2000.
+    e_shift = 2000.
+    lon_shift = du.lat_lon_relative_shift(reference_source_copy.lat, 
+                                          reference_source_copy.lon,
+                                          east_shift=e_shift)
+
+    lat_shift = du.lat_lon_relative_shift(reference_source_copy.lat, 
+                                          reference_source_copy.lon,
+                                          north_shift=n_shift)
+
+    test_parameter_values = [num.linspace(0.5, 5., 11),
+                             num.linspace(reference_source_copy.strike-45.,
+                                          reference_source_copy.strike+45.,
+                                          21),
+                             num.linspace(reference_source_copy.dip-45.,
+                                          reference_source_copy.dip+45.,
+                                          21),
+                             num.linspace(reference_source_copy.rake-45.,
+                                          reference_source_copy.rake+45.,
+                                          21),
+                             num.linspace(reference_source_copy.lat-lat_shift,
+                                          reference_source_copy.lat+lat_shift,
+                                          11),
+                             num.linspace(reference_source_copy.lon-lon_shift,
+                                          reference_source_copy.lon+lon_shift,
+                                          11)]
+
+    #pool = multiprocessing.Pool()
+    #pool.map(do_run, zip(test_parameter, test_parameter_values))
+    #import pdb
+    #pdb.set_trace()
+    forkmap.map(do_run, zip(test_parameter, test_parameter_values), n=2) 
+    #for i, tpset in enumerate(zip(test_parameter, test_parameter_values)):
+    #    print i+1, 'of', len(tpset)
+    #    do_run(tpset) 
     
-    #run([test_parameter, test_parameter_values])
-
     #from depth_error_display import make_compare_plots as mcp
     #mcp(test_case.candidates, test_case.references,
     #        test_case.processed_candidates, test_case.processed_references)

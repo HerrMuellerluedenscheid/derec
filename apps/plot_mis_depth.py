@@ -1,6 +1,7 @@
 from guts import *
 from derec.core import TestCase, TestCaseData, TestCaseSetup
-from derec.optics import OpticBase 
+from derec.optics import OpticBase, gca_label 
+
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from derec import derec_utils as du
@@ -49,7 +50,7 @@ all_targets = optics.values()[0].targets
 # Plot: 1 per station, subplots: one per optics.
 # show reference trace plotted over best fitting candidate
 #-------------------------------------------------------==
-if False:
+if True:
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
         optic = optics[k]
@@ -61,6 +62,8 @@ if False:
                 l2 = optic.get_processed_candidate_line(source, target)
                 map(add_line_to_ca, [l1,l2])
                 ax.autoscale()
+                gca_label(target)
+
     plt.show()
 
 #..........................................................................
@@ -81,17 +84,19 @@ if False:
     plt.show()
 
 #............................................................................
-# stack plot:
-# looks pretty much the same as first plot. 
+# stack plot of one(!) result from different depths:
+# reference traces as grey shaded areas
 #..............................................
 opt = optics.values()[0]
-if True:
-    ax1 = opt.stack_plot( markers_dict=data[0].candidates_markers, depths=[depth])
+if False:
+    ax1 = opt.stack_plot( depths=[2000.,3000.])
+    plt.show()
 
 #...............................................
 # plot z components of chosen optic
 
-if True:
+#buggy
+if False:
     opt.plot_z_components(traces_dict=data[0].processed_candidates,
             markers_dict=data[0].candidates_markers ,
             sources=opt.get_sources_where({'depth':depth}))

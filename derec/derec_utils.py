@@ -26,7 +26,7 @@ class NoMatchingTraces(Exception):
         return 'No matching traces found.'
 
 
-def lat_lon_relative_shift(olat, olon, north_shift, east_shift):
+def lat_lon_relative_shift(olat, olon, north_shift=0., east_shift=0.):
     '''
     Uses flat earth approximation. 
     :param olat, olon: origin latitude/ longitude in degrees
@@ -35,8 +35,13 @@ def lat_lon_relative_shift(olat, olon, north_shift, east_shift):
     rolat = radians(olat)
     dlat = north_shift/re
     dlon = east_shift/(re*cos(pi*rolat/180.))
-    
-    return olat+dlat*180/pi, olon+dlon*180/pi
+
+    if north_shift==0.:
+        return olon+dlon*180/pi
+    if east_shift==0.:
+        return olat+dlat*180/pi
+    else: 
+        return olat+dlat*180/pi, olon+dlon*180/pi
 
 
 def lat_lon_from_dist_azi(olat, olon, dist, azim):
