@@ -33,13 +33,12 @@ optics = {}
 data = []
 for i, fn in enumerate(file_names):
     pbar.update(i)
-    f = open(fn, 'r')
-    date = load_string(f.read())
-    f.close()
-
-    data.append(date)
-    ob = OpticBase(date)
-    optics.update({ob.test_case_setup.test_parameter_value: ob})
+    #f = open(fn, 'r')
+    for date in load_all(filename=fn):
+        #f.close()
+        data.append(date)
+        ob = OpticBase(date)
+        optics.update({ob.test_case_setup.test_parameter_value: ob})
 
 pbar.finish()
 

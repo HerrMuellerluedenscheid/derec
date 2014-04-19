@@ -1,17 +1,65 @@
-from pyrocko.gf import *
-from pyrocko import model, gui_util, pile, trace, moment_tensor, io
-from pyrocko.guts import *
-from matplotlib import pyplot as plt
-
 import copy
 import progressbar
 import os
+import numpy as num
+import multiprocessing
+from matplotlib import pyplot as plt
+
+from pyrocko.gf import *
+from pyrocko import model, gui_util, pile, trace, moment_tensor, io, parimap
+from pyrocko.guts import *
 from derec import derec_utils as du
 from derec.core import *
-import numpy as num
+
 
 pjoin = os.path.join
 km = 1000.
+
+def run(param_value):    
+    test_parameter = param_value[0]
+    test_parameter_values = param_value[1]
+    #test_case_setup = param_values[2]
+
+    setattr(test_case_setup, 'test_parameter', test_parameter)
+    for i, parameter_value in enumerate(test_parameter_values):
+        test_case_setup.test_parameter_value = float(parameter_value)
+
+        if test_case_setup.test_parameter=='source_time_function':
+            stf[0][1] = float(parameter_value)
+            setattr(test_case_setup, test_parameter, stf)
+        else:
+            setattr(reference_source_copy, test_parameter, float(parameter_value))
+
+        # overwriting sources:
+        test_case_setup.sources = du.test_event_generator(
+                                                reference_source_copy, depths)
+
+        print '%s of %s'%(i+1, len(test_parameter_values))
+        test_case = TestCase( test_case_setup )
+        test_case.set_raw_references(reference_seismograms)
+        test_case_dict = {}
+
+        extended_ref_marker = du.chop_ranges(test_case.reference_source, 
+                                    test_case.targets, 
+                                    test_case.store,
+                                    test_case.phase_ids_start,
+                                    perc=test_case_setup.marker_perc_length,
+                                    static_length=test_case_setup.static_length,
+                                    t_shift_frac=test_case_setup.marker_shift_frac,
+                                    use_cake=True)
+
+        test_case.set_reference_markers(extended_ref_marker)
+        D = Doer(test_case)
+        
+        base_dir = pjoin(name, test_case_setup.test_parameter, descriptor)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+
+        print 'dump'
+        test_case.yaml_dump(fn='%s/%s%s/depth_error_%s.yaml'%(name,
+                                    test_case_setup.test_parameter,
+                                    descriptor,
+                                    test_case_setup.test_parameter_value))
 
 if __name__ ==  "__main__":
 
@@ -19,6 +67,7 @@ if __name__ ==  "__main__":
     name = 'regional' 
     #name = 'global'
 
+    descriptor = ''
     description = 'noise free test. This time using more shifts to see if the'+\
     'errors decrease.'
 
@@ -48,47 +97,12 @@ if __name__ ==  "__main__":
     reference_seismograms = du.apply_stf(reference_seismograms, stf)
     
     test_parameter = 'source_time_function'
-    setattr(test_case_setup, 'test_parameter', test_parameter)
-    test_parameter_values = num.linspace(0.4,5.1, 10.)
+    test_parameter_values = num.linspace(0.4, 5.1, 10.)
 
-    for i, parameter_value in enumerate(test_parameter_values):
-        test_case_setup.test_parameter_value = float(parameter_value)
-
-        if test_case_setup.test_parameter=='source_time_function':
-            stf[0][1] = float(parameter_value)
-            setattr(test_case_setup, test_parameter, stf)
-        else:
-            setattr(reference_source_copy, test_parameter, float(parameter_value))
-
-        # overwriting sources:
-        test_case_setup.sources = du.test_event_generator(
-                                                reference_source_copy, depths)
-
-        print '%s of %s'%(i+1, len(test_parameter_values))
-        test_case = TestCase( test_case_setup )
-        test_case.set_raw_references(reference_seismograms)
-        test_case_dict = {}
-
-        #perc ist die Ausdehnung des zeitmarkers. perc=1 heisst (tmin-t0)*perc,
-        # also der Ausschnitt ist so lang wie die Zeit zwischen t0 und tmin.
-        extended_ref_marker = du.chop_ranges(test_case.reference_source, 
-                                    test_case.targets, 
-                                    test_case.store,
-                                    test_case.phase_ids_start,
-                                    perc=test_case_setup.marker_perc_length,
-                                    static_length=test_case_setup.static_length,
-                                    t_shift_frac=test_case_setup.marker_shift_frac,
-                                    use_cake=True)
-
-        test_case.set_reference_markers(extended_ref_marker)
-        D = Doer(test_case)
-        test_case.yaml_dump(fn='%s/%s%s/depth_error_%s.yaml'%(name,
-            test_case_setup.test_parameter,'',
-            test_case_setup.test_parameter_value))
-        try:
-            print ytest==reference_seismograms.values()[0].values()[0].get_ydata()
-        except:
-            ytest=reference_seismograms.values()[0].values()[0].get_ydata()
+    pool = multiprocessing.Pool()
+    pool.map(run, [[test_parameter, test_parameter_values]])
+    
+    #run([test_parameter, test_parameter_values])
 
     #from depth_error_display import make_compare_plots as mcp
     #mcp(test_case.candidates, test_case.references,

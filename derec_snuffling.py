@@ -24,7 +24,8 @@ class Derec(Snuffling):
         self.add_parameter(Choice('Store: ', 'store_id', 
                                     'Need to select a superdir first.',
                                     'Need to select a superdir first.'))
-        self.add_parameter(Param('Number of Depths', 'depths', 3, 1, 21))
+        self.add_parameter(Param('Static length', 'static_length', 3, 1, 10))
+        self.add_parameter(Param('num_depths', 'num_depths', 3, 1, 21))
         self.add_parameter(Param('Number of Time Shifts', 'num_time_shifts',\
                 9, 1, 21))
         self.add_trigger('Load Default Setup', self.load_setup) 
@@ -46,7 +47,7 @@ class Derec(Snuffling):
         depths = self.test_case_setup.depths
         self.targets = du.stations2targets(self.stations)
         self.reference_source = du.event2source(active_event, 'DC')
-        sources = du.test_event_generator(reference_source, depths)
+        sources = du.test_event_generator(self.reference_source, depths)
 
         test_case = core.TestCase(self.test_case_setup)
         core.Doer(test_case)
@@ -66,8 +67,12 @@ class Derec(Snuffling):
         self.test_case_setup = load_string(f.read())
         f.close()
         
+        self.set_parameter('static_length', \
+                self.test_case_setup.static_length)
         self.set_parameter('num_time_shifts', \
                 self.test_case_setup.number_of_time_shifts)
+        self.set_parameter('num_depths', \
+                len(self.test_case_setup.depths))
 
     def save(self):
         self.output_filename('Save Results')
@@ -81,10 +86,10 @@ class Derec(Snuffling):
         self.reference_source = du.event2source(self.active_event, 'DC')
 
         # need to improve the horrible double line
-        self.markers = du.chop_ranges(self.reference_source,
+        markers = du.chop_ranges(self.reference_source,
                        self.targets,
                        self.test_case_setup.engine.get_store(
-                           self.test_case_setup.store_id),
+                                       self.test_case_setup.store_id),
                        self.test_case_setup.phase_ids_start,
                        perc=self.test_case_setup.marker_perc_length,
                        t_shift_frac=self.test_case_setup.marker_shift_frac,
