@@ -8,10 +8,21 @@ from derec import derec_utils as du
 import progressbar
 import glob
 import sys
+import os
+
+pjoin = os.path.join
 
 def add_line_to_ca(line):
     line.set_figure(plt.gcf())
     plt.gca().add_line(line)
+
+def file_name_path(name, test_parameter, descriptor, test_type, extra ):
+    fn = '%s/%s%s/%s_%s.pdf'%(name,
+                             test_parameter,
+                             descriptor,
+                             test_type,
+                             extra) 
+    return fn
 
 def combinator(lists_dict):
     """Merge dicts into dicts with lists. """
@@ -50,6 +61,9 @@ all_targets = optics.values()[0].targets
 # Plot: 1 per station, subplots: one per optics.
 # show reference trace plotted over best fitting candidate
 #-------------------------------------------------------==
+name = 'regional'
+descriptor = ''
+# TODO: set_linestyle
 if True:
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
@@ -60,16 +74,30 @@ if True:
                 ax = fig.add_subplot(len(optics), 1, i)
                 l1 = optic.get_processed_reference_line(source, target)
                 l2 = optic.get_processed_candidate_line(source, target)
+                #l2.set_linestyle('+')
+                #l2.set_label('cand')
+                #l1.set_label('ref')
                 map(add_line_to_ca, [l1,l2])
                 ax.autoscale()
-                gca_label(target)
+                gca_label(optic.test_case_setup.test_parameter_value)
+                plt.suptitle('.'.join(target.codes))
 
-    plt.show()
+    for k, v in fig_dict.iteritems():
+        v.subplots_adjust(hspace=0)
+        plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
+        fn=file_name_path(name, 
+                test_parameter=optic.test_case_setup.test_parameter,
+                descriptor='', 
+                test_type='wvfrm_ref_vs_best_2000m', 
+                extra='.'.join(k))
+        v.savefig(fn)
+
+    #plt.show()
 
 #..........................................................................
 # Plot depth difference versus test_parameter:
 #---------------------------------------------
-if False:
+if True:
     fig = plt.figure()
     ax = fig.add_subplot(111)
     for date in data:
@@ -81,7 +109,14 @@ if False:
         ax.plot(test_parameter_value, zdiff, 'o')
     ax.autoscale()
     ax.set_xlabel(test_parameter)
-    plt.show()
+    fn = file_name_path(name, 
+            test_parameter=test_parameter,
+            descriptor='', 
+            test_type='z_diff_vs_tp.pdf', 
+            extra='.'.join(k))
+    fig.savefig(fn)
+    #plt.show()
+
 
 #............................................................................
 # stack plot of one(!) result from different depths:
