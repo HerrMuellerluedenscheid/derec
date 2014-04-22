@@ -328,9 +328,10 @@ class TestCase(Object):
 
 
     @staticmethod
-    def lines_dict(traces_dict):
+    def lines_dict(traces_dict, reduce=0.):
         """
         Create matplotlib.lines.Line2D objects from traces dicts.
+        :param reduce: subtract time from each x-value:
         :return lines_dict: dict with lines
         """
         lines_dict = defaultdict(dict)
@@ -338,7 +339,8 @@ class TestCase(Object):
             if isinstance(tr, seismosizer.SeismosizerTrace):
                 tr = tr.pyrocko_trace()
 
-            lines_dict[source][target] = pltlines.Line2D(tr.get_xdata(),
+            lines_dict[source][target] = pltlines.Line2D(
+                    tr.get_xdata()-reduce,
                     tr.get_ydata())
 
         return lines_dict 

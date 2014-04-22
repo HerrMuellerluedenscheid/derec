@@ -60,10 +60,14 @@ all_targets = optics.values()[0].targets
 #.........................................................................
 # Plot: 1 per station, subplots: one per optics.
 # show reference trace plotted over best fitting candidate
+# change the *depth* to see a different depth.
 #-------------------------------------------------------==
+
+
+depth = 2000.
 name = 'regional'
 descriptor = ''
-# TODO: set_linestyle
+
 if True:
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
@@ -74,13 +78,14 @@ if True:
                 ax = fig.add_subplot(len(optics), 1, i)
                 l1 = optic.get_processed_reference_line(source, target)
                 l2 = optic.get_processed_candidate_line(source, target)
-                #l2.set_linestyle('+')
-                #l2.set_label('cand')
-                #l1.set_label('ref')
+                l2.set_color((1,0,0,1))
+                l2.set_label('cand')
+                l1.set_label('ref')
                 map(add_line_to_ca, [l1,l2])
                 ax.autoscale()
                 gca_label(optic.test_case_setup.test_parameter_value)
                 plt.suptitle('.'.join(target.codes))
+                plt.legend()
 
     for k, v in fig_dict.iteritems():
         v.subplots_adjust(hspace=0)
@@ -89,15 +94,14 @@ if True:
                 test_parameter=optic.test_case_setup.test_parameter,
                 descriptor='', 
                 test_type='wvfrm_ref_vs_best_2000m', 
-                extra='.'.join(k))
+                extra=str(optic.test_case_setup.test_parameter_value)+\
+                                '.'.join(k))
         v.savefig(fn)
-
-    #plt.show()
 
 #..........................................................................
 # Plot depth difference versus test_parameter:
 #---------------------------------------------
-if True:
+if False:
     fig = plt.figure()
     ax = fig.add_subplot(111)
     for date in data:
@@ -122,10 +126,29 @@ if True:
 # stack plot of one(!) result from different depths:
 # reference traces as grey shaded areas
 #..............................................
-opt = optics.values()[0]
+#colormap = plt.get_cmap('Blues')
+#def scalez255(val):
+#    return (val-min(depths))/max(depths)*255
+
 if False:
-    ax1 = opt.stack_plot( depths=[2000.,3000.])
-    plt.show()
+    depths=[2000.,3000.]
+    for k, opt in optics.iteritems():
+        test_parameter = opt.test_case_setup.test_parameter 
+        fig = plt.figure()
+        ax = opt.stack_plot(depths=depths)
+        #for a in ax.values():
+        #    for l in a.get_lines():
+        #        l.set_color(colormap(scalez255(float(\
+        #            l.get_label().split()[0]))))
+
+        fn = file_name_path(name, 
+                test_parameter=test_parameter,
+                descriptor='', 
+                test_type='stack_z%s.pdf'%('_'.join(map(str, depths))), 
+                extra=opt.test_case_setup.test_parameter_value)
+
+        fig.savefig(fn)
+        #plt.show()
 
 #...............................................
 # plot z components of chosen optic

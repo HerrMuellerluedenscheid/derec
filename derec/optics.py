@@ -1,9 +1,11 @@
 # An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
 from derec.core import TestCaseData, TestCaseSetup, TestCase
 import derec.derec_utils as du
+import matplotlib
 import matplotlib.transforms as transforms
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 import vtk
 import numpy as num
@@ -12,7 +14,9 @@ from gmtpy import GMT
 from copy import copy
 
 
-def gca_label(label_string):
+matplotlib.rcParams['font.size'] = 7
+
+def gca_label(label_string, **kwargs):
     """
     Add target codes to top right corner in axes object.
     """
@@ -20,7 +24,8 @@ def gca_label(label_string):
     plt.text(1, 1, label_string,
                     horizontalalignment='right',
                     verticalalignment='top',
-                    transform=ax.transAxes)
+                    transform=ax.transAxes,
+                    **kwargs)
 
 
 def scale_2_int_perc(a):
@@ -217,6 +222,7 @@ class OpticBase():
                     axs[i].axvline(m.tmax, label='P')
 
                     gca_label('.'.join(target.codes[:3]))
+                    axs[i].yaxis.set_major_locator(MaxNLocator(prune='lower'))
 
                     i+=1
 
@@ -236,6 +242,7 @@ class OpticBase():
         #
         #else:
         #    sources = self.sources
+        cmap = plt.get_cmap('Paired')
 
         gs = gridspec.GridSpec(len(self.targets)/3,3)
         gs_dict= dict(zip(self.targets, gs))
@@ -243,27 +250,28 @@ class OpticBase():
         axes_dict = defaultdict()
 
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.get_processed_candidates_lines()):
+            TestCase.iter_dict(self.get_processed_candidates_lines(
+                         reduce=self.reference_source.time)):
             if depths and not source.depth in depths:
                 continue
 
             ax = plt.subplot(gs_dict[t])
             pr_ref = self.processed_references[source][t]
 
-            #x = pr_cand.pyrocko_trace().get_xdata()
-            #y = pr_cand.pyrocko_trace().get_ydata()
-            x_ref = pr_ref.pyrocko_trace().get_xdata()
+            x_ref = pr_ref.pyrocko_trace().get_xdata()-\
+                    self.reference_source.time
             y_ref = pr_ref.pyrocko_trace().get_ydata()
                 
-            ax.set_title('.'.join(t.codes), fontsize=11)
-            #ax.plot(x, y, label="%sW %sN %sm"%(source.lat,
+            gca_label(label_string='.'.join(t.codes), fontsize=8)
+
             pr_cand_line.set_label("%s m"%float(source.depth))
+            pr_cand_line.set_color(cmap(self.scalez255(source.depth)))
             ax.add_line(pr_cand_line)
 
             p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=0.5)
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.tick_params(axis='both', which='major', labelsize=10)
-
+            plt.tick_params(axis='both', which='major', labelsize=6)
+            
             axes_dict[t] = ax
 
         plt.subplots_adjust(left=None,
@@ -271,11 +279,13 @@ class OpticBase():
                             right=None,
                             top=None,
                             wspace=None,
-                            hspace=0.6)
+                            hspace=0.5)
 
-        plt.legend(loc=2, prop={'size':8})
-        #plt.tight_layout()
-        #plt.show()
+        plt.legend(loc=2, prop={'size':6})
+        plt.gcf().suptitle('%s, %s'%(
+            self.test_case_setup.test_parameter,
+            self.test_case_setup.test_parameter_value))
+
         return axes_dict
 
     def get_candidate_line(self, source, target):
@@ -288,9 +298,9 @@ class OpticBase():
             self.get_references_lines()
         return self.references_lines[source][target]
 
-    def get_processed_candidate_line(self, source, target):
+    def get_processed_candidate_line(self, source, target, **kwargs):
         if not self.processed_candidates_lines:
-            self.get_processed_candidates_lines()
+            self.get_processed_candidates_lines(**kwargs)
         return self.processed_candidates_lines[source][target]
 
     def get_processed_reference_line(self, source, target):
@@ -307,10 +317,11 @@ class OpticBase():
                 self.processed_references_lines.iteritems() if s in sources)
         return out_dict
 
-    def get_processed_candidates_lines(self):
+    def get_processed_candidates_lines(self, **kwargs):
         if not self.processed_candidates_lines:
             self.processed_candidates_lines =\
-                            TestCase.lines_dict(self.processed_candidates)
+                            TestCase.lines_dict(self.processed_candidates,
+                                    **kwargs)
         return self.processed_candidates_lines
         
     def get_candidates_lines(self):
@@ -398,6 +409,10 @@ class OpticBase():
 
     def get_sources_where(self, param_dict):
         return TestCase.get_sources_where(param_dict, self.sources)
+
+    def scalez255(self, z): 
+        return (z-min(self.test_case_setup.depths))/max(\
+                self.test_case_setup.depths)*255 
 
 
 class Cube():
