@@ -10,7 +10,7 @@ from pyrocko import model, gui_util, pile, trace, moment_tensor, io, parimap
 from pyrocko.guts import *
 from derec import derec_utils as du
 from derec.core import *
-from derec import forkmap
+#from derec import forkmap
 
 
 pjoin = os.path.join
@@ -137,10 +137,10 @@ if __name__ ==  "__main__":
     #pool.map(do_run, zip(test_parameter, test_parameter_values))
     #import pdb
     #pdb.set_trace()
-    forkmap.map(do_run, zip(test_parameter, test_parameter_values), n=2) 
-    #for i, tpset in enumerate(zip(test_parameter, test_parameter_values)):
-    #    print i+1, 'of', len(tpset)
-    #    do_run(tpset) 
+    #forkmap.map(do_run, zip(test_parameter, test_parameter_values), n=2) 
+    for i, tpset in enumerate(zip(test_parameter, test_parameter_values)):
+        print i+1, 'of', len(tpset)
+        do_run(tpset) 
     
     #from depth_error_display import make_compare_plots as mcp
     #mcp(test_case.candidates, test_case.references,

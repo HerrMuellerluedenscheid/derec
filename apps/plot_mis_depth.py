@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 from guts import *
 from derec.core import TestCase, TestCaseData, TestCaseSetup
 from derec.optics import OpticBase, gca_label 
@@ -101,12 +103,14 @@ if True:
 #..........................................................................
 # Plot depth difference versus test_parameter:
 #---------------------------------------------
-if False:
+if True:
     fig = plt.figure()
     ax = fig.add_subplot(111)
     for date in data:
         setup = date.test_case_setup
         test_parameter = setup.test_parameter 
+        test_parameter_value = setup.test_parameter_value
+        best_s = min(date.misfits, key=date.misfits.get)
         test_parameter_value = setup.test_parameter_value
         best_s = min(date.misfits, key=date.misfits.get)
         zdiff = date.test_case_setup.reference_source.depth-best_s.depth
@@ -130,8 +134,8 @@ if False:
 #def scalez255(val):
 #    return (val-min(depths))/max(depths)*255
 
-if False:
-    depths=[2000.,3000.]
+if True:
+    depths=[1000.,2000.,3000.]
     for k, opt in optics.iteritems():
         test_parameter = opt.test_case_setup.test_parameter 
         fig = plt.figure()
@@ -144,7 +148,7 @@ if False:
         fn = file_name_path(name, 
                 test_parameter=test_parameter,
                 descriptor='', 
-                test_type='stack_z%s.pdf'%('_'.join(map(str, depths))), 
+                test_type='stack.pdf', 
                 extra=opt.test_case_setup.test_parameter_value)
 
         fig.savefig(fn)
@@ -158,5 +162,3 @@ if False:
     opt.plot_z_components(traces_dict=data[0].processed_candidates,
             markers_dict=data[0].candidates_markers ,
             sources=opt.get_sources_where({'depth':depth}))
-    plt.show()
-
