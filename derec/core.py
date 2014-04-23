@@ -383,14 +383,15 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
 
-    markers = gui_util.Marker.load_markers(pjoin(selfdir,
-                                                '../reference_marker_castor.txt'))
+    #markers = gui_util.Marker.load_markers(pjoin(selfdir,
+    #                                            '../reference_marker_castor.txt'))
+
+    event = model.Event(load='castor_event_2013-10-01.dat')
 
     phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                        store_id, 
                                                        ['p','P']))
 
-    event = model.Event(load='castor_event_2013-10-01.dat')
     
     # load stations from file:
     # Event==================================================

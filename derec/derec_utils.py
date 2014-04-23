@@ -36,10 +36,12 @@ def lat_lon_relative_shift(olat, olon, north_shift=0., east_shift=0.):
     dlat = north_shift/re
     dlon = east_shift/(re*cos(pi*rolat/180.))
 
-    if north_shift==0.:
+    if north_shift==0. and east_shift!=0.:
         return olon+dlon*180/pi
-    if east_shift==0.:
+
+    if east_shift==0. and north_shift!=0.:
         return olat+dlat*180/pi
+
     else: 
         return olat+dlat*180/pi, olon+dlon*180/pi
 
