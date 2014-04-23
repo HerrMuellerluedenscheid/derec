@@ -41,14 +41,17 @@ def set_refine_parameter(ref_event, **kwargs):
     return events
 
 
-def make_reference_trace(source, targets, engine):
+def make_reference_trace(source, targets, engine, source_time_function=None):
     if not isinstance(source, list):
         source = [source]
 
     response = engine.process(
             sources=source,
             targets=targets)
-    return response
+    ref_seismos = du.response_to_dict(response)
+    if source_time_function:
+        ref_seismos = du.apply_stf(ref_seismos, source_time_function)
+    return ref_seismos
     
 
 class Doer():

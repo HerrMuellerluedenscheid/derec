@@ -90,14 +90,12 @@ if __name__ ==  "__main__":
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [derec_home + '/fomostos']
     test_case_setup.engine.store_superdirs = store_dirs
+    stf = [[0., 1.], [0.,1.]]
     reference_request = make_reference_trace(test_case_setup.reference_source,
                                              test_case_setup.targets, 
-                                             test_case_setup.engine)
+                                             test_case_setup.engine,
+                                             stf)
 
-    stf = [[0., 1.], [0.,1.]]
-    reference_seismograms = du.response_to_dict(reference_request)
-    reference_seismograms = du.apply_stf(reference_seismograms, stf)
-    
     test_parameter = ['source_time_function',
                       'strike',
                       'dip',
@@ -108,13 +106,21 @@ if __name__ ==  "__main__":
     # TODO relative shift!!!
     n_shift = 2000.
     e_shift = 2000.
-    lon_shift = du.lat_lon_relative_shift(reference_source_copy.lat, 
+    lon_shift_p = du.lat_lon_relative_shift(reference_source_copy.lat, 
                                           reference_source_copy.lon,
                                           east_shift=e_shift)
 
-    lat_shift = du.lat_lon_relative_shift(reference_source_copy.lat, 
+    lat_shift_p = du.lat_lon_relative_shift(reference_source_copy.lat, 
                                           reference_source_copy.lon,
                                           north_shift=n_shift)
+
+    lon_shift_n = du.lat_lon_relative_shift(reference_source_copy.lat, 
+                                          reference_source_copy.lon,
+                                          east_shift=-e_shift)
+
+    lat_shift_n = du.lat_lon_relative_shift(reference_source_copy.lat, 
+                                          reference_source_copy.lon,
+                                          north_shift=-n_shift)
 
     test_parameter_values = [num.linspace(0.5, 5., 11),
                              num.linspace(reference_source_copy.strike-45.,
@@ -126,12 +132,8 @@ if __name__ ==  "__main__":
                              num.linspace(reference_source_copy.rake-45.,
                                           reference_source_copy.rake+45.,
                                           21),
-                             num.linspace(reference_source_copy.lat-lat_shift,
-                                          reference_source_copy.lat+lat_shift,
-                                          11),
-                             num.linspace(reference_source_copy.lon-lon_shift,
-                                          reference_source_copy.lon+lon_shift,
-                                          11)]
+                             num.linspace(lat_shift_n, lat_shift_p, 11),
+                             num.linspace(lon_shift_n, lon_shift_p, 11)]
 
     #pool = multiprocessing.Pool()
     #pool.map(do_run, zip(test_parameter, test_parameter_values))

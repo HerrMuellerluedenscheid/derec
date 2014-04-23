@@ -26,9 +26,6 @@ for t_i, t in enumerate(traces):
         t_stack = [t]
         continue
     if len(t_stack)==3:
-        #    if not all(map(lambda x: done.count(x)==stations_needed, channels)):    
-        #            if done.count(t.nslc_id[3])== stations_needed:
-        #                continue
         print '-----'
         for t in t_stack:
             tcodes = t.nslc_id
@@ -36,7 +33,7 @@ for t_i, t in enumerate(traces):
             invevalresp = trace.InverseEvalresp(respdir, t)
             print 'restitute: %s'%t
             tnew = t.transfer(tfade=10., 
-                              freqlimits=[0.01, 0.02, 10, 20], 
+                              freqlimits=[0.01, 0.02, 30, 60], 
                               transfer_function=invevalresp)
 
             io.save(tnew, restdir+'%s.%s.%s.%s'%(t.nslc_id))
