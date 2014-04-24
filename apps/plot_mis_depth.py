@@ -1,6 +1,6 @@
 import matplotlib
 matplotlib.use('Agg')
-from guts import *
+from pyrocko.guts import *
 from derec.core import TestCase, TestCaseData, TestCaseSetup
 from derec.optics import OpticBase, gca_label 
 
@@ -51,7 +51,7 @@ for i, fn in enumerate(file_names):
     for date in load_all(filename=fn):
         #f.close()
         data.append(date)
-        ob = OpticBase(date)
+        ob = OpticBase(test_case_data=date)
         optics.update({ob.test_case_setup.test_parameter_value: ob})
 
 pbar.finish()
@@ -64,7 +64,6 @@ all_targets = optics.values()[0].targets
 # show reference trace plotted over best fitting candidate
 # change the *depth* to see a different depth.
 #-------------------------------------------------------==
-
 
 depth = 2000.
 name = 'regional'
@@ -134,22 +133,18 @@ if False:
 # stack plot of one(!) result from different depths:
 # reference traces as grey shaded areas
 #..............................................
-#colormap = plt.get_cmap('Blues')
-#def scalez255(val):
-#    return (val-min(depths))/max(depths)*255
 
 if True:
     print '(3)start generating stack plot'
     depths=[1000.,2000.,3000.]
     for k, opt in optics.iteritems():
-        test_parameter = opt.test_case_setup.test_parameter 
         fig = plt.figure()
         ax = opt.stack_plot(depths=depths)
-
+        test_parameter = opt.test_case_setup.test_parameter 
         fn = file_name_path(name, 
                 test_parameter=test_parameter,
                 descriptor='', 
-                test_type='stack.pdf', 
+                test_type='stack', 
                 extra=opt.test_case_setup.test_parameter_value)
 
         fig.savefig(fn)
@@ -157,8 +152,24 @@ if True:
 #...............................................
 # plot z components of chosen optic
 
-#buggy
-if False:
-    opt.plot_z_components(traces_dict=data[0].processed_candidates,
-            markers_dict=data[0].candidates_markers ,
-            sources=opt.get_sources_where({'depth':depth}))
+if True:
+    channel = 'Z'
+    for param_value, opt in optics.items():
+        test_parameter = opt.test_case_setup.test_parameter 
+        srcs = opt.get_sources_where({'depth':depth})
+        for src, fig in opt.plot_channel(traces_dict=opt.candidates,
+                                markers_dict=opt.test_case_data.candidates_markers,
+                                channel=channel,
+                                sources=srcs):
+
+            fn = file_name_path(name, 
+                    test_parameter=test_parameter,
+                    descriptor='', 
+                    test_type='channel_%s_%s'%(src.depth, channel),
+                    extra=param_value)
+            print src 
+            print 'if this appears more than once, save in individual file....'
+
+            fig.savefig(fn)
+
+

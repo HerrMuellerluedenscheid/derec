@@ -1,4 +1,4 @@
-from guts import *
+from pyrocko.guts import *
 from derec.core import yamlTrace, TestCase, TestCaseData, TestCaseSetup
 from derec.optics import OpticBase 
 import matplotlib.pyplot as plt

@@ -16,11 +16,10 @@ from copy import copy
 
 matplotlib.rcParams['font.size'] = 7
 
-def gca_label(label_string, **kwargs):
+def gca_label(label_string, ax=plt.gca(), **kwargs):
     """
     Add target codes to top right corner in axes object.
     """
-    ax = plt.gca()
     plt.text(1, 1, label_string,
                     horizontalalignment='right',
                     verticalalignment='top',
@@ -99,6 +98,7 @@ class OpticBase():
             data_input = self.test_case
 
         elif test_case_data:
+            self.test_case_data = test_case_data
             data_input = self.test_case_data
 
         self.candidates = data_input.candidates
@@ -199,7 +199,8 @@ class OpticBase():
         targets = self.targets if not targets else targets
         return sorted(targets, key=lambda tr: tr.distance_to(ref_source))
     
-    def plot_z_components(self, traces_dict, markers_dict, sources=[], targets=[]):
+    def plot_channel(self, traces_dict, markers_dict,  channel='Z', 
+                     sources=[], targets=[]):
         """
         Plot vertical components of each station. One figure per source, one
         subplot per station.
@@ -212,7 +213,7 @@ class OpticBase():
             fig, axs = plt.subplots(len(targets)/3, sharex=True)
 
             for target in [t for t in self.distance_sort_targets(source,targets=targets)\
-                        if t.codes[3]=='Z']:
+                        if t.codes[3]==channel]:
                     m = markers_dict[source][target]
                     c = traces_dict[source][target]
                     pt = c.pyrocko_trace()
@@ -221,7 +222,7 @@ class OpticBase():
                     axs[i].axvline(m.tmin, label='P')
                     axs[i].axvline(m.tmax, label='P')
 
-                    gca_label('.'.join(target.codes[:3]))
+                    gca_label('.'.join(target.codes[:3]), ax=axs[i])
                     axs[i].yaxis.set_major_locator(MaxNLocator(prune='lower'))
 
                     i+=1
@@ -229,6 +230,7 @@ class OpticBase():
             fig.subplots_adjust(hspace=0)
             plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
             fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
+            yield source, fig
 
     def stack_plot(self, sources=None, depths=None ):
         '''
@@ -237,11 +239,6 @@ class OpticBase():
 
         TODO: marker_dict unused?
         '''
-        #if param_dict and sources:
-        #    sources = TestCase.get_sources_where(param_dict, sources)
-        #
-        #else:
-        #    sources = self.sources
         cmap = plt.get_cmap('Paired')
 
         gs = gridspec.GridSpec(len(self.targets)/3,3)
@@ -271,7 +268,7 @@ class OpticBase():
             p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=0.5)
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.tick_params(axis='both', which='major', labelsize=6)
-            
+            ax.autoscale()
             axes_dict[t] = ax
 
         plt.subplots_adjust(left=None,
