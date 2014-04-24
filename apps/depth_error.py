@@ -91,7 +91,7 @@ if __name__ ==  "__main__":
     store_dirs = [derec_home + '/fomostos']
     test_case_setup.engine.store_superdirs = store_dirs
     stf = [[0., 1.], [0.,1.]]
-    reference_request = make_reference_trace(test_case_setup.reference_source,
+    reference_seismograms = make_reference_trace(test_case_setup.reference_source,
                                              test_case_setup.targets, 
                                              test_case_setup.engine,
                                              stf)
@@ -103,48 +103,39 @@ if __name__ ==  "__main__":
                       'latitude',
                       'longitude' ]
 
+    ref_lat = reference_source_copy.lat
+    ref_lon = reference_source_copy.lon 
+    ref_depth = reference_source_copy.depth
+    ref_strike= reference_source_copy.strike
+    ref_dip =  reference_source_copy.dip
+    ref_rake= reference_source_copy.rake
     # TODO relative shift!!!
     n_shift = 2000.
     e_shift = 2000.
-    lon_shift_p = du.lat_lon_relative_shift(reference_source_copy.lat, 
-                                          reference_source_copy.lon,
+    lon_shift_p = du.lat_lon_relative_shift(ref_lat, 
+                                          ref_lon,
                                           east_shift=e_shift)
 
-    lat_shift_p = du.lat_lon_relative_shift(reference_source_copy.lat, 
-                                          reference_source_copy.lon,
+    lat_shift_p = du.lat_lon_relative_shift(ref_lat, 
+                                          ref_lon,
                                           north_shift=n_shift)
 
-    lon_shift_n = du.lat_lon_relative_shift(reference_source_copy.lat, 
-                                          reference_source_copy.lon,
+    lon_shift_n = du.lat_lon_relative_shift(ref_lat, 
+                                          ref_lon,
                                           east_shift=-e_shift)
 
-    lat_shift_n = du.lat_lon_relative_shift(reference_source_copy.lat, 
-                                          reference_source_copy.lon,
+    lat_shift_n = du.lat_lon_relative_shift(ref_lat, 
+                                          ref_lon,
                                           north_shift=-n_shift)
 
     test_parameter_values = [num.linspace(0.5, 5., 11),
-                             num.linspace(reference_source_copy.strike-45.,
-                                          reference_source_copy.strike+45.,
-                                          21),
-                             num.linspace(reference_source_copy.dip-45.,
-                                          reference_source_copy.dip+45.,
-                                          21),
-                             num.linspace(reference_source_copy.rake-45.,
-                                          reference_source_copy.rake+45.,
-                                          21),
+                             num.linspace(ref_strike-45., ref_strike+45., 21),
+                             num.linspace(ref_dip-45., ref_dip+45., 21),
+                             num.linspace(ref_rake-45., ref_rake+45., 21),
                              num.linspace(lat_shift_n, lat_shift_p, 11),
                              num.linspace(lon_shift_n, lon_shift_p, 11)]
 
-    #pool = multiprocessing.Pool()
-    #pool.map(do_run, zip(test_parameter, test_parameter_values))
-    #import pdb
-    #pdb.set_trace()
-    #forkmap.map(do_run, zip(test_parameter, test_parameter_values), n=2) 
     for i, tpset in enumerate(zip(test_parameter, test_parameter_values)):
         print i+1, 'of', len(tpset)
         do_run(tpset) 
     
-    #from depth_error_display import make_compare_plots as mcp
-    #mcp(test_case.candidates, test_case.references,
-    #        test_case.processed_candidates, test_case.processed_references)
-    #plt.show()

@@ -70,7 +70,8 @@ depth = 2000.
 name = 'regional'
 descriptor = ''
 
-if True:
+if False:
+    print '(1) start generating processed plots'
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
         optic = optics[k]
@@ -99,11 +100,13 @@ if True:
                 extra=str(optic.test_case_setup.test_parameter_value)+\
                                 '.'.join(k))
         v.savefig(fn)
+    print 'done.'
 
 #..........................................................................
 # Plot depth difference versus test_parameter:
 #---------------------------------------------
-if True:
+if False:
+    print '(2)start generating diff plot'
     fig = plt.figure()
     ax = fig.add_subplot(111)
     for date in data:
@@ -124,6 +127,7 @@ if True:
             extra='.'.join(k))
     fig.savefig(fn)
     #plt.show()
+    print 'done'
 
 
 #............................................................................
@@ -135,15 +139,12 @@ if True:
 #    return (val-min(depths))/max(depths)*255
 
 if True:
+    print '(3)start generating stack plot'
     depths=[1000.,2000.,3000.]
     for k, opt in optics.iteritems():
         test_parameter = opt.test_case_setup.test_parameter 
         fig = plt.figure()
         ax = opt.stack_plot(depths=depths)
-        #for a in ax.values():
-        #    for l in a.get_lines():
-        #        l.set_color(colormap(scalez255(float(\
-        #            l.get_label().split()[0]))))
 
         fn = file_name_path(name, 
                 test_parameter=test_parameter,
@@ -152,8 +153,7 @@ if True:
                 extra=opt.test_case_setup.test_parameter_value)
 
         fig.savefig(fn)
-        #plt.show()
-
+    print 'done'
 #...............................................
 # plot z components of chosen optic
 

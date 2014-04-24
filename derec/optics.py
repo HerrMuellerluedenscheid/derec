@@ -303,16 +303,17 @@ class OpticBase():
             self.get_processed_candidates_lines(**kwargs)
         return self.processed_candidates_lines[source][target]
 
-    def get_processed_reference_line(self, source, target):
+    def get_processed_reference_line(self, source, target, **kwargs):
         if not self.processed_references_lines:
-            self.get_processed_references_lines()
+            self.get_processed_references_lines(**kwargs)
         return self.processed_references_lines[source][target]
 
-    def get_processed_references_lines(self, sources=[]):
-        sources=sources if sources else self.sources
+    def get_processed_references_lines(self, **kwargs): 
+        sources=kwargs['sources'] if 'sources' in kwargs.keys() else self.sources
         if not self.processed_references_lines:
             self.processed_references_lines=\
-                            TestCase.lines_dict(self.processed_references)
+                            TestCase.lines_dict(self.processed_references, 
+                                    **kwargs)
         out_dict = dict((s, l) for s,l in\
                 self.processed_references_lines.iteritems() if s in sources)
         return out_dict

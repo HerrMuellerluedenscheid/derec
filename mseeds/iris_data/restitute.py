@@ -29,7 +29,6 @@ for t_i, t in enumerate(traces):
         print '-----'
         for t in t_stack:
             tcodes = t.nslc_id
-            respfile = respdir + 'RESP.%s.%s.%s.%s.'%tcodes 
             invevalresp = trace.InverseEvalresp(respdir, t)
             print 'restitute: %s'%t
             tnew = t.transfer(tfade=10., 
