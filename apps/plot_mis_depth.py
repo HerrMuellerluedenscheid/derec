@@ -66,7 +66,7 @@ all_targets = optics.values()[0].targets
 #-------------------------------------------------------==
 
 depth = 2000.
-name = 'regional'
+name = 'regional_test'
 descriptor = ''
 
 if False:
@@ -104,7 +104,7 @@ if False:
 #..........................................................................
 # Plot depth difference versus test_parameter:
 #---------------------------------------------
-if False:
+if True:
     print '(2)start generating diff plot'
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -123,7 +123,7 @@ if False:
             test_parameter=test_parameter,
             descriptor='', 
             test_type='z_diff_vs_tp.pdf', 
-            extra='.'.join(k))
+            extra='')
     fig.savefig(fn)
     #plt.show()
     print 'done'

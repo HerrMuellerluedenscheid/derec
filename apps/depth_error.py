@@ -2,7 +2,7 @@ import copy
 import progressbar
 import os
 import numpy as num
-#import multiprocessing
+import copy
 from matplotlib import pyplot as plt
 
 from pyrocko.gf import *
@@ -10,7 +10,9 @@ from pyrocko import model, gui_util, pile, trace, moment_tensor, io, parimap
 from pyrocko.guts import *
 from derec import derec_utils as du
 from derec.core import *
-#from derec import forkmap
+
+def reset_source(source, ref_source):
+    source.__dict__ = ref_source.__dict__.copy()
 
 
 pjoin = os.path.join
@@ -23,19 +25,20 @@ def do_run(tpvalues):
 
         setattr(test_case_setup, 'test_parameter', test_parameter)
 
-        test_case_setup.test_parameter_value = float(parameter_value)
+        test_case_setup.test_parameter_value = float(parameter_value) 
+
+        reset_source(reference_source, __reference_source_copy)
 
         if test_case_setup.test_parameter=='source_time_function':
             stf[0][1] = float(parameter_value)
             setattr(test_case_setup, test_parameter, stf)
         else:
-            setattr(reference_source_copy, test_parameter, float(parameter_value))
+            setattr(reference_source, test_parameter, float(parameter_value))
 
         # overwriting sources:
         test_case_setup.sources = du.test_event_generator(
-                                                reference_source_copy, depths)
+                                                reference_source, depths)
 
-        #print '%s of %s'%(i+1, len(test_parameter_values))
         test_case = TestCase( test_case_setup )
         test_case.set_raw_references(reference_seismograms)
         test_case_dict = {}
@@ -56,7 +59,6 @@ def do_run(tpvalues):
         if not os.path.exists(base_dir):
             os.makedirs(base_dir)
 
-        #print 'dump'
         test_case.yaml_dump(fn='%s/%s%s/depth_error_%s.yaml'%(name,
                                     test_case_setup.test_parameter,
                                     descriptor,
@@ -66,7 +68,7 @@ def do_run(tpvalues):
 if __name__ ==  "__main__":
 
     #name = 'local'
-    name = 'regional' 
+    name = 'regional_test' 
     #name = 'global'
 
     descriptor = ''
@@ -75,12 +77,13 @@ if __name__ ==  "__main__":
 
     fn = 'test_case_setup.yaml'
     test_case_setup = load_string(open(fn,'r').read())
-    reference_source_copy = test_case_setup.reference_source
+    reference_source = test_case_setup.reference_source
+    __reference_source_copy = copy.deepcopy(reference_source)
 
     zoffset = 2000
 
-    depths=num.linspace(test_case_setup.reference_source.depth-zoffset, 
-                        test_case_setup.reference_source.depth+zoffset, 
+    depths=num.linspace(reference_source.depth-zoffset, 
+                        reference_source.depth+zoffset, 
                         21)
 
     depths = [float(d) for d in depths]
@@ -91,7 +94,7 @@ if __name__ ==  "__main__":
     store_dirs = [derec_home + '/fomostos']
     test_case_setup.engine.store_superdirs = store_dirs
     stf = [[0., 1.], [0.,1.]]
-    reference_seismograms = make_reference_trace(test_case_setup.reference_source,
+    reference_seismograms = make_reference_trace(reference_source,
                                              test_case_setup.targets, 
                                              test_case_setup.engine,
                                              stf)
@@ -103,13 +106,13 @@ if __name__ ==  "__main__":
                       'latitude',
                       'longitude' ]
 
-    ref_lat = reference_source_copy.lat
-    ref_lon = reference_source_copy.lon 
-    ref_depth = reference_source_copy.depth
-    ref_strike= reference_source_copy.strike
-    ref_dip =  reference_source_copy.dip
-    ref_rake= reference_source_copy.rake
-    # TODO relative shift!!!
+    ref_lat = reference_source.lat
+    ref_lon = reference_source.lon 
+    ref_depth = reference_source.depth
+    ref_strike= reference_source.strike
+    ref_dip =  reference_source.dip
+    ref_rake= reference_source.rake
+
     n_shift = 2000.
     e_shift = 2000.
     lon_shift_p = du.lat_lon_relative_shift(ref_lat, 
@@ -128,14 +131,14 @@ if __name__ ==  "__main__":
                                           ref_lon,
                                           north_shift=-n_shift)
 
-    test_parameter_values = [num.linspace(0.5, 5., 11),
-                             num.linspace(ref_strike-45., ref_strike+45., 21),
-                             num.linspace(ref_dip-45., ref_dip+45., 21),
-                             num.linspace(ref_rake-45., ref_rake+45., 21),
-                             num.linspace(lat_shift_n, lat_shift_p, 11),
-                             num.linspace(lon_shift_n, lon_shift_p, 11)]
+    test_parameter_values = [num.linspace(0.5, 5., 3),
+                             num.linspace(ref_strike-45., ref_strike+45., 3),
+                             num.linspace(ref_dip-45., ref_dip+45., 3),
+                             num.linspace(ref_rake-45., ref_rake+45., 3),
+                             num.linspace(lat_shift_n, lat_shift_p, 3),
+                             num.linspace(lon_shift_n, lon_shift_p, 3)]
 
     for i, tpset in enumerate(zip(test_parameter, test_parameter_values)):
-        print i+1, 'of', len(tpset)
+        print i+1, 'of', len(test_parameter)
         do_run(tpset) 
     
