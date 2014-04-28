@@ -131,7 +131,7 @@ def cake_first_arrival(distance, depth, model, phases=None):
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-            static_length=None, perc=None, t_shift_frac=None, **kwargs):
+            static_length=0., perc=None, t_shift_frac=None, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -204,12 +204,12 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
             tmin += source.time
             tmax += source.time
 
-            m = PhaseMarker(nslc_ids=target.codes,
+            m = PhaseMarker(nslc_ids=[(target.codes)],
                             tmin=tmin,
                             tmax=tmax,
                             kind=1,
                             event=source,
-                            phasename='p-s')
+                            phasename='drc')
 
             return_dict[target] = m
         return return_dict 
