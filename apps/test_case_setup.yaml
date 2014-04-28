@@ -265,9 +265,9 @@ misfit_setup: !pyrocko.trace.MisfitSetup
 source_time_function:
 - [0.0, 1.0]
 - [0.0, 1.0]
-number_of_time_shifts: 9
-percentage_of_shift: 10.0
+number_of_time_shifts: 15
+percentage_of_shift: 15.0
 phase_ids_start: P|p|Pv2.5p|Pv12.5p|Pv18.5p|Pv20p|Pv35p
-static_length: 4.0
+static_length: 5.0
 marker_perc_length: 50.0
 marker_shift_frac: 0.20000000000000001
