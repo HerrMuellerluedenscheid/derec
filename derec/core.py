@@ -200,8 +200,10 @@ class TestCase(Object):
         """
         self.test_case_setup.regularize()
         f = open(fn,'w')
-        f.write(self.test_case_setup.dump())
+        dumped = self.test_case_setup.dump() 
+        f.write(dumped)
         f.close()
+        return dumped
 
     def yaml_dump(self, fn=''):
         """
@@ -249,9 +251,12 @@ class TestCase(Object):
         test_case_data.validate()
         test_case_data.regularize()
 
+        dumped = test_case_data.dump()
         f = open(fn, 'w')
-        f.write(test_case_data.dump())
+        f.write(dumped)
         f.close()
+
+        return dumped
 
     def make_t_shifts(self, trac, num_samples, perc):
         """
@@ -275,6 +280,7 @@ class TestCase(Object):
 
         shifted_candidates = [cand.copy() for i in range(len(t_shifts))]
         map(lambda t,s: t.shift(s), shifted_candidates, t_shifts)
+        #map(lambda t: t.snap(), shifted_candidates)
         return shifted_candidates
 
     @staticmethod
@@ -405,11 +411,6 @@ if __name__ ==  "__main__":
     assert len(event) == 1
     event = event[0].get_event()
     event.magnitude = 4.3
-    #event.moment_tensor = moment_tensor.MomentTensor(
-    #                                m=num.array([[0.0, 0.0, 1.0],
-    #                                             [0.0, 0.0, 0.0],
-    #                                             [0.0, 0.0, 0.0]]))
-    #
     event.moment_tensor = moment_tensor.MomentTensor(strike=37.3,
                                                     dip=30.,
                                                     rake=-3.)
@@ -425,8 +426,6 @@ if __name__ ==  "__main__":
     ref_source = DCSource.from_pyrocko_event(event)
 
     depths=[1500, 2000, 2500]
-    print 
-    depths, '<- depths'
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)

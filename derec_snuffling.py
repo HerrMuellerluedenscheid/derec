@@ -21,40 +21,48 @@ derec_home = os.environ["DEREC_HOME"]
 store_dirs = [derec_home + '/fomostos']
 engine = LocalEngine(store_superdirs=store_dirs)
 store_id = 'castor'
-engine.regularize()
+k = 1000.
 
 
 class Derec(Snuffling):
     '''
+    
     '''
     def setup(self):
         '''Customization of the snuffling.'''
         
         self.set_name('Depth Relocation')
-        self.add_parameter(Choice('Store: ', 'store_id',
+        self.add_parameter(Choice('Store: ', 'store_id_choice',
                                     'Need to select a superdir first.',
                                     ['Need to select a superdir first.']))
-        self.add_parameter(Param('Static length [s]', 'static_length', 3, 1, 10))
-        self.add_parameter(Param('Marker length [rel %]', 'marker_perc_length',\
-                10., 0., 100.))
-
+        self.add_parameter(Param('Static marker length [s]', 'static_length', \
+                3, 1, 10))
+        self.add_parameter(Param('Relative Marker length [%]',\
+                'marker_perc_length', 10., 0., 100.))
+        self.add_parameter(Param('Minimal Depth [m]', 'z_min', 1*k, 0., 100*k))
+        self.add_parameter(Param('Maximal Depth [m]', 'z_max', 10*k, 0., 100*k))
         self.add_parameter(Param('Number of Depths', 'num_depths', 3, 1, 21))
         self.add_parameter(Param('rel. Shift of Marker []', 'marker_shift_frac',\
                 0.3, 0., 1.))
-
         self.add_parameter(Param('Number of Time Shifts', 'num_time_shifts',\
                 6, 0, 30))
-
-        self.add_parameter(Param('rel. Shift [%]', 'perc_of_shift', 20., 0., 100.))
+        self.add_parameter(Param('rel. trace shift [%]', 'perc_of_shift', 20.,\
+                0., 100.))
         self.add_parameter(Param('Rise Time [s]', 'rise_time', 1., 0.5, 5.))
         self.add_trigger('Load Misfit Setup', self.load_misfit_setup) 
         self.add_trigger('Load Default Setup', self.load_setup) 
         self.add_trigger('Generate Markers', self.generate_markers) 
         self.add_trigger('Select Store Directory', self.setup_id_choice)
-        self.add_trigger('Save', self.save)
+        self.add_trigger('Save result', self.save_result)
+        self.add_trigger('Save setup', self.save_setup)
         self.set_live_update(False)
+
         self.test_case_setup = None
         self.phase_ids_start = 'p|P'
+        self._store_ids = []
+        self.sources = []
+        self.targets = []
+        self.reference_source = None
 
     def call(self):
         '''Main work routine of the snuffling.'''
@@ -62,43 +70,51 @@ class Derec(Snuffling):
         self.cleanup()
         if not self.test_case_setup:
             self.fail(fail_message)
+
         self.active_event, self.stations = self.get_active_event_and_stations()
+        if not self.targets:
+            self.targets = du.stations2targets(self.stations, \
+                    self.store_id_choice)
 
-        self.targets = du.stations2targets(self.stations)
-        self.reference_source = du.event2source(active_event, 'DC')
+        if not self.reference_source:
+            self.reference_source = du.event2source(self.active_event, 'DC')
+
+        depths = num.linspace(self.z_min, self.z_max, self.num_depths)
         sources = du.test_event_generator(self.reference_source, depths)
-
         stf = [[0., self.rise_time],[0.,1.]]
-        
         # TODO: Qt4 wie directory waehlen fuer engine dirs
-        #engine = LocalEngine(store_superdirs=store_dirs)
         test_case_setup = TestCaseSetup(reference_source=self.reference_source,
                                         sources=sources,
                                         targets=self.targets,
                                         engine=self.engine,
-                                        store_id=self.store_id,
+                                        store_id=self.store_id_choice,
                                         misfit_setup=self.misfit_setup,
-                                        source_time_function=sft,
-                                        number_of_time_shifts=self.num_time_shifts,
+                                        source_time_function=stf,
+                                        number_of_time_shifts=int(self.num_time_shifts),
                                         percentage_of_shift=self.perc_of_shift,
                                         phase_ids_start=self.phase_ids_start,
                                         static_length=self.static_length,
                                         marker_perc_length=self.marker_perc_length,
                                         marker_shift_frac=self.marker_shift_frac,
-                                        depths=num_depths)
+                                        depths=depths)
 
-
-        test_case = core.TestCase(self.test_case_setup)
+        test_case = core.TestCase(test_case_setup)
+        traces = self.get_pile().all()
+        traces_dict = du.make_traces_dict(self.reference_source, self.targets,\
+                traces)
+        test_case.set_raw_references(traces_dict)
+        test_case.set_reference_markers(self.ref_markers_dict)
         core.Doer(test_case)
 
         tmp_out_dir = self.tempdir()
 
-        TestCase.yaml_dump(pjoin(tmp_out_dir, 'derec_results.yaml'))
-        TestCase.yaml_dump_setup(pjoin(tmp_out_dir, 'derec_setup.yaml'))
+        self.dumped_results = TestCase.yaml_dump(pjoin(tmp_out_dir, \
+                'derec_results.yaml'))
+        self.dumped_setup = TestCase.yaml_dump_setup(pjoin(tmp_out_dir, \
+                'derec_setup.yaml'))
 
     def setup_id_choice(self):
         store_ids = self.input_filename(caption='Select a store') 
-        self.store_id_choices.set_choices(store_ids)
 
     def load_misfit_setup(self):
         fn = self.input_filename(caption='Select a misfit setup')
@@ -115,32 +131,53 @@ class Derec(Snuffling):
         self.set_parameter('static_length', \
                 self.test_case_setup.static_length)
         self.set_parameter('num_time_shifts', \
-                self.test_case_setup.number_of_time_shifts)
+                float(self.test_case_setup.number_of_time_shifts))
         self.set_parameter('num_depths', \
                 len(self.test_case_setup.depths))
+        self.set_parameter('z_min', min(self.test_case_setup.depths))
+        self.set_parameter('z_max', max(self.test_case_setup.depths))
         self.set_parameter('rise_time', \
                 self.test_case_setup.source_time_function[0][1])
         self.set_parameter('marker_perc_length', \
                 self.test_case_setup.marker_perc_length)
         self.set_parameter('marker_shift_frac', \
                 self.test_case_setup.marker_shift_frac)
+        self.set_parameter('perc_of_shift',\
+                self.test_case_setup.percentage_of_shift)
         self.phase_ids_start = self.test_case_setup.phase_ids_start
         self.engine = self.test_case_setup.engine
+        self.misfit_setup = self.test_case_setup.misfit_setup
+        self._store_ids.extend(self.test_case_setup.engine.get_store_ids())
+        self.set_parameter_choices('store_id_choice', self._store_ids) 
 
-    def save(self):
-        self.output_filename('Save Results')
+    def save_result(self):
+        fn = self.output_filename('Save Results')
+        f = open(fn, 'r')
+        f.write(self.dumped_results)
+        f.close()
+
+    def save_setup(self):
+        fn = self.output_filename('Save Setup')
+        f = open(fn, 'r')
+        f.write(self.dumped_setup)
+        f.close()
 
     def generate_markers(self):
         try:
-            self.get_viewer().remove_markers(self.markers)
+            self.viewer.remove_markers(self.markers)
         except AttributeError:
-            pass
+            self.viewer = self.get_viewer()
 
         self.active_event, self.stations = self.get_active_event_and_stations()
-        self.targets = du.stations2targets(self.stations)
-        self.reference_source = du.event2source(self.active_event, 'DC')
 
-        self.markers = du.chop_ranges(self.reference_source,
+        if not self.targets:
+            self.targets = du.stations2targets(self.stations, \
+                    self.store_id_choice)
+
+        if not self.reference_source:
+            self.reference_source = du.event2source(self.active_event, 'DC')
+
+        self.ref_markers_dict = du.chop_ranges(self.reference_source,
                        self.targets,
                        self.engine.get_store(store_id),
                        self.phase_ids_start,
@@ -149,7 +186,8 @@ class Derec(Snuffling):
                        t_shift_frac=self.marker_shift_frac,
                        use_cake=True)
 
-        self.add_markers(self.markers.values()[0].values())
+        self.markers = self.ref_markers_dict.values()[0].values()
+        self.add_markers(self.markers)
 
                 
 def __snufflings__():

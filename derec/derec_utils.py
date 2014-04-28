@@ -19,6 +19,16 @@ from itertools import izip
 logger = logging.getLogger('derec_utils')
 
 
+def make_traces_dict(source, targets, traces):
+    targets_traces= {}
+    for tr in traces:
+        tar = filter(lambda x: x.codes==tr.nslc_id, targets)
+        assert len(tar)==1
+        tar = tar[0]
+        print tr
+        targets_traces.update({tar:tr})
+    return {source: targets_traces}
+
 re = 6371000.785
 
 class NoMatchingTraces(Exception):

@@ -70,16 +70,38 @@ def do_run(tpvalues):
 if __name__ ==  "__main__":
 
     #name = 'local'
-    name = 'regional_test' 
+    name = 'rotenburg' 
+    #name = 'regional_bandpass' 
     #name = 'global'
 
     descriptor = ''
-    description = 'noise free test. This time using more shifts to see if the'+\
-    'errors decrease.'
+    description = 'noise free test. This time with bandpass.'
 
     fn = 'test_case_setup.yaml'
     test_case_setup = load_string(open(fn,'r').read())
-    reference_source = test_case_setup.reference_source
+
+    if choice=='rotenburg':
+        reference_event = model.Event.load('../mseeds/Rotenburg/Iris/\
+                                                    rotenburg_quakefile.dat')
+        test_case_setup.reference_source = du.
+    elif choice=='castor':
+        reference_source = test_case_setup.reference_source
+
+    #z, p, k = butter(2, [0.001*num.pi*2, 1.0*num.pi*2.],  
+    #                   'band',  
+    #                   analog=True,  
+    #                   output='zpk') 
+    # 
+    #z = map(complex, z) 
+    #p = map(complex, p) 
+    #k = complex(k) 
+    #fresponse = trace.PoleZeroResponse(z,p,k)
+    #fresponse.validate()
+    #test_case_setup.misfit_setup.filter = fresponse
+
+    test_case_setup.number_of_time_shifts = 21
+    test_case_setup.static_length = 5.
+
     __reference_source_copy = copy.deepcopy(reference_source)
 
     zoffset = 2000
@@ -135,7 +157,7 @@ if __name__ ==  "__main__":
                                           ref_lon,
                                           north_shift=-n_shift)
 
-    test_parameter_values = [num.linspace(0.5, 5., 15),
+    test_parameter_values = [num.linspace(0.5, 5., 21),
                              num.linspace(ref_strike-45., ref_strike+45., 15),
                              num.linspace(ref_dip-45., ref_dip+45., 15),
                              num.linspace(ref_rake-45., ref_rake+45., 15),
