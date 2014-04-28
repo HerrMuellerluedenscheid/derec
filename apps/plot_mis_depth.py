@@ -167,8 +167,6 @@ if True:
                     descriptor='', 
                     test_type='channel_%s_%s'%(src.depth, channel),
                     extra=param_value)
-            print src 
-            print 'if this appears more than once, save in individual file....'
 
             fig.savefig(fn)
 
