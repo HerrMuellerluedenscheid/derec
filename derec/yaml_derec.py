@@ -11,7 +11,7 @@ class yamlMarker(Object):
     """
     yaml version of the pyrocko.gui_util.Marker class
     """
-    nslc_ids = Tuple.T(4, String.T())
+    nslc_ids = List.T(Tuple.T(4, String.T()))
     tmin = Timestamp.T()
     tmax = Timestamp.T(optional=True)
     kind = Int.T(optional=True)
