@@ -33,7 +33,9 @@ def do_run(tpvalues):
             stf[0][1] = float(parameter_value)
             setattr(test_case_setup, test_parameter, stf)
         else:
+            setattr(test_case_setup, 'source_time_function', __stf)
             setattr(reference_source, test_parameter, float(parameter_value))
+            print __stf, 'check! should be [01][01]'
 
         # overwriting sources:
         test_case_setup.sources = du.test_event_generator(
@@ -94,6 +96,8 @@ if __name__ ==  "__main__":
     store_dirs = [derec_home + '/fomostos']
     test_case_setup.engine.store_superdirs = store_dirs
     stf = [[0., 1.], [0.,1.]]
+    __stf = copy.deepcopy(stf)
+
     reference_seismograms = make_reference_trace(reference_source,
                                              test_case_setup.targets, 
                                              test_case_setup.engine,
@@ -131,12 +135,12 @@ if __name__ ==  "__main__":
                                           ref_lon,
                                           north_shift=-n_shift)
 
-    test_parameter_values = [num.linspace(0.5, 5., 3),
-                             num.linspace(ref_strike-45., ref_strike+45., 3),
-                             num.linspace(ref_dip-45., ref_dip+45., 3),
-                             num.linspace(ref_rake-45., ref_rake+45., 3),
-                             num.linspace(lat_shift_n, lat_shift_p, 3),
-                             num.linspace(lon_shift_n, lon_shift_p, 3)]
+    test_parameter_values = [num.linspace(0.5, 5., 15),
+                             num.linspace(ref_strike-45., ref_strike+45., 15),
+                             num.linspace(ref_dip-45., ref_dip+45., 15),
+                             num.linspace(ref_rake-45., ref_rake+45., 15),
+                             num.linspace(lat_shift_n, lat_shift_p, 15),
+                             num.linspace(lon_shift_n, lon_shift_p, 15)]
 
     for i, tpset in enumerate(zip(test_parameter, test_parameter_values)):
         print i+1, 'of', len(test_parameter)
