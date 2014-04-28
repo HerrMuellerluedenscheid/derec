@@ -389,10 +389,10 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(selfdir,
                             '../reference_stations_castor_selection.txt'))
 
-    #markers = gui_util.Marker.load_markers(pjoin(selfdir,
-    #                                            '../reference_marker_castor.txt'))
+    markers = gui_util.Marker.load_markers(pjoin(selfdir,
+                                                '../reference_marker_castor.txt'))
 
-    event = model.Event(load='castor_event_2013-10-01.dat')
+    #event = model.Event(load='castor_event_2013-10-01.dat')
 
     phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                        store_id, 
@@ -401,18 +401,20 @@ if __name__ ==  "__main__":
     
     # load stations from file:
     # Event==================================================
-    #event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
-    #assert len(event) == 1
-    #event = event[0].get_event()
-    #event.magnitude = 4.3
+    event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
+    assert len(event) == 1
+    event = event[0].get_event()
+    event.magnitude = 4.3
     #event.moment_tensor = moment_tensor.MomentTensor(
     #                                m=num.array([[0.0, 0.0, 1.0],
     #                                             [0.0, 0.0, 0.0],
     #                                             [0.0, 0.0, 0.0]]))
     #
-    #event.dump('core_event.dat')
+    event.moment_tensor = moment_tensor.MomentTensor(strike=37.3,
+                                                    dip=30.,
+                                                    rake=-3.)
 
-    # generate stations from olat, olon:
+    event.dump('castor_event_2013.dat')
 
     targets = du.stations2targets(stations, store_id)
 
@@ -421,8 +423,6 @@ if __name__ ==  "__main__":
     #TESTSOURCES===============================================
     
     ref_source = DCSource.from_pyrocko_event(event)
-    
-    #ref_source = du.event2source(event, 'DC', strike=37.3, dip=30, rake=-3)
 
     depths=[1500, 2000, 2500]
     print 
@@ -433,33 +433,31 @@ if __name__ ==  "__main__":
 
     map(lambda x: x.regularize(), location_test_sources)
 
-    reference_request = make_reference_trace(ref_source, targets, engine)
-
-    reference_seismograms = du.response_to_dict(reference_request)
+    rise_time=1.
+    stf = [[0.,rise_time],[0.,1.]]
+    reference_seismograms = make_reference_trace(ref_source, targets, engine, stf)
 
     # setup the misfit setup:
     norm = 2
     taper = trace.CosFader(xfrac=0.2) 
     
-    z, p, k = butter(4, 2.0*num.pi*2., 
-                       'low', 
+    z, p, k = butter(2, [0.001*num.pi*2, 2.0*num.pi*2.], 
+                       'band', 
                        analog=True, 
                        output='zpk')
-
-    z = [complex(zi) for zi in z]
-    p = [complex(pi) for pi in p]
+    
+    z = map(complex, z)
+    p = map(complex, p)
     k = complex(k)
-
+    
     fresponse = trace.PoleZeroResponse(z,p,k)
-    fresponse.regularize()
+    fresponse.validate()
 
     misfit_setup = trace.MisfitSetup(norm=norm,
                                      taper=taper,
                                      domain='time_domain',
                                      filter=fresponse)
 
-    rise_time=1.
-    stf = [[0.,rise_time],[0.,1.]]
 
     test_case_setup = TestCaseSetup(reference_source=ref_source,
                                     sources=location_test_sources,
@@ -478,13 +476,7 @@ if __name__ ==  "__main__":
 
     test_case = TestCase( test_case_setup )
 
-    #for tr in TestCase.iter_dict(reference_seismograms, only_values=True):
-    #    du.add_random_noise_to_trace(tr, A=0.00001)
-
     test_case.set_raw_references(reference_seismograms)
-
-    test_case.raw_references = du.apply_stf(test_case.raw_references, 
-                            test_case_setup.source_time_function)
 
     io.save(test_case.raw_references.values()[0].values(),
             'core_traces.mseed')
