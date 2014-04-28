@@ -17,13 +17,11 @@ from pyrocko.guts_array import Array
 
 pjoin = os.path.join
 fail_message = 'Need to load a setup, first'
-guts_prefix = 'pyrocko.gf.meta'
 derec_home = os.environ["DEREC_HOME"]
 store_dirs = [derec_home + '/fomostos']
 engine = LocalEngine(store_superdirs=store_dirs)
 store_id = 'castor'
 engine.regularize()
-print engine.get_store(store_id)
 
 
 class Derec(Snuffling):
@@ -66,7 +64,6 @@ class Derec(Snuffling):
             self.fail(fail_message)
         self.active_event, self.stations = self.get_active_event_and_stations()
 
-        #depths = self.test_case_setup.depths
         self.targets = du.stations2targets(self.stations)
         self.reference_source = du.event2source(active_event, 'DC')
         sources = du.test_event_generator(self.reference_source, depths)
@@ -74,7 +71,7 @@ class Derec(Snuffling):
         stf = [[0., self.rise_time],[0.,1.]]
         
         # TODO: Qt4 wie directory waehlen fuer engine dirs
-        engine = LocalEngine(store_superdirs=store_dirs)
+        #engine = LocalEngine(store_superdirs=store_dirs)
         test_case_setup = TestCaseSetup(reference_source=self.reference_source,
                                         sources=sources,
                                         targets=self.targets,
@@ -128,42 +125,31 @@ class Derec(Snuffling):
         self.set_parameter('marker_shift_frac', \
                 self.test_case_setup.marker_shift_frac)
         self.phase_ids_start = self.test_case_setup.phase_ids_start
+        self.engine = self.test_case_setup.engine
 
     def save(self):
         self.output_filename('Save Results')
 
     def generate_markers(self):
-        #if not self.test_case_setup:
-        #    self.fail(fail_message)
+        try:
+            self.get_viewer().remove_markers(self.markers)
+        except AttributeError:
+            pass
 
         self.active_event, self.stations = self.get_active_event_and_stations()
         self.targets = du.stations2targets(self.stations)
-        print self.active_event
         self.reference_source = du.event2source(self.active_event, 'DC')
-        #fn = pjoin(derec_home, 'derec', 'test_case_setup.yaml')
-        #f = open(fn,'r')
-        #print 'loadl'
-        #print f
-        #self.test_case_setup = load_string(f.read())
-        #print 'done'
-        #f.close()
-        #print self.test_case_setup
 
-
-        # need to improve the horrible double line
-        #store = self.test_case_setup.store_id 
-        engine.regularize()
-        print 'got it'
-        markers = du.chop_ranges(self.reference_source,
+        self.markers = du.chop_ranges(self.reference_source,
                        self.targets,
-                       engine.get_store(store_id),
+                       self.engine.get_store(store_id),
                        self.phase_ids_start,
                        perc=self.marker_perc_length,
+                       static_length=self.static_length,
                        t_shift_frac=self.marker_shift_frac,
                        use_cake=True)
 
-        print markers
-        self.add_markers(markers.values()[0].values())
+        self.add_markers(self.markers.values()[0].values())
 
                 
 def __snufflings__():
