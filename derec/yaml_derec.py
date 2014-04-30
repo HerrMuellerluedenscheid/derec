@@ -38,7 +38,7 @@ class TestCaseSetup(Object):
     store_id = String.T(optional=True)
 
     # depths have to given as a list of floats!
-    depths = List.T()
+    depths = List.T(Float.T())
     misfit_setup = trace.MisfitSetup.T()
     source_time_function = List.T(List.T(Float.T()))
     number_of_time_shifts = Int.T()

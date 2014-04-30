@@ -2,18 +2,22 @@ import numpy as num
 import tempfile
 import os
 import pyrocko
+import matplotlib.pyplot as plt
+
 from pyrocko.gf.meta import ConfigTypeA
 from pyrocko.snuffling import Snuffling, Param, Switch, NoViewerSet, Choice
 from pyrocko import trace
 from pyrocko.gf import *
 from pyrocko.gf.meta import ConfigTypeA
 from pyrocko import *
-from derec import derec_utils as du
-from derec import core
-from derec.yaml_derec import *
-from derec import yaml_derec
 from pyrocko.guts import load_string, String, Float, Int, Dict
 from pyrocko.guts_array import Array
+
+from derec import derec_utils as du
+from derec import core
+from derec import optics
+from derec.yaml_derec import *
+from derec import yaml_derec
 
 pjoin = os.path.join
 fail_message = 'Need to load a setup, first'
@@ -108,10 +112,25 @@ class Derec(Snuffling):
 
         tmp_out_dir = self.tempdir()
 
-        self.dumped_results = TestCase.yaml_dump(pjoin(tmp_out_dir, \
+        fig = self.figure()
+        optics.plot_misfit_dict(test_case.misfits, ax=fig.gca())
+        fig.canvas.draw()
+
+        optic = optics.OpticBase(test_case)
+        #fig = self.figure()
+        optic.stack_plot()
+        plt.show()
+        #for ax in axs.values():
+        #    fig.add_axes(ax)
+        #
+        #fig.canvas.draw()
+    
+        self.dumped_results = test_case.yaml_dump(pjoin(tmp_out_dir, \
                 'derec_results.yaml'))
-        self.dumped_setup = TestCase.yaml_dump_setup(pjoin(tmp_out_dir, \
+        self.dumped_setup = test_case.yaml_dump_setup(pjoin(tmp_out_dir, \
                 'derec_setup.yaml'))
+
+
 
     def setup_id_choice(self):
         store_ids = self.input_filename(caption='Select a store') 

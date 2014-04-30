@@ -6,38 +6,38 @@ reference_source: !pyrocko.gf.seismosizer.DCSource
   depth: 2000.0
   name: R
   time: 2013-10-01 03:32:45
-  magnitude: -6.0333332942824116
-  strike: 129.59867858384143
-  dip: 88.50051252760457
-  rake: -119.96600701724373
+  magnitude: 4.3407342755833991
+  strike: 129.59866214523464
+  dip: 88.500517866747131
+  rake: -119.96605724334462
 sources:
 - !pyrocko.gf.seismosizer.DCSource
   lat: 40.399999999999999
   lon: 0.71999999999999997
   depth: 1500.0
   time: 2013-10-01 03:32:45
-  magnitude: -6.0333332942824116
-  strike: 129.59867858384143
-  dip: 88.50051252760457
-  rake: -119.96600701724373
+  magnitude: 4.3407342755833991
+  strike: 129.59866214523464
+  dip: 88.500517866747131
+  rake: -119.96605724334462
 - !pyrocko.gf.seismosizer.DCSource
   lat: 40.399999999999999
   lon: 0.71999999999999997
   depth: 2000.0
   time: 2013-10-01 03:32:45
-  magnitude: -6.0333332942824116
-  strike: 129.59867858384143
-  dip: 88.50051252760457
-  rake: -119.96600701724373
+  magnitude: 4.3407342755833991
+  strike: 129.59866214523464
+  dip: 88.500517866747131
+  rake: -119.96605724334462
 - !pyrocko.gf.seismosizer.DCSource
   lat: 40.399999999999999
   lon: 0.71999999999999997
   depth: 2500.0
   time: 2013-10-01 03:32:45
-  magnitude: -6.0333332942824116
-  strike: 129.59867858384143
-  dip: 88.50051252760457
-  rake: -119.96600701724373
+  magnitude: 4.3407342755833991
+  strike: 129.59866214523464
+  dip: 88.500517866747131
+  rake: -119.96605724334462
 targets:
 - !pyrocko.gf.seismosizer.Target
   lat: 39.026899999999998
@@ -258,16 +258,17 @@ misfit_setup: !pyrocko.trace.MisfitSetup
   taper: !pyrocko.trace.CosFader
     xfrac: 0.20000000000000001
   filter: !pyrocko.trace.PoleZeroResponse
-    poles: [(-4.8089418390747687+11.609812608557721j), (-11.609812608557714+4.8089418390747856j),
-      (-11.609812608557725-4.8089418390747944j), (-4.8089418390747714-11.609812608557721j)]
-    constant: (24936.727304704618+0j)
+    zeros: [0j, 0j]
+    poles: [(-8.8768801148888556+8.8857703214166612j), (-8.8768801148888592-8.8857703214166577j),
+      (-0.0044428784897246254+0.0044473280380840025j), (-0.0044428784897246245-0.0044473280380839999j)]
+    constant: (157.75579622542992+0j)
   domain: time_domain
 source_time_function:
 - [0.0, 1.0]
 - [0.0, 1.0]
-number_of_time_shifts: 15
-percentage_of_shift: 15.0
+number_of_time_shifts: 9
+percentage_of_shift: 10.0
 phase_ids_start: P|p|Pv2.5p|Pv12.5p|Pv18.5p|Pv20p|Pv35p
-static_length: 5.0
+static_length: 4.0
 marker_perc_length: 50.0
 marker_shift_frac: 0.20000000000000001

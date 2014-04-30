@@ -305,13 +305,6 @@ def sampling_rate_similar(t1, t2):
     return abs(t1.deltat - t2.deltat) <= t1.deltat / 100
 
 
-def plot_misfit_dict(mfdict):
-    plt.figure()
-    plt.plot(mfdict.values(), '+')
-    plt.xlabel('Depth [m]')
-    plt.ylabel('Misfit []')
-    plt.show()
-
 
 def filter_traces_dict(self, traces_dict, tfade, freqlimits):
     for s in traces_dict.values():

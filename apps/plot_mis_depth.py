@@ -47,9 +47,8 @@ optics = {}
 data = []
 for i, fn in enumerate(file_names):
     pbar.update(i)
-    #f = open(fn, 'r')
+    name = fn.split('/')[0]
     for date in load_all(filename=fn):
-        #f.close()
         data.append(date)
         ob = OpticBase(test_case_data=date)
         optics.update({ob.test_case_setup.test_parameter_value: ob})
@@ -66,7 +65,7 @@ all_targets = optics.values()[0].targets
 #-------------------------------------------------------==
 
 depth = 2000.
-name = 'regional_test'
+#name = 'regional_new'
 descriptor = ''
 
 if False:
@@ -104,7 +103,7 @@ if False:
 #..........................................................................
 # Plot depth difference versus test_parameter:
 #---------------------------------------------
-if True:
+if False:
     print '(2)start generating diff plot'
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -134,7 +133,7 @@ if True:
 # reference traces as grey shaded areas
 #..............................................
 
-if True:
+if False:
     print '(3)start generating stack plot'
     depths=[1000.,2000.,3000.]
     for k, opt in optics.iteritems():
@@ -152,7 +151,7 @@ if True:
 #...............................................
 # plot z components of chosen optic
 
-if True:
+if False:
     channel = 'Z'
     for param_value, opt in optics.items():
         test_parameter = opt.test_case_setup.test_parameter 
@@ -170,4 +169,14 @@ if True:
 
             fig.savefig(fn)
 
-
+#-----------------------------------------------
+# Plot the misfit dict
+if True:
+    for param_value, opt in optics.items():
+        fig = opt.plot_misfits() 
+        fn = file_name_path(name, 
+                test_parameter=opt.test_case_setup.test_parameter,
+                descriptor='', 
+                test_type='misfits_',
+                extra=param_value)
+        fig.savefig(fn)

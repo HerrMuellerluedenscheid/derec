@@ -68,9 +68,12 @@ def do_run(tpvalues):
 
 
 if __name__ ==  "__main__":
+    derec_home = os.environ["DEREC_HOME"]
+    store_dirs = [derec_home + '/fomostos']
 
     #name = 'local'
     name = 'rotenburg' 
+    choice='rotenburg'
     #name = 'regional_bandpass' 
     #name = 'global'
 
@@ -79,11 +82,24 @@ if __name__ ==  "__main__":
 
     fn = 'test_case_setup.yaml'
     test_case_setup = load_string(open(fn,'r').read())
+    store_id = test_case_setup.store_id
 
     if choice=='rotenburg':
-        reference_event = model.Event.load('../mseeds/Rotenburg/Iris/\
-                                                    rotenburg_quakefile.dat')
-        test_case_setup.reference_source = du.
+        reference_event = model.Event(load=pjoin(derec_home, \
+                'mseeds/RotenburgIris/rotenburg_quakefile.dat'))
+        reference_source = DCSource.from_pyrocko_event(\
+                reference_event)
+        test_case_setup.reference_source = reference_source
+        stations = model.load_stations(pjoin(derec_home, 'mseeds/RotenburgIris'\
+                , 'stations.txt'))
+        targets = []
+        for s in stations:
+            targets.extend(Target.from_pyrocko_station(s, store_id=store_id))
+        test_case_setup.targets = targets
+
+    elif choice=='xizang':
+        pass
+        # filter [0.05-1.5 Hz]
     elif choice=='castor':
         reference_source = test_case_setup.reference_source
 
@@ -104,18 +120,16 @@ if __name__ ==  "__main__":
 
     __reference_source_copy = copy.deepcopy(reference_source)
 
-    zoffset = 2000
+    zoffset = 1000
 
     depths=num.linspace(reference_source.depth-zoffset, 
-                        reference_source.depth+zoffset, 
+                        reference_source.depth, 
                         21)
 
     depths = [float(d) for d in depths]
     print depths, '<- depths'
     test_case_setup.depths = depths
 
-    derec_home = os.environ["DEREC_HOME"]
-    store_dirs = [derec_home + '/fomostos']
     test_case_setup.engine.store_superdirs = store_dirs
     stf = [[0., 1.], [0.,1.]]
     __stf = copy.deepcopy(stf)

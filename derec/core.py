@@ -248,8 +248,8 @@ class TestCase(Object):
         test_case_data.candidates_markers = convert_to_yaml_dict(
                 self.candidates_markers)
 
-        test_case_data.validate()
         test_case_data.regularize()
+        test_case_data.validate()
 
         dumped = test_case_data.dump()
         f = open(fn, 'w')
@@ -398,7 +398,7 @@ if __name__ ==  "__main__":
     markers = gui_util.Marker.load_markers(pjoin(selfdir,
                                                 '../reference_marker_castor.txt'))
 
-    #event = model.Event(load='castor_event_2013-10-01.dat')
+    event = model.Event(load='castor_event_2013-10-01.dat')
 
     phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                        store_id, 
@@ -407,15 +407,15 @@ if __name__ ==  "__main__":
     
     # load stations from file:
     # Event==================================================
-    event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
-    assert len(event) == 1
-    event = event[0].get_event()
-    event.magnitude = 4.3
-    event.moment_tensor = moment_tensor.MomentTensor(strike=37.3,
-                                                    dip=30.,
-                                                    rake=-3.)
-
-    event.dump('castor_event_2013.dat')
+    #event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
+    #assert len(event) == 1
+    #event = event[0].get_event()
+    #event.moment_tensor = moment_tensor.MomentTensor(strike=37.3,
+    #                                                dip=30.,
+    #                                                rake=-3.,
+    #                                                scalar_moment=3.64e15)
+    #
+    #event.dump('castor_event_2013.dat')
 
     targets = du.stations2targets(stations, store_id)
 

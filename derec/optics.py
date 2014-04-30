@@ -1,20 +1,38 @@
 # An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
-from derec.core import TestCaseData, TestCaseSetup, TestCase
-import derec.derec_utils as du
+import numpy as num
+from collections import defaultdict
 import matplotlib
 import matplotlib.transforms as transforms
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
+from pyrocko import trace 
+
+from derec.core import TestCaseData, TestCaseSetup, TestCase
+import derec.derec_utils as du
 import vtk
-import numpy as num
-from collections import defaultdict
 from gmtpy import GMT
 from copy import copy
 
 
 matplotlib.rcParams['font.size'] = 7
+
+def plot_misfit_dict(mfdict, ax=None):
+    if not ax:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+    depths = []
+    values = []
+    for s,v in mfdict.items():
+        depths.append(s.depth); values.append(v) 
+
+    ax.plot(depths, values, 'o')
+    ax.autoscale()
+    plt.xlabel('Depth [km]')
+    plt.ylabel('L2 Misfit m/n') 
+    return ax
+
 
 def gca_label(label_string, ax=plt.gca(), **kwargs):
     """
@@ -117,6 +135,7 @@ class OpticBase():
         self.targets = self.test_case_setup.targets
         self.sources = self.test_case_setup.sources
         self.reference_source = self.test_case_setup.reference_source
+        self.misfits = data_input.misfits
 
     def gmt_map(self, **kwargs):
         sources_lon_lat = set()
@@ -232,44 +251,53 @@ class OpticBase():
             fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
             yield source, fig
 
-    def stack_plot(self, sources=None, depths=None ):
+    def stack_plot(self, sources=None, depths=None, fig=None):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
         area of source, that you would like to look at.
 
         TODO: marker_dict unused?
         '''
+        sources = sources if sources else self.sources
+        depths = depths if depths else self.test_case_setup.depths
+        alpha = 0.5/len(depths)
+
         cmap = plt.get_cmap('Paired')
 
         gs = gridspec.GridSpec(len(self.targets)/3,3)
-        gs_dict= dict(zip(self.targets, gs))
+        gs_dict= dict(zip(sorted(self.targets, key=lambda x: \
+                x.distance_to(sources[0])), gs))
 
         axes_dict = defaultdict()
 
         for source,t, pr_cand_line in\
             TestCase.iter_dict(self.get_processed_candidates_lines(
                          reduce=self.reference_source.time)):
-            if depths and not source.depth in depths:
+            if not source.depth in depths:
                 continue
 
             ax = plt.subplot(gs_dict[t])
             pr_ref = self.processed_references[source][t]
+            
+            if not isinstance(pr_ref, trace.Trace):
+                pr_ref = pr_ref.pyrocko_trace()
 
-            x_ref = pr_ref.pyrocko_trace().get_xdata()-\
-                    self.reference_source.time
-            y_ref = pr_ref.pyrocko_trace().get_ydata()
+            x_ref = pr_ref.get_xdata() - self.reference_source.time
+            y_ref = pr_ref.get_ydata()
                 
-            gca_label(label_string='.'.join(t.codes), fontsize=8)
+            gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=8)
 
             pr_cand_line.set_label("%s m"%float(source.depth))
             pr_cand_line.set_color(cmap(self.scalez255(source.depth)))
             ax.add_line(pr_cand_line)
 
-            p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=0.5)
+            p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=alpha)
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.tick_params(axis='both', which='major', labelsize=6)
             ax.autoscale()
             axes_dict[t] = ax
+            if fig:
+                ax.set_figure(fig)
 
         plt.subplots_adjust(left=None,
                             bottom=None,
@@ -284,6 +312,11 @@ class OpticBase():
             self.test_case_setup.test_parameter_value))
 
         return axes_dict
+
+    def plot_misfits(self):
+        fig = plt.figure()
+        plot_misfit_dict(self.misfits, ax=plt.gca())
+        return fig
 
     def get_candidate_line(self, source, target):
         if not self.candidates_lines:
@@ -409,8 +442,9 @@ class OpticBase():
         return TestCase.get_sources_where(param_dict, self.sources)
 
     def scalez255(self, z): 
-        return (z-min(self.test_case_setup.depths))/max(\
-                self.test_case_setup.depths)*255 
+        minz = min(self.test_case_setup.depths)
+        maxz = max(self.test_case_setup.depths)
+        return int((z-minz)*255/(maxz-minz))
 
 
 class Cube():
