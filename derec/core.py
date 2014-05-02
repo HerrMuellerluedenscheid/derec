@@ -41,14 +41,15 @@ def set_refine_parameter(ref_event, **kwargs):
     return events
 
 
-def make_reference_trace(source, targets, engine, source_time_function=None, 
+def make_reference_trace(source, targets, engines, source_time_function=None, 
         noise=None):
     if not isinstance(source, list):
         source = [source]
 
-    response = engine.process(
-            sources=source,
-            targets=targets)
+    for t in targets:
+        response = engine.process(
+                sources=source,
+                targets=targets)
     ref_seismos = du.response_to_dict(response)
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
@@ -56,42 +57,6 @@ def make_reference_trace(source, targets, engine, source_time_function=None,
         ref_seismos = noise.apply(ref_seismos)
     return ref_seismos
     
-
-class Doer():
-    def __init__(self, test_case):
-
-        test_case.request_data()
-        setup = test_case.test_case_setup
-
-        print('chopping candidates....')
-        extended_test_marker = du.chop_ranges(test_case.sources,
-                                              test_case.targets,
-                                              test_case.store,
-                                              setup.phase_ids_start,
-                                              perc=setup.marker_perc_length,
-                                              static_length=setup.static_length,
-                                              t_shift_frac=setup.marker_shift_frac,
-                                              use_cake=True)
-        
-        test_case.set_candidates_markers( extended_test_marker )
-
-        print('chopping ref....')
-        test_case.references = du.chop_using_markers(
-                                test_case.raw_references, 
-                                test_case.reference_markers, 
-                                inplace=False)
-
-        test_case.apply_stf(setup.source_time_function)
-
-        print('chopping cand....')
-        test_case.candidates = du.chop_using_markers(
-                                test_case.raw_candidates, 
-                                extended_test_marker, 
-                                inplace=False)
-
-        print('calculating misfits...')
-        du.calculate_misfit(test_case)
-
 
 guts_prefix ='derec.yaml_derec'
 
@@ -101,12 +66,12 @@ class TestCase(Object):
     '''
     def __init__(self, test_case_setup):
         self.test_case_setup = test_case_setup
-        self.reference_source = test_case_setup.reference_source
+        self.reference_source = self.test_case_setup.reference_source
 
-        self.targets = test_case_setup.targets
-        self.sources = test_case_setup.sources
-        self.engine = test_case_setup.engine
-        self.store_id = test_case_setup.store_id
+        self.targets = self.test_case_setup.targets
+        self.sources = self.test_case_setup.sources
+        self.engine = self.test_case_setup.engine
+        self.store_id = self.test_case_setup.store_id
 
         self.raw_references = None       #(unchopped, unfiltered)
         self.processed_references = defaultdict(dict)
@@ -116,18 +81,22 @@ class TestCase(Object):
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
 
-        self.misfit_setup = test_case_setup.misfit_setup
-        self.channel_map = test_case_setup.channel_map    
-        self.phase_ids_start = test_case_setup.phase_ids_start
-            
+        self.misfit_setup = self.test_case_setup.misfit_setup
+        self.channel_map = self.test_case_setup.channel_map    
+        self.phase_ids_start = self.test_case_setup.phase_ids_start
+
     def request_data(self):
         print 'requesting data....'
-        self.response = self.engine.process(status_callback=self.update_progressbar, 
+        self.response = self.engine.process(status_callback=\
+                self.update_progressbar, 
                                 sources=self.sources,
                                 targets=self.targets)
         print 'finished'
         self.set_raw_candidates(du.response_to_dict(self.response))
     
+    def set_setup(self, setup):
+        self.test_case_setup = setup
+
     def set_raw_references(self, references):
         """
         references is a dictionary containing the reference seismograms
@@ -193,6 +162,10 @@ class TestCase(Object):
 
     def set_misfit(self, misfits):
         self.misfits = dict(misfits)
+
+    def drop_data(self, **kwargs):
+        for k,v in kwargs:
+            setattr(self, k, None)
 
     def yaml_dump_setup(self, fn=''):
         """
@@ -367,6 +340,39 @@ class TestCase(Object):
     @property
     def store(self):
         return self.engine.get_store(self.store_id)
+    
+    def process(self):
+        self.request_data()
+        setup = self.test_case_setup
+
+        print('chopping candidates....')
+        extended_test_marker = du.chop_ranges(self.sources,
+                                              self.targets,
+                                              self.store,
+                                              setup.phase_ids_start,
+                                              perc=setup.marker_perc_length,
+                                              static_length=setup.static_length,
+                                              t_shift_frac=setup.marker_shift_frac,
+                                              use_cake=True)
+        
+        self.set_candidates_markers( extended_test_marker )
+
+        print('chopping ref....')
+        self.references = du.chop_using_markers(
+                                self.raw_references, 
+                                self.reference_markers, 
+                                inplace=False)
+
+        self.apply_stf(setup.source_time_function)
+
+        print('chopping cand....')
+        self.candidates = du.chop_using_markers(
+                                self.raw_candidates, 
+                                extended_test_marker, 
+                                inplace=False)
+
+        print('calculating misfits...')
+        du.calculate_misfit(test_case)
 
     @staticmethod
     def iter_dict(traces_dict, only_values=False):
@@ -491,7 +497,7 @@ if __name__ ==  "__main__":
 
     test_case.set_reference_markers(extended_ref_marker)
 
-    D = Doer(test_case)
+    test_case.process()
 
     #test_case.compare_plot( traces_dicts=[test_case.processed_references,
     #                    test_case.processed_candidates],

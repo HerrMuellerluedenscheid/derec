@@ -55,7 +55,7 @@ def do_run(tpvalues):
                                     use_cake=True)
 
         test_case.set_reference_markers(extended_ref_marker)
-        D = Doer(test_case)
+        test_case.process()
         
         base_dir = pjoin(name, test_case_setup.test_parameter, descriptor)
         if not os.path.exists(base_dir):
