@@ -5,6 +5,8 @@ from pyrocko.guts_array import Array
 from pyrocko.gf import *
 from pyrocko import trace
 
+from derec import derec_utils as du
+
 guts_prefix = 'derec.yaml_derec'
 
 class yamlMarker(Object):
@@ -30,9 +32,9 @@ class yamlMarker(Object):
 
 
 class TestCaseSetup(Object):
-    tagname = String.T(default='TestCaseSetup')
+    #tagname = String.T(default='TestCaseSetup')
     reference_source = Source.T(optional=True)
-    sources = List.T(Source.T(), optional=True) 
+    sources = List.T(Source.T(), optional=True, default=None) 
     targets = List.T(Target.T(), optional=True) 
     engine = Engine.T(optional=True)
     store_id = String.T(optional=True)
@@ -58,6 +60,26 @@ class TestCaseSetup(Object):
 
     test_parameter = String.T(optional=True, default=None)
     test_parameter_value = Float.T(optional=True, default=None)
+
+    #def __init__(self, **kwargs):
+    #    self.__dict__.update(kwargs)
+
+    #    for k,v in kwargs.items():
+    #        setattr(self, k, v)
+    #        print getattr(self, k, v)
+
+    #    @property
+    #    def sources(self):
+    #        if not self._sources:
+    #            print self._sources
+    #            return self._sources
+    #        else:
+    #            self._sources = du.test_event_generator(self.reference_source,\
+    #                                               self.depths)
+    #            
+    #            self._sources.regularize()
+
+    #            return self._sources
 
 
 class TestCaseData(Object):

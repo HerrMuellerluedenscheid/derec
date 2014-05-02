@@ -65,13 +65,7 @@ class TestCase(Object):
     In one test case, up to 3 parameters can be modified
     '''
     def __init__(self, test_case_setup):
-        self.test_case_setup = test_case_setup
-        self.reference_source = self.test_case_setup.reference_source
-
-        self.targets = self.test_case_setup.targets
-        self.sources = self.test_case_setup.sources
-        self.engine = self.test_case_setup.engine
-        self.store_id = self.test_case_setup.store_id
+        self.set_setup(test_case_setup)
 
         self.raw_references = None       #(unchopped, unfiltered)
         self.processed_references = defaultdict(dict)
@@ -80,10 +74,6 @@ class TestCase(Object):
         self.raw_candidates = None       #(unchopped, unfiltered)
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
-
-        self.misfit_setup = self.test_case_setup.misfit_setup
-        self.channel_map = self.test_case_setup.channel_map    
-        self.phase_ids_start = self.test_case_setup.phase_ids_start
 
     def request_data(self):
         print 'requesting data....'
@@ -96,6 +86,14 @@ class TestCase(Object):
     
     def set_setup(self, setup):
         self.test_case_setup = setup
+        self.reference_source = self.test_case_setup.reference_source
+        self.targets = self.test_case_setup.targets
+        self.sources = self.test_case_setup.sources
+        self.engine = self.test_case_setup.engine
+        self.store_id = self.test_case_setup.store_id
+        self.misfit_setup = self.test_case_setup.misfit_setup
+        self.channel_map = self.test_case_setup.channel_map    
+        self.phase_ids_start = self.test_case_setup.phase_ids_start
 
     def set_raw_references(self, references):
         """
@@ -163,8 +161,8 @@ class TestCase(Object):
     def set_misfit(self, misfits):
         self.misfits = dict(misfits)
 
-    def drop_data(self, **kwargs):
-        for k,v in kwargs:
+    def drop_data(self, *args):
+        for k in args:
             setattr(self, k, None)
 
     def yaml_dump_setup(self, fn=''):
@@ -372,7 +370,14 @@ class TestCase(Object):
                                 inplace=False)
 
         print('calculating misfits...')
-        du.calculate_misfit(test_case)
+        du.calculate_misfit(self)
+
+    def best_source_misfit(self):
+        minmf = min(self.misfits.values())
+        for s, v in self.misfits.iteritems():
+            if v==minmf:
+                return s, minmf
+            
 
     @staticmethod
     def iter_dict(traces_dict, only_values=False):
