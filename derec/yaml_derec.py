@@ -32,7 +32,7 @@ class yamlMarker(Object):
 
 
 class TestCaseSetup(Object):
-    #tagname = String.T(default='TestCaseSetup')
+    tagname = String.T(default='TestCaseSetup')
     reference_source = Source.T(optional=True)
     sources = List.T(Source.T(), optional=True, default=None) 
     targets = List.T(Target.T(), optional=True) 

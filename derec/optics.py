@@ -444,7 +444,10 @@ class OpticBase():
     def scalez255(self, z): 
         minz = min(self.test_case_setup.depths)
         maxz = max(self.test_case_setup.depths)
-        return int((z-minz)*255/(maxz-minz))
+        try:
+            return int((z-minz)*255/(maxz-minz))
+        except ZeroDivisionError:
+            return 147
 
 
 class Cube():

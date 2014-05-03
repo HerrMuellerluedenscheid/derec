@@ -75,17 +75,21 @@ class TestCase(Object):
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
 
-    def request_data(self):
-        print 'requesting data....'
-        self.response = self.engine.process(status_callback=\
-                self.update_progressbar, 
+    def request_data(self, verbose=False):
+        if verbose:
+            print 'requesting data....'
+            pb = self.update_progressbar
+        else:
+            pb = None
+        self.response = self.engine.process(status_callback=pb, 
                                 sources=self.sources,
                                 targets=self.targets)
-        print 'finished'
+        if verbose: print 'finished'
         self.set_raw_candidates(du.response_to_dict(self.response))
     
-    def set_setup(self, setup):
-        self.test_case_setup = setup
+    def set_setup(self, setup=None):
+        if setup:
+            self.test_case_setup = setup
         self.reference_source = self.test_case_setup.reference_source
         self.targets = self.test_case_setup.targets
         self.sources = self.test_case_setup.sources
@@ -339,23 +343,24 @@ class TestCase(Object):
     def store(self):
         return self.engine.get_store(self.store_id)
     
-    def process(self):
-        self.request_data()
+    def process(self, verbose=False):
+        self.request_data(verbose)
         setup = self.test_case_setup
 
-        print('chopping candidates....')
+        if verbose: print('chopping candidates....')
         extended_test_marker = du.chop_ranges(self.sources,
                                               self.targets,
                                               self.store,
                                               setup.phase_ids_start,
                                               perc=setup.marker_perc_length,
                                               static_length=setup.static_length,
-                                              t_shift_frac=setup.marker_shift_frac,
+                                              t_shift_frac=\
+                                                      setup.marker_shift_frac,
                                               use_cake=True)
         
         self.set_candidates_markers( extended_test_marker )
 
-        print('chopping ref....')
+        if verbose: print('chopping ref....')
         self.references = du.chop_using_markers(
                                 self.raw_references, 
                                 self.reference_markers, 
@@ -363,13 +368,13 @@ class TestCase(Object):
 
         self.apply_stf(setup.source_time_function)
 
-        print('chopping cand....')
+        if verbose: print('chopping cand....')
         self.candidates = du.chop_using_markers(
                                 self.raw_candidates, 
                                 extended_test_marker, 
                                 inplace=False)
 
-        print('calculating misfits...')
+        if verbose: print('calculating misfits...')
         du.calculate_misfit(self)
 
     def best_source_misfit(self):

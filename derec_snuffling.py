@@ -10,7 +10,9 @@ from pyrocko.gf import *
 from pyrocko import *
 from pyrocko.guts import load_string, String, Float, Int, Dict
 from pyrocko.guts_array import Array
+#from pyrocko import moment_tensor_viewer as mtv
 
+from derec import mopad
 from derec import derec_utils as du
 from derec import core
 from derec import optics
@@ -20,8 +22,6 @@ pjoin = os.path.join
 fail_message = 'Need to load a setup, first'
 derec_home = os.environ["DEREC_HOME"]
 store_dirs = [derec_home + '/fomostos']
-#engine = LocalEngine(store_superdirs=store_dirs)
-#store_id = 'castor'
 k = 1000.
 misfit = None
 
@@ -52,15 +52,16 @@ class Derec(Snuffling):
                 0., 100.))
         self.add_parameter(Param('Rise Time [s]', 'rise_time', 1., 0.5, 5.))
         self.add_parameter(Param('num inversion steps', 'num_inversion_steps',\
-                2., 1, 10.))
-        self.add_parameter(Switch('Post invert', 'post_invert', True))
-        self.add_parameter(Switch('Pre invert', 'pre_invert', True))
+                2., 1, 20.))
+        self.add_parameter(Switch('Post invert', 'post_invert', False))
+        self.add_parameter(Switch('Pre invert', 'pre_invert', False))
         self.add_trigger('Load Misfit Setup', self.load_misfit_setup) 
         self.add_trigger('Load Default Setup', self.load_setup) 
         self.add_trigger('Generate Markers', self.generate_markers) 
         self.add_trigger('Select Store Directory', self.setup_id_choice)
         self.add_trigger('Save result', self.save_result)
         self.add_trigger('Save setup', self.save_setup)
+        self.add_trigger('BB', self.bb)
         self.set_live_update(False)
 
         self.test_case_setup = None
@@ -74,6 +75,13 @@ class Derec(Snuffling):
         '''Main work routine of the snuffling.'''
 
         self.cleanup()
+
+        # FOR TESTING
+        self.load_setup()
+        #self.generate_markers()
+        self.mts = {}
+        self.best_optics = {}
+
         if not self.test_case_setup:
             self.fail(fail_message)
 
@@ -82,8 +90,11 @@ class Derec(Snuffling):
             self.targets = du.stations2targets(self.stations, \
                     self.store_id_choice)
 
-        if not self.reference_source:
-            self.reference_source = du.event2source(self.active_event, 'DC')
+        #if not self.reference_source:
+        #    self.reference_source = du.event2source(self.active_event, 'DC')
+
+        self.mts.update({'original input': mopad.MomentTensor(\
+                self.active_event.moment_tensor.m6())})
 
         _depths = num.linspace(self.z_min, self.z_max, self.num_depths)
 
@@ -118,24 +129,38 @@ class Derec(Snuffling):
                                         depths=depths)
         test_case_setup.regularize()
         if self.pre_invert:
+            print 'STARTING PRE INVERSION============================'
             test_case = self.invert(setup=test_case_setup, 
                                     source=self.reference_source,
                                     traces_dict=self.traces_dict,
                                     marker_dict=self.ref_markers_dict)
 
-            test_case.test_case_setup.depths = _depths
+            self.best_optics.update({'pre inversion':\
+                optics.OpticBase(test_case)})
 
             best_source, minmf = test_case.best_source_misfit()
-            test_case_setup.reference_source = best_source
-            test_case_setup.sources = du.test_event_generator(\
-                    best_source, _depths)
+            self.mts.update({'best pre invert source':\
+                self.source2mt(best_source)})
+            sources = du.test_event_generator(best_source, _depths)
 
+            tcd = test_case.test_case_setup.__dict__
+            tcd.update({'depths': _depths,
+                        'reference_source': best_source,
+                        'sources': sources})
+            test_case_setup = core.TestCaseSetup(**tcd)
+            test_case = core.TestCase(test_case_setup)
 
         else:
             test_case = core.TestCase(test_case_setup)
-            test_case.set_raw_references(self.traces_dict)
-            test_case.set_reference_markers(self.ref_markers_dict)
-        test_case.process()
+
+        test_case.set_raw_references(self.traces_dict)
+        test_case.set_reference_markers(self.ref_markers_dict)
+
+        print 'STARTING DEPTH INVERSION============================'
+        test_case.process(verbose=False)
+
+        self.best_optics.update({'depth inversion':\
+            optics.OpticBase(test_case)})
 
         tmp_out_dir = self.tempdir()
 
@@ -143,10 +168,10 @@ class Derec(Snuffling):
         optics.plot_misfit_dict(test_case.misfits, ax=fig.gca())
         fig.canvas.draw()
 
-        optic = optics.OpticBase(test_case)
+        #optic = optics.OpticBase(test_case)
         #fig = self.figure()
-        optic.stack_plot()
-        plt.show()
+        #optic.stack_plot()
+        #plt.show()
         #for ax in axs.values():
         #    fig.add_axes(ax)
         #
@@ -165,11 +190,24 @@ class Derec(Snuffling):
                 break
 
         if self.post_invert:
+            print 'STARTING POST INVERSION============================'
             best_source, last_misfit = test_case.best_source_misfit()
+            test_case_setup = core.TestCaseSetup(**test_case_setup.__dict__)
             test_case = self.invert(setup=test_case_setup, 
                                     source=best_source,
                                     last_test_case=test_case,
+                                    traces_dict=self.traces_dict,
                                     marker_dict=self.ref_markers_dict)
+            
+            self.best_optics.update({'post inversion':\
+                optics.OpticBase(test_case)})
+
+            best_source, last_misfit = test_case.best_source_misfit()
+            self.mts.update({'best post invert source':\
+                self.source2mt(best_source)})
+
+        self.plot_optics()
+        plt.show()
 
     def invert(self, setup, source, last_test_case=None,\
             traces_dict=None, marker_dict=None):
@@ -180,14 +218,18 @@ class Derec(Snuffling):
         sdr = dict(zip(['strike', 'dip', 'rake'],
             [source.strike, source.dip, source.rake]))
 
-        dist=1.
+        _dist=1.
+        dist = 0.
         setup = core.TestCaseSetup(**setup.__dict__)
         setup.depths = [source.depth]
         setup.sources = [source]
         if last_test_case:
             s_, last_misfit = last_test_case.best_source_misfit()
         else:
-            last_misfit = 0.
+            last_misfit = 999.
+
+        last_setup_dict = setup.__dict__
+        grads = self.sdr_grad(last_misfit, setup)
 
         inversion_misfits = defaultdict()
 
@@ -197,33 +239,37 @@ class Derec(Snuffling):
                 test_case.set_raw_references(traces_dict)
             if marker_dict:
                 test_case.set_reference_markers(marker_dict)
-            test_case.process()
+            test_case.process(verbose=False)
+            
             best_source, misfit = test_case.best_source_misfit()
-            inversion_misfits[copy.copy(best_source)] = misfit
-            if i==self.num_inversion_steps-1 or abs(misfit-last_misfit)<0.001:
-                print misfit, last_misfit
+            if i==self.num_inversion_steps-1 or abs(misfit-last_misfit)<0.01:
                 print 'finised inversion after %s steps'%(i+1)
                 source.regularize()
-                source.validate()
                 best_source.regularize()
-                best_source.validate()
                 print 'ref source: ', source
                 print 'best match: ', best_source
                 break
-
+            print misfit, last_misfit
             if misfit>last_misfit:
-                grads = self.sdr_grad(misfit, setup)
-                last_misfit = misfit 
-            sdr = self.new_sdr(sdr, grads, dist)
+                setup = core.TestCaseSetup(**last_setup_dict)
+                grads = self.sdr_grad(last_misfit, setup)
+                dist = _dist
+                sdr = self.new_sdr(sdr, grads, dist)
+            else:
+                last_misfit = misfit
+                last_best_source = best_source
+                inversion_misfits[copy.copy(last_best_source)] = misfit
+                dist+=_dist
+                print dist,'<<<dist'
+                sdr = self.new_sdr(sdr, grads, dist)
 
+            last_setup_dict = setup.__dict__
             for k,v in sdr.items():
                  setattr(setup.sources[0], k, v)
-            assert len(setup.sources)==1
 
             test_case.drop_data('raw_candidates')
             test_case.set_setup(setup)
             print test_case.misfits,'<<< all\n'
-            assert len(test_case.misfits)==1
 
         print '----INVERSION RESULTS:'
         for k,v in inversion_misfits.items():
@@ -254,12 +300,12 @@ class Derec(Snuffling):
             test_case = core.TestCase(setup)
             test_case.set_raw_references(self.traces_dict)
             test_case.set_reference_markers(self.ref_markers_dict)
-            test_case.process()
+            test_case.process(verbose=False)
             mfs.append(origin_misfit-test_case.misfits.values()[0])
 
         direction = num.array(mfs)
         direction = direction/num.linalg.norm(direction)#*-1
-        print 'new sdr direction: ', direction
+        print '==============new sdr direction:', direction
         return direction
 
     def new_sdr(self, origin, grad, distance):
@@ -274,8 +320,11 @@ class Derec(Snuffling):
         self.misfit_setup = load_string(f.read())
         f.close()
 
-    def load_setup(self):
-        fn = self.input_filename(caption='Select a setup')
+    def load_setup(self, fn=None):
+        if fn:
+            fn = self.input_filename(caption='Select a setup')
+        else: 
+            fn = pjoin(derec_home, 'derec', 'test_case_setup.yaml')
         f = open(fn,'r')
         self.test_case_setup = load_string(f.read())
         f.close()
@@ -340,10 +389,32 @@ class Derec(Snuffling):
         self.markers = self.ref_markers_dict.values()[0].values()
         self.add_markers(self.markers)
 
+    def source2mt(self, source): 
+        return mopad.MomentTensor(source.pyrocko_moment_tensor().m6())
+
+    def bb(self):
+        fig = self.figure()
+        i=1
+        num_ax = len(self.mts.keys())
+        for descr, mt in self.mts.items():
+            ax = fig.add_subplot(1, num_ax, i)
+            fps = mt.get_fps()[0]
+            fps = ["%4.1f" % f for f in fps]
+            ax.set_title('%s'%descr+'\n%s %s %s'%tuple(fps))
+            bb = mopad.BeachBall(mt)
+            bb.ploBB({'_axis':ax})
+            i+=1
+        fig.canvas.draw()
+
+    def plot_optics(self):
+        for descr, opt in self.best_optics.items():
+            fig = self.figure()
+            opt.stack_plot(fig=fig)
+            fig.canvas.draw()
+
                 
 def __snufflings__():
     '''Returns a list of snufflings to be exported by this module.'''
     
     return [ Derec() ]
-
 

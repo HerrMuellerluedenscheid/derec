@@ -60,6 +60,7 @@ all_targets = optics.values()[0].targets
 
 #.........................................................................
 # Plot: 1 per station, subplots: one per optics.
+# compares the influence of different parameters on waveforms
 # show reference trace plotted over best fitting candidate
 # change the *depth* to see a different depth.
 #-------------------------------------------------------==
@@ -68,15 +69,19 @@ depth = 2000.
 #name = 'regional_new'
 descriptor = ''
 
-if False:
+if True:
     print '(1) start generating processed plots'
+    _ax = None
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
         optic = optics[k]
         for source in optic.get_sources_where({'depth':depth}):
             for target in optic.distance_sort_targets(source):
                 fig = plt.figure(fig_dict[target.codes].number)
-                ax = fig.add_subplot(len(optics), 1, i)
+
+                ax = fig.add_subplot(len(optics), 1, i, sharex=_ax)
+                if not _ax:
+                    _ax = ax
                 l1 = optic.get_processed_reference_line(source, target)
                 l2 = optic.get_processed_candidate_line(source, target)
                 l2.set_color((1,0,0,1))
@@ -86,7 +91,7 @@ if False:
                 ax.autoscale()
                 gca_label(optic.test_case_setup.test_parameter_value)
                 plt.suptitle('.'.join(target.codes))
-                plt.legend()
+        plt.legend()
 
     for k, v in fig_dict.iteritems():
         v.subplots_adjust(hspace=0)
@@ -95,8 +100,7 @@ if False:
                 test_parameter=optic.test_case_setup.test_parameter,
                 descriptor='', 
                 test_type='wvfrm_ref_vs_best_2000m', 
-                extra=str(optic.test_case_setup.test_parameter_value)+\
-                                '.'.join(k))
+                extra='')
         v.savefig(fn)
     print 'done.'
 

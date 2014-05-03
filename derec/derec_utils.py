@@ -25,7 +25,6 @@ def make_traces_dict(source, targets, traces):
         tar = filter(lambda x: x.codes==tr.nslc_id, targets)
         assert len(tar)==1
         tar = tar[0]
-        print tr
         targets_traces.update({tar:tr})
     return {source: targets_traces}
 
