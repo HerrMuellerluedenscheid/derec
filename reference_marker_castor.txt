@@ -1,2 +1,0 @@
-# Snuffler Markers File Version 0.2
-event: 2013-10-01 03:32:45.000  1 10pzmoya8w4bf     40.40    0.72     2000.0 None None  'R' None

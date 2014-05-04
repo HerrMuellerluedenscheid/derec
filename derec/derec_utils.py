@@ -352,9 +352,14 @@ def calculate_misfit(test_case):
                     N = n
                     best_candidate = c_d
                     best_reference = r_d
+                
+            try:
+                test_case.processed_candidates[source][target] = best_candidate
+                test_case.processed_references[source][target] = best_reference 
+            except UnboundLocalError:
+                print 'M > 999 in each iteration. Check data ranges!'
+                raise
 
-            test_case.processed_candidates[source][target] = best_candidate
-            test_case.processed_references[source][target] = best_reference 
             ms[ti] = M
             ns[ti] = N
 

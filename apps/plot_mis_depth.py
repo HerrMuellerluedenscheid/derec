@@ -69,9 +69,8 @@ depth = 2000.
 #name = 'regional_new'
 descriptor = ''
 
-if True:
+if False:
     print '(1) start generating processed plots'
-    _ax = None
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
         optic = optics[k]
@@ -79,9 +78,7 @@ if True:
             for target in optic.distance_sort_targets(source):
                 fig = plt.figure(fig_dict[target.codes].number)
 
-                ax = fig.add_subplot(len(optics), 1, i, sharex=_ax)
-                if not _ax:
-                    _ax = ax
+                ax = fig.add_subplot(len(optics), 1, i)
                 l1 = optic.get_processed_reference_line(source, target)
                 l2 = optic.get_processed_candidate_line(source, target)
                 l2.set_color((1,0,0,1))
@@ -137,12 +134,12 @@ if False:
 # reference traces as grey shaded areas
 #..............................................
 
-if False:
+if True:
     print '(3)start generating stack plot'
     depths=[1000.,2000.,3000.]
     for k, opt in optics.iteritems():
         fig = plt.figure()
-        ax = opt.stack_plot(depths=depths)
+        axs = opt.stack_plot(depths=depths)#, fig=fig)
         test_parameter = opt.test_case_setup.test_parameter 
         fn = file_name_path(name, 
                 test_parameter=test_parameter,
@@ -175,7 +172,7 @@ if False:
 
 #-----------------------------------------------
 # Plot the misfit dict
-if True:
+if False:
     for param_value, opt in optics.items():
         fig = opt.plot_misfits() 
         fn = file_name_path(name, 
