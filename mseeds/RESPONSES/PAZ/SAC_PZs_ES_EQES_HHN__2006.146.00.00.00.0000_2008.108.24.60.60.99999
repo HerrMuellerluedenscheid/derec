@@ -1,0 +1,38 @@
+* **********************************
+* NETWORK   (KNETWK): ES
+* STATION    (KSTNM): EQES
+* LOCATION   (KHOLE): 
+* CHANNEL   (KCMPNM): HHN
+* CREATED           : 2013-10-01T14:54:51
+* START             : 2006-05-26T00:00:00
+* END               : 2008-04-17T24:60:60
+* DESCRIPTION       : Quesada (Jaen) IGN, Spain
+* LATITUDE          : 37.802800 
+* LONGITUDE         : -3.071100  
+* ELEVATION         : 1140.0 
+* DEPTH             : 0.0  
+* DIP               : 90.0 
+* AZIMUTH           : 0.0  
+* SAMPLE RATE       : 100.0
+* INPUT UNIT        : M
+* OUTPUT UNIT       : COUNTS
+* INSTTYPE          : XXXX
+* INSTGAIN          : 1.500000e+03 (M/S)
+* COMMENT           : 0
+* SENSITIVITY       : 6.000000e+08 (M/S)
+* A0                : 7.518774e+12
+* **********************************
+ZEROS	4
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+1.000000e+00	+0.000000e+00
+POLES	7
+	-4.442210e-02	+4.442210e-02
+	-4.442210e-02	-4.442210e-02
+	-1.130970e+03	+0.000000e+00
+	-1.005310e+03	+0.000000e+00
+	-5.026550e+02	+0.000000e+00
+	-1.315950e+04	+0.000000e+00
+	+9.993720e-01	+0.000000e+00
+CONSTANT	+4.511264e+21

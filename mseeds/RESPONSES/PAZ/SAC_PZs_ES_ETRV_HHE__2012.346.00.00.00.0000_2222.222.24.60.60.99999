@@ -1,0 +1,35 @@
+* **********************************
+* NETWORK   (KNETWK): ES
+* STATION    (KSTNM): ETRV
+* LOCATION   (KHOLE): 
+* CHANNEL   (KCMPNM): HHE
+* CREATED           : 2013-10-01T14:54:51
+* START             : 2012-12-11T00:00:00
+* END               : 2222-08-10T24:60:60
+* DESCRIPTION       : Los Montesinos (Alicante), Spain
+* LATITUDE          : 38.020300 
+* LONGITUDE         : -0.762700  
+* ELEVATION         : 39.0   
+* DEPTH             : 0.0  
+* DIP               : 90.0 
+* AZIMUTH           : 90.0 
+* SAMPLE RATE       : 100.0
+* INPUT UNIT        : M
+* OUTPUT UNIT       : COUNTS
+* INSTTYPE          : XXXX
+* INSTGAIN          : 3.189800e+03 (M/S)
+* COMMENT           : 0
+* SENSITIVITY       : 1.251090e+09 (M/S)
+* A0                : 5.715080e+08
+* **********************************
+ZEROS	3
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+POLES	5
+	-1.480320e-01	+1.480320e-01
+	-1.480320e-01	-1.480320e-01
+	-1.130970e+03	+0.000000e+00
+	-1.005310e+03	+0.000000e+00
+	-5.026550e+02	+0.000000e+00
+CONSTANT	+7.150079e+17

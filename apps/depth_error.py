@@ -15,6 +15,27 @@ def reset_source(source, ref_source):
     source.__dict__ = ref_source.__dict__.copy()
 
 
+def setup_targets(ref_target, num_stations, field_range, chas=['BHE','BHN','BHZ']):
+    """
+    Setup randomized targets.
+    """
+    e_shifts = num.random.uniform(-field_range, field_range, num_stations)
+    n_shifts = num.random.uniform(-field_range, field_range, num_stations)
+    return [Target(lat=ref_target.lat,
+                   lon=ref_target.lon,
+                   depth=ref_target.depth,
+                   codes=(ref_target.codes[0],
+                          '%s_'%ti+ref_target.codes[1],
+                          '',
+                          c),
+                   north_shift = n_shifts[ti],
+                   east_shift = e_shift)
+                      for ti,e_shift in enumerate(e_shifts) 
+                      for c in chas]
+
+
+
+
 pjoin = os.path.join
 km = 1000.
 
@@ -64,7 +85,6 @@ def do_run(tpvalues):
                                     test_case_setup.test_parameter,
                                     descriptor,
                                     test_case_setup.test_parameter_value))
-
 
 if __name__ ==  "__main__":
     derec_home = os.environ["DEREC_HOME"]
@@ -127,6 +147,13 @@ if __name__ ==  "__main__":
         reference_source = test_case_setup.reference_source
         engine = test_case_setup.engine
 
+    ref_lat = reference_source.lat
+    ref_lon = reference_source.lon 
+    ref_depth = reference_source.depth
+    ref_strike = reference_source.strike
+    ref_dip = reference_source.dip
+    ref_rake = reference_source.rake
+    ref_id = reference_source.store_id
     #z, p, k = butter(2, [0.001*num.pi*2, 1.0*num.pi*2.],  
     #                   'band',  
     #                   analog=True,  
@@ -138,11 +165,21 @@ if __name__ ==  "__main__":
     #fresponse = trace.PoleZeroResponse(z,p,k)
     #fresponse.validate()
     #test_case_setup.misfit_setup.filter = fresponse
+    if robust_check:
+        targets = test_case_setup.targets
+        target_on_source = Target(lat=ref_lat,
+                                  lon=ref_lon,
+                                  codes=('','','','BHZ'))
+
+        num_stations = len()
+        test_case_setup.targets = setup_targets(target_on_source,
+                                                num_stations,
+                                                100*km)
 
     test_case_setup.number_of_time_shifts = 15
     #test_case_setup.static_length = 5.5
 
-    __reference_source_copy = copy.deepcopy(reference_source)
+    __reference_source_copy = reference_source.clone()
 
     zoffset = 2000
 
@@ -168,21 +205,15 @@ if __name__ ==  "__main__":
                                              test_case_setup.engine,
                                              stf,
                                              noise)
-
-    if not rob
     test_parameter = ['source_time_function',
                       'strike',
                       'dip',
                       'rake',
                       'latitude',
                       'longitude' ]
+    if test_model:
+        test_parameter+='store_id'
 
-    ref_lat = reference_source.lat
-    ref_lon = reference_source.lon 
-    ref_depth = reference_source.depth
-    ref_strike= reference_source.strike
-    ref_dip =  reference_source.dip
-    ref_rake= reference_source.rake
 
     n_shift = 2000.
     e_shift = 2000.
@@ -213,4 +244,3 @@ if __name__ ==  "__main__":
         print i+1, 'of', len(test_parameter)
         do_run(tpset) 
     print 'finised %s'% name
-    

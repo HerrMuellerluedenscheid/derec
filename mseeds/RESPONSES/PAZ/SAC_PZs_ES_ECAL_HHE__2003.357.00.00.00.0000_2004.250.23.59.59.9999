@@ -1,0 +1,40 @@
+* **********************************
+* NETWORK   (KNETWK): ES
+* STATION    (KSTNM): ECAL
+* LOCATION   (KHOLE): 
+* CHANNEL   (KCMPNM): HHE
+* CREATED           : 2013-10-01T14:54:50
+* START             : 2003-12-23T00:00:00
+* END               : 2004-09-06T23:59:59
+* DESCRIPTION       : Calabor (Zamora) IGN, Spain
+* LATITUDE          : 41.941300 
+* LONGITUDE         : -6.737100  
+* ELEVATION         : 950.0  
+* DEPTH             : 0.0  
+* DIP               : 90.0 
+* AZIMUTH           : 90.0 
+* SAMPLE RATE       : 100.0
+* INPUT UNIT        : M
+* OUTPUT UNIT       : COUNTS
+* INSTTYPE          : XXXX
+* INSTGAIN          : 1.496000e+03 (M/S)
+* COMMENT           : 0
+* SENSITIVITY       : 6.359490e+08 (M/S)
+* A0                : 8.031452e+20
+* **********************************
+ZEROS	4
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+1.000000e+00	+0.000000e+00
+POLES	9
+	-4.442210e-02	+4.442210e-02
+	-4.442210e-02	-4.442210e-02
+	-1.130970e+03	+0.000000e+00
+	-1.005310e+03	+0.000000e+00
+	-5.026550e+02	+0.000000e+00
+	-9.904800e+03	+3.786000e+03
+	-9.904800e+03	-3.786000e+03
+	-1.250700e+04	+0.000000e+00
+	+9.993720e-01	+0.000000e+00
+CONSTANT	+5.107594e+29
