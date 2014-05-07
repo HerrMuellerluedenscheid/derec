@@ -336,23 +336,26 @@ def calculate_misfit(test_case):
 
             shifted_candidates = test_case.make_shifted_candidates(source,
                     target)
+            try:
+                for c_d, r_d, m, n in reft.misfit(candidates=shifted_candidates,
+                                setups=mfsetup):
+                    if m==None or n==None:
+                        print 'm,n =None'
+                        continue
 
-            for c_d, r_d , m, n in reft.misfit(candidates=shifted_candidates,
-                            setups=mfsetup):
-                if m==None or n==None:
-                    print 'm,n =None'
-                    continue
+                    if m/n>=M_tmp:
+                        continue
 
-                if m/n>=M_tmp:
-                    continue
+                    elif m/n<M_tmp:
+                        M_tmp = m/n
+                        M = m
+                        N = n
+                        best_candidate = c_d
+                        best_reference = r_d
+            except trace.MisalignedTraces:
+                print 'warning: misaligned traces'
+                continue
 
-                elif m/n<M_tmp:
-                    M_tmp = m/n
-                    M = m
-                    N = n
-                    best_candidate = c_d
-                    best_reference = r_d
-                
             try:
                 test_case.processed_candidates[source][target] = best_candidate
                 test_case.processed_references[source][target] = best_reference 

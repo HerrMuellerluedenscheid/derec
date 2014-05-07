@@ -29,7 +29,7 @@ def check_noise(traces):
     checked = check_ampspecs(verticals)
     checked.extend(check_ampspecs(horizontals))
 
-    plt.show()
+    #plt.show()
     return checked
 
 def check_ampspecs(traces, **kwargs):
@@ -63,7 +63,7 @@ def check_ampspecs(traces, **kwargs):
     ax.plot(fx, num.exp(log_median),'--')
     ax.set_xscale('log')
     ax.set_yscale('log')
-    plt.draw()
+    #plt.draw()
     return checked
  
 
@@ -73,7 +73,7 @@ traces = io.load('/scratch/local1/marius/GSN.mseed')
 channels = ['BHE', 'BHN', 'BHZ']
 respdir = 'GSN_resp/'
 restdir = 'restitute/'
-stations_needed = 40
+stations_needed = 50
 i=0
 
 done = []
@@ -90,7 +90,7 @@ for t_i, t in enumerate(traces):
             if len(t_stack[t.nslc_id[:3]])==3:
                 print '-----'
                 for t in t_stack[t.nslc_id[:3]]:
-                    t.downsample_to(1.0)
+                    t.downsample_to(0.1)
                     tcodes = t.nslc_id
                     invevalresp = trace.InverseEvalresp(respdir, t)
                     print 'restitute: %s'%t
@@ -108,7 +108,7 @@ for t_i, t in enumerate(traces):
 equalize_number_of_samples(done)
 checked = check_noise(done)
 
-save_noise('checked_noise', checked)
+save_noise('re-checked_noise', checked)
 
 
 

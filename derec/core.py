@@ -14,6 +14,7 @@ import os
 import derec_utils as du
 import numpy as num
 import copy
+import glob
 
 pjoin = os.path.join
 km = 1000.
@@ -41,7 +42,7 @@ def set_refine_parameter(ref_event, **kwargs):
     return events
 
 
-def make_reference_trace(source, targets, engines, source_time_function=None, 
+def make_reference_trace(source, targets, engine, source_time_function=None, 
         noise=None):
     if not isinstance(source, list):
         source = [source]
@@ -54,9 +55,75 @@ def make_reference_trace(source, targets, engines, source_time_function=None,
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
     if noise:
-        ref_seismos = noise.apply(ref_seismos)
+        ref_seismos = noise_adder(noise, ref_seismos)
+
     return ref_seismos
     
+def noise_adder(noise, traces, tshift=120.):
+    noise = make_tripets(noise)
+    noise_keys = noise.keys()
+    noise_target_map = {}
+
+    for source, targets_tr in traces.items():
+        for target, tr in targets_tr.items():
+            try:
+                k = noise_target_map[target.codes]
+            except KeyError:
+                if len(noise_keys)==1:
+                    k = noise_keys[0]
+                    noise_keys = noise.keys()
+                else:
+                    k = noise_keys[num.random.randint(0, len(noise_keys))]
+                try:
+                    noise_keys.remove(k)
+                except ValueError:
+                    noise_keys = noise.keys()
+                    t_shift += t_shift
+                    noise_keys.remove(k)
+
+                noise_target_map.update({target.codes: k})
+
+            noise_trace_triplet = noise[k]
+            # very unpretty:
+            if 'Z' in tr.nslc_id[3]:
+                noise_trace = filter(lambda x: 'Z' in x.nslc_id[3], \
+                    noise_trace_triplet)
+            
+            elif 'E' in tr.nslc_id[3]:
+                noise_trace = filter(lambda x: 'E' in x.nslc_id[3], \
+                    noise_trace_triplet)
+            elif 'N' in tr.nslc_id[3]:
+                noise_trace = filter(lambda x: 'N' in x.nslc_id[3], \
+                    noise_trace_triplet)
+            assert len(noise_trace)==1
+            noise_trace = noise_trace[0]
+                
+            if need_downsample(noise_trace, tr):
+                assert noise_trace.deltat>tr.deltat
+                tr.downsample_to(noise_trace.deltat)
+
+            tmin_index = tshift*tr.deltat
+            tmax_index = tmin_index+len(tr.get_ydata())
+
+            noisey = noise_trace.get_ydata()[tmin_index:tmax_index]-\
+                            noise_trace.get_ydata().mean()
+
+            tr.set_ydata(tr.get_ydata()+noisey)
+            tr.snuffle()
+
+
+def need_downsample(t1, t2):
+    return num.abs(t1.deltat-t2.deltat)>1e-4
+
+def make_tripets(traces):
+    triplets = {}
+    for t in traces:
+        try:
+            triplets[t.nslc_id[:3]].append(t)
+        except KeyError:
+            triplets.update({t.nslc_id[:3]: [t]})
+    return triplets
+
 
 guts_prefix ='derec.yaml_derec'
 
@@ -409,10 +476,7 @@ if __name__ ==  "__main__":
     store_id = 'castor'
     # load stations from file:
     stations = model.load_stations(pjoin(selfdir,
-                            '../reference_stations_castor_selection.txt'))
-
-    markers = gui_util.Marker.load_markers(pjoin(selfdir,
-                                                '../reference_marker_castor.txt'))
+                            '../reference_stations_castor.txt'))
 
     event = model.Event(load='castor_event_2013-10-01.dat')
 
@@ -449,8 +513,18 @@ if __name__ ==  "__main__":
     map(lambda x: x.regularize(), location_test_sources)
 
     rise_time=1.
+    noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 'checked_noise')
+
+    noise_fns = glob.glob(noisedir+'/*')
+    noise = []
+    for fn in noise_fns:
+        noise.extend(io.load(fn))
+        
     stf = [[0.,rise_time],[0.,1.]]
-    reference_seismograms = make_reference_trace(ref_source, targets, engine, stf)
+    reference_seismograms = make_reference_trace(ref_source, targets, engine,
+            stf, noise=noise)
+
+    trace.snuffle(reference_seismograms.values()[0].values())
 
     # setup the misfit setup:
     norm = 2

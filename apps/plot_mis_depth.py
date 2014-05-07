@@ -69,7 +69,7 @@ depth = 2000.
 #name = 'regional_new'
 descriptor = ''
 
-if False:
+if True:
     print '(1) start generating processed plots'
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
@@ -104,7 +104,7 @@ if False:
 #..........................................................................
 # Plot depth difference versus test_parameter:
 #---------------------------------------------
-if False:
+if True:
     print '(2)start generating diff plot'
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -152,7 +152,7 @@ if True:
 #...............................................
 # plot z components of chosen optic
 
-if False:
+if True:
     channel = 'Z'
     for param_value, opt in optics.items():
         test_parameter = opt.test_case_setup.test_parameter 
@@ -172,7 +172,7 @@ if False:
 
 #-----------------------------------------------
 # Plot the misfit dict
-if False:
+if True:
     for param_value, opt in optics.items():
         fig = opt.plot_misfits() 
         fn = file_name_path(name, 

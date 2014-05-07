@@ -35,7 +35,6 @@ def do_run(tpvalues):
         else:
             setattr(test_case_setup, 'source_time_function', __stf)
             setattr(reference_source, test_parameter, float(parameter_value))
-            print __stf, 'check! should be [01][01]'
 
         # overwriting sources:
         test_case_setup.sources = du.test_event_generator(
@@ -72,19 +71,40 @@ if __name__ ==  "__main__":
     store_dirs = [derec_home + '/fomostos']
 
     #name = 'local'
-    name = 'rotenburg' 
-    choice='rotenburg'
+    name = 'rotenburg_standard' 
+    choice = 'rotenburg'
     #name = 'regional_bandpass' 
     #name = 'global'
+    #name = 'castor_extralonglstat'
+    #choice = 'castor'
 
     descriptor = ''
-    description = 'noise free test. This time with bandpass.'
+    description = '''noise free test. This time with bandpass. longer static length 
+    to see if source time function dependence gets better'''
 
-    fn = 'test_case_setup.yaml'
-    test_case_setup = load_string(open(fn,'r').read())
-    store_id = test_case_setup.store_id
+
+    if choice=='doctar':
+        fn = 'test_case_setup.yaml'
+        test_case_setup = load_string(open(fn,'r').read())
+        store_id = 'crust2_m5'
+        test_case_setup.engine.store_superdirs.append('/scratch/local1/marius')
+
+        reference_event = model.Event(load=pjoin(derec_home, \
+                'mseeds/doctar.dat'))
+        reference_source = DCSource.from_pyrocko_event(\
+                reference_event)
+        test_case_setup.reference_source = reference_source
+        stations = model.load_stations(pjoin(derec_home, 'mseeds/RotenburgIris'\
+                , 'stations.txt'))
+        targets = []
+        for s in stations:
+            targets.extend(Target.from_pyrocko_station(s, store_id=store_id))
+        test_case_setup.targets = targets
 
     if choice=='rotenburg':
+        fn = 'test_case_setup.yaml'
+        test_case_setup = load_string(open(fn,'r').read())
+        store_id = 'crust2_dd'
         reference_event = model.Event(load=pjoin(derec_home, \
                 'mseeds/RotenburgIris/rotenburg_quakefile.dat'))
         reference_source = DCSource.from_pyrocko_event(\
@@ -101,7 +121,11 @@ if __name__ ==  "__main__":
         pass
         # filter [0.05-1.5 Hz]
     elif choice=='castor':
+        fn = 'test_case_setup_castor.yaml'
+        test_case_setup = load_string(open(fn,'r').read())
+        store_id = test_case_setup.store_id
         reference_source = test_case_setup.reference_source
+        engine = test_case_setup.engine
 
     #z, p, k = butter(2, [0.001*num.pi*2, 1.0*num.pi*2.],  
     #                   'band',  
@@ -115,12 +139,12 @@ if __name__ ==  "__main__":
     #fresponse.validate()
     #test_case_setup.misfit_setup.filter = fresponse
 
-    test_case_setup.number_of_time_shifts = 21
-    test_case_setup.static_length = 5.
+    test_case_setup.number_of_time_shifts = 15
+    #test_case_setup.static_length = 5.5
 
     __reference_source_copy = copy.deepcopy(reference_source)
 
-    zoffset = 1000
+    zoffset = 2000
 
     depths=num.linspace(reference_source.depth-zoffset, 
                         reference_source.depth, 
@@ -134,11 +158,18 @@ if __name__ ==  "__main__":
     stf = [[0., 1.], [0.,1.]]
     __stf = copy.deepcopy(stf)
 
+    noise = []
+    for tr in io.load(glob.glob(pjoin(derec_home, 'mseeds', 'iris_data',
+        'checked_noise')+'/*')):
+        noise.extend(tr)
+    
     reference_seismograms = make_reference_trace(reference_source,
                                              test_case_setup.targets, 
                                              test_case_setup.engine,
-                                             stf)
+                                             stf,
+                                             noise)
 
+    if not rob
     test_parameter = ['source_time_function',
                       'strike',
                       'dip',
@@ -181,4 +212,5 @@ if __name__ ==  "__main__":
     for i, tpset in enumerate(zip(test_parameter, test_parameter_values)):
         print i+1, 'of', len(test_parameter)
         do_run(tpset) 
+    print 'finised %s'% name
     
