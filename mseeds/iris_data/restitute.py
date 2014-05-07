@@ -37,7 +37,7 @@ def check_ampspecs(traces, **kwargs):
     checked = []
     log_ydata = {}
     for t in traces:
-        fx,fa = t.spectrum(tfade=20)
+        fx,fa = t.spectrum(tfade=120)
         abs_fa = num.abs(fa)
         log_abs_fa = num.log(abs_fa)
         log_ydata.update({t:log_abs_fa})
@@ -50,7 +50,7 @@ def check_ampspecs(traces, **kwargs):
 
     for t, logdata in log_ydata.items():
         mean_log_y = num.mean(logdata)
-        if num.abs(mean_log_median-mean_log_y)<sigma:
+        if num.abs(mean_log_median-mean_log_y)<0.3333*sigma:
             alpha = 1.
             symbol = 'x'
             checked.append(t)
@@ -68,7 +68,7 @@ def check_ampspecs(traces, **kwargs):
  
 
 
-traces = io.load('GSN.mseed')
+traces = io.load('/scratch/local1/marius/GSN.mseed')
 
 channels = ['BHE', 'BHN', 'BHZ']
 respdir = 'GSN_resp/'
@@ -90,15 +90,15 @@ for t_i, t in enumerate(traces):
             if len(t_stack[t.nslc_id[:3]])==3:
                 print '-----'
                 for t in t_stack[t.nslc_id[:3]]:
-                    t.downsample_to(0.1)
+                    t.downsample_to(1.0)
                     tcodes = t.nslc_id
                     invevalresp = trace.InverseEvalresp(respdir, t)
                     print 'restitute: %s'%t
-                    tnew = t.transfer(tfade=20., 
+                    tnew = t.transfer(tfade=120., 
                                       freqlimits=[0.01, 0.02, 10, 20], 
                                       transfer_function=invevalresp)
 
-                    done.append(t)
+                    done.append(tnew)
                 i+=1
                 if i==stations_needed:
                     break
