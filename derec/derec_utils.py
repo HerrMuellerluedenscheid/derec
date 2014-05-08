@@ -528,3 +528,8 @@ def test_event_generator(ref_source, depths):
                             rake=ref_source.rake, 
                             magnitude=ref_source.magnitude) for depth in depths] 
 
+
+def clone(self, instance, **kwargs):
+    d = instance.dict()
+    d.update(kwargs)
+    return instance.__class__(**d)
