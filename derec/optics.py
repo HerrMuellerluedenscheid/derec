@@ -16,6 +16,7 @@ from gmtpy import GMT
 from copy import copy
 
 
+
 matplotlib.rcParams['font.size'] = 7
 
 def plot_misfit_dict(mfdict, ax=None):
