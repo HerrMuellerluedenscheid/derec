@@ -7,6 +7,7 @@ from scipy.ndimage import zoom
 from pyrocko.guts import Object, Float, Int, String, Complex, Tuple, List, load_string, Dict
 from pyrocko.guts_array import Array
 
+import matplotlib.pyplot as plt
 import time
 import matplotlib.lines as pltlines
 import progressbar
@@ -109,7 +110,6 @@ def noise_adder(noise, traces, tshift=120.):
                             noise_trace.get_ydata().mean()
 
             tr.set_ydata(tr.get_ydata()+noisey)
-            tr.snuffle()
 
 
 def need_downsample(t1, t2):
@@ -348,9 +348,6 @@ class TestCase(Object):
             self.progressbar = progressbar.ProgressBar(maxval=b).start()
             self.progressbar.update(a)
 
-    def snuffle(self):
-        trace.snuffle(self.seismograms)
-
     def numpy_it(self, **kwargs):
         '''
         '''
@@ -475,8 +472,8 @@ if __name__ ==  "__main__":
     engine = LocalEngine(store_superdirs=store_dirs)
     store_id = 'castor'
     # load stations from file:
-    stations = model.load_stations(pjoin(selfdir,
-                            '../reference_stations_castor.txt'))
+    stations = model.load_stations(pjoin(derec_home, 'mseeds', 'castor',
+                            'reference_stations_castor.txt'))
 
     event = model.Event(load='castor_event_2013-10-01.dat')
 
@@ -523,8 +520,6 @@ if __name__ ==  "__main__":
     stf = [[0.,rise_time],[0.,1.]]
     reference_seismograms = make_reference_trace(ref_source, targets, engine,
             stf, noise=noise)
-
-    trace.snuffle(reference_seismograms.values()[0].values())
 
     # setup the misfit setup:
     norm = 2
@@ -583,18 +578,7 @@ if __name__ ==  "__main__":
 
     test_case.process()
 
-    #test_case.compare_plot( traces_dicts=[test_case.processed_references,
-    #                    test_case.processed_candidates],
-    #                    focus_first=False)
-
-    #test_case.plot_marker_vs_distance()
-
-    #test_case.plot_z_components(test_case.raw_candidates,
-    #        markers_dict=test_case.candidates_markers)
-    #
-    #test_case.plot_z_components(test_case.raw_references,
-    #        sources = [ref_source],
-    #        markers_dict=test_case.ref_markers)
+    plt.show()
 
     print 'dumping...'
     test_case.yaml_dump(fn='test_case_dump.yaml')
