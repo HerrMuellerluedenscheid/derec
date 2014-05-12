@@ -6,7 +6,6 @@ import os
 from derec import derec_utils as du
 from derec import core
 import numpy as num
-import copy
 import glob
 from derec.yaml_derec import *
 from derec import optics
@@ -17,10 +16,20 @@ from scipy.ndimage import zoom
 from pyrocko.guts import Object, Float, Int, String, Complex, Tuple, List, load_string, Dict
 from pyrocko.guts_array import Array
 import time
+import progressbar
 
 
 pjoin = os.path.join
 km = 1000.
+
+def pbar(i, num_tests, pb=None ):
+    try:
+        pb.update(i)
+    except AttributeError:
+        widgets = [progressbar.Percentage(), progressbar.Bar(), progressbar.ETA()]
+        pb = progressbar.ProgressBar(widgets=widgets, maxval=num_tests).start()
+        pb.update(i)
+        return pb
 
 
 if __name__ ==  "__main__":
@@ -30,7 +39,7 @@ if __name__ ==  "__main__":
     
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = pjoin(derec_home, 'fomostos')
-    noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 'checked_noise')
+    noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 're-checked_noise')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
     file_name = 'robust_check_results_%s.txt'%time_string
     num_stations = 10
@@ -38,10 +47,11 @@ if __name__ ==  "__main__":
     stf = [[0.,1.], [0.,1.]]
     dz = 2*km
     num_depths = 9
-    num_tests = 100
+    num_tests = 1000
     
     engine = LocalEngine(store_superdirs=[store_dirs])
     test_type = 'castor'
+    pb = None
     add_noise = True
     verbose = True
     
@@ -71,7 +81,7 @@ if __name__ ==  "__main__":
     depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
     ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
     location_test_sources_lists = du.make_lots_of_test_events(_ref_source, depths, 
-            {'strike':5, 'dip':5, 'rake':5, 'north_shift':5000 }, 
+            {'strike':10, 'dip':10, 'rake':10, 'north_shift':5000 }, 
             num_tests,
             func='normal') 
     i=0
@@ -131,6 +141,9 @@ if __name__ ==  "__main__":
     else:
         noise = None
 
+    import pdb
+    pdb.set_trace()
+
     reference_seismograms = core.make_reference_trace(_ref_source,
                                                     targets, engine,
                                                     stf,
@@ -170,10 +183,12 @@ if __name__ ==  "__main__":
             op.stack_plot()
             plt.show()
 
+        if not verbose:
+            pb = pbar(i, num_tests, pb)
 
         results.append([lateral_shift, angle_diff, best_misfit, got_it])
         
-        if len(results)==2:
+        if len(results)==10:
             try:
                 f = open(file_name, 'a+')
                 for line in results:

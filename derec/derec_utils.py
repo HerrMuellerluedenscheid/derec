@@ -337,7 +337,7 @@ def filter_traces_dict(self, traces_dict, tfade, freqlimits):
         map(lambda x: x.transfer(tfade, freqlimits), s.values())
 
 
-def calculate_misfit(test_case):
+def calculate_misfit(test_case, verbose=False):
     
     sources = test_case.sources
     targets = test_case.targets
@@ -348,10 +348,12 @@ def calculate_misfit(test_case):
     mfsetup = test_case.misfit_setup
     norm = mfsetup.norm
 
-    pbar = progressbar.ProgressBar(maxval=len(sources)).start()
+    if verbose:
+        pbar = progressbar.ProgressBar(maxval=len(sources)).start()
 
     for si, source in enumerate(sources):
-        pbar.update(si)
+        if verbose:
+            pbar.update(si)
         ms = num.empty([len(targets)], dtype=float)
         ns = num.empty([len(targets)], dtype=float)
         c_data = []
@@ -397,8 +399,9 @@ def calculate_misfit(test_case):
         N = num.power(num.sum(num.abs(num.power(ns, norm))), 1./norm)
             
         total_misfit[source] = M/N
-    pbar.update(si+1)
-    pbar.finish()
+    if verbose:
+        pbar.update(si+1)
+        pbar.finish()
     test_case.set_misfit(total_misfit)
 
 def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,

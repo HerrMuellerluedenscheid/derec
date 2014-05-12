@@ -14,7 +14,7 @@ def save_noise(directory, traces):
         os.makedirs(directory)
 
     for t in traces:
-        io.save(traces, pjoin(directory,'%s.%s.%s.%s'%(t.nslc_id)))
+        io.save(t, pjoin(directory,'%s.%s.%s.%s'%(t.nslc_id)))
 
 
 def equalize_number_of_samples(traces):
@@ -72,7 +72,6 @@ traces = io.load('/scratch/local1/marius/GSN.mseed')
 
 channels = ['BHE', 'BHN', 'BHZ']
 respdir = 'GSN_resp/'
-restdir = 'restitute/'
 stations_needed = 50
 i=0
 

@@ -439,7 +439,7 @@ class TestCase(Object):
                                 inplace=False)
 
         if verbose: print('calculating misfits...')
-        du.calculate_misfit(self)
+        du.calculate_misfit(self, verbose)
 
     def best_source_misfit(self):
         minmf = min(self.misfits.values())
