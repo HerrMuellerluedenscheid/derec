@@ -138,9 +138,59 @@ def cake_first_arrival(distance, depth, model, phases=None):
                             zstop=depth), key=lambda x: x.t).t
     return tmin
 
+class PhaseCache():
+    def __init__(self, tmin_phase_cache=defaultdict(), 
+            tmax_phase_cache=defaultdict(), store=None, phase_ids_start=[], 
+            phase_ids_end=[]):
+
+        self.tmin_phase_cache = tmin_phase_cache
+        self.tmax_phase_cache = tmax_phase_cache
+        self.model = store.config.earthmodel_1d
+        self.store = store
+        self.phase_ids_start = phase_ids_start
+        self.phase_ids_end = phase_ids_end
+
+    def get_cached_arrivals(self, target, source, static_length=0., 
+            perc=None, use_cake=True):
+
+        dist = source.distance_to(target)
+        args = (source.depth, dist)
+        key = (args, use_cake)
+        if self.tmin_phase_cache.get(key, False):
+            tmin = self.tmin_phase_cache[key]
+        else:
+            if use_cake:
+                tmin = cake_first_arrival(dist, source.depth, self.model,
+                        phases=self.phase_ids_start.split('|'))
+            else:
+                tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
+            self.tmin_phase_cache[key] = tmin
+
+        if self.tmax_phase_cache.get(key, False):
+            tmax = self.tmax_phase_cache[key]
+        else:
+            if perc:
+                tmax = tmin + static_length + tmin * perc / 100.
+
+            elif use_cake:
+                print 'use cake'
+                tmax = cake_first_arrival(dist, source.depth, self.model,
+                        phases=self.phase_ids_end.split('|'))
+
+            else:
+                print 'use fomosto'
+                tmax = store.t('first(%s)'%self.phase_ids_end, key)
+            self.tmax_phase_cache[key] = tmax
+
+
+        tmin += source.time
+        tmax += source.time
+
+        return tmin, tmax
+
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-            static_length=0., perc=None, t_shift_frac=None, **kwargs):
+             phase_cache=None, t_shift_frac=0., **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -152,10 +202,13 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
     static offset soll ersetzt werden....
     '''
+    if kwargs.get('perc', False):
+        perc = kwargs['perc']
     assert not phase_ids_end==perc and None in (phase_ids_end, perc)
 
-    tmin_phase_cache = defaultdict()
-    tmax_phase_cache = defaultdict()
+    if not phase_cache:
+        phase_cache = PhaseCache(store=store, phase_ids_start=phase_ids_start,
+                phase_ids_end=phase_ids_end)
 
     parallelize = False 
     if kwargs.get('parallelize', False):
@@ -175,34 +228,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
             return_dict = defaultdict()
         
         for target in targets:
-            dist = source.distance_to(target)
-            args = (source.depth, dist)
-            if not tmin_phase_cache.get(args, False):
-                tmin = None
-                if not use_cake:
-                    tmin = store.t('first(%s)'%phase_ids_start, args)
-                if tmin is None or use_cake:
-                    tmin = cake_first_arrival(dist, source.depth, model,
-                            phases=phase_ids_start.split('|'))
-                tmin_phase_cache[args] = tmin
-            else:
-                tmin = tmin_phase_cache[args]
-
-            if not tmax_phase_cache.get(args, False):
-                if phase_ids_end:
-                    tmax = None
-                    if not use_cake:
-                        tmax = store.t('first(%s)'%phase_ids_end, args)
-                    if tmax is None or use_cake:
-                        tmax = cake_first_arrival(dist, source.depth, model,
-                                phases=phase_ids_end.split('|'))
-
-                elif perc:
-                    tmax = tmin + static_length + tmin * perc / 100.
-                tmax_phase_cache[args] = tmax
-            else:
-                tmax = tmax_phase_cache[args]
-
+            
+            tmin, tmax = phase_cache.get_cached_arrivals(target, source, **kwargs)
+            
             if t_shift_frac:
                 t_start_shift = -(tmax-tmin)*t_shift_frac
                 t_end_shift = t_start_shift
@@ -210,8 +238,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                 tmin += t_start_shift
                 tmax += t_end_shift 
 
-            tmin += source.time
-            tmax += source.time
+
 
             m = PhaseMarker(nslc_ids=[(target.codes)],
                             tmin=tmin,
@@ -518,8 +545,39 @@ def seismosizerTrace2pyrockoTrace(seismosizer_trace):
     t.nslc_id = seismosizer_trace.codes
     return t
 
+def make_lots_of_test_events(ref_source, depths, ranges, number, **kwargs):
+    _sources = test_event_generator(ref_source, depths)
+    return_list = []
+    for i in xrange(number):
+
+        source_list_copy = map(clone, _sources)
+
+        set_randomized_values(source_list_copy, ranges, **kwargs)
+        return_list.append(source_list_copy)
+
+    return return_list
+
+        
+def set_randomized_values(source_list, ranges, func='uniform'):
+    """
+    :param func: A randomizing function like num.random.uniform (default)
+    """
+    values = {}
+    for k,v in ranges.items():
+        sourceval = getattr(source_list[0], k)
+        if func=='uniform':
+            val = num.random.uniform(sourceval-v, sourceval+v)
+        elif func=='normal':
+            val = num.random.normal(sourceval, v)
+        values.update({k: val})
+
+    for k,v in values.items():
+        for source in source_list:
+            setattr(source, k, v)
+
+
 def test_event_generator(ref_source, depths):
-    return [DCSource(lat=ref_source.lat, 
+    _sources = [DCSource(lat=ref_source.lat, 
                             lon=ref_source.lon, 
                             depth=depth, 
                             time=ref_source.time, 
@@ -527,9 +585,12 @@ def test_event_generator(ref_source, depths):
                             dip=ref_source.dip, 
                             rake=ref_source.rake, 
                             magnitude=ref_source.magnitude) for depth in depths] 
+        
+    map(lambda x: x.regularize(), _sources)
+    return _sources
 
 
-def clone(self, instance, **kwargs):
+def clone(instance, **kwargs):
     d = instance.dict()
     d.update(kwargs)
     return instance.__class__(**d)
