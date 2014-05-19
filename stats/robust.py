@@ -38,28 +38,28 @@ if __name__ ==  "__main__":
     selfdir = selfdir.rsplit('/')[0]
     
     derec_home = os.environ["DEREC_HOME"]
-    store_dirs = pjoin(derec_home, 'fomostos')
+    store_dirs = [pjoin(derec_home, 'fomostos')]
+    store_dirs.append(pjoin('/','scratch', 'local1', 'marius', 'doctar_inversion', 'gfdb'))
     noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 're-checked_noise')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
     file_name = 'robust_check_results_%s.txt'%time_string
     num_stations = 10
-    shift_range = 100*km
     stf = [[0.,1.], [0.,1.]]
     dz = 2*km
     num_depths = 9
-    num_tests = 1000
+    num_tests = 10
     
-    engine = LocalEngine(store_superdirs=[store_dirs])
-    test_type = 'castor'
+    engine = LocalEngine(store_superdirs=store_dirs)
+    test_type = 'doctar'
     pb = None
     add_noise = True
     verbose = True
     
     if test_type=='doctar':
-        store_id = 'crust2_m5'
+        store_id = 'crust2_m5_25Hz_extended'
         data_base_dir = pjoin(derec_home, 'mseeds', 'doctar')
         stations_file = 'doctar_stations.txt'
-        event_file = None
+        event_file = 'doctar_2011-11-01_quakefile.dat'
         phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                            store_id, 
                                                            ['p','P']))
@@ -141,13 +141,12 @@ if __name__ ==  "__main__":
     else:
         noise = None
 
-    import pdb
-    pdb.set_trace()
-
     reference_seismograms = core.make_reference_trace(_ref_source,
                                                     targets, engine,
                                                     stf,
                                                     noise=noise)
+
+    reference_seismograms.values()[0].values()[0].snuffle()
 
 
     results = []
