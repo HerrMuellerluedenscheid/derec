@@ -18,8 +18,8 @@ for a,b,c,d in results:
         c = 'bo'
     else:
         c = 'ro'
-    ax.plot(a,b,c)
+    ax.plot(a,b/1000.,c)
+ax.add_xlabel('Mislocation [km]'
+ax.add_ylabel('Angle [deg]'
 
-
-    
 plt.show()

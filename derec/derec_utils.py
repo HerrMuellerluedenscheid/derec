@@ -350,6 +350,8 @@ def calculate_misfit(test_case, verbose=False):
 
     if verbose:
         pbar = progressbar.ProgressBar(maxval=len(sources)).start()
+    import pdb 
+    pdb.set_trace()
 
     for si, source in enumerate(sources):
         if verbose:
@@ -368,6 +370,7 @@ def calculate_misfit(test_case, verbose=False):
             try:
                 for c_d, r_d, m, n in reft.misfit(candidates=shifted_candidates,
                                 setups=mfsetup):
+                    print ti
                     if m==None or n==None:
                         print 'm,n =None'
                         continue
@@ -458,14 +461,15 @@ def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
     return source_event
 
 
-def stations2targets(stations, store_id=None):
+def stations2targets(stations, store_id=None, channels=[]):
     '''
     Convert pyrockos original stations into seismosizer targets.
     '''
     targets = []
     for s in stations:
-        channels = s.get_channels()
-        if channels == []:
+        if not channels:
+            channels = s.get_channels()
+        if not channels:
             channels = 'NEZ'
         target = [Target(codes=(s.network,s.station,s.location,component),
                                  lat=s.lat,
@@ -597,3 +601,7 @@ def clone(instance, **kwargs):
     d = instance.dict()
     d.update(kwargs)
     return instance.__class__(**d)
+
+
+def flatten_list(the_list):
+    return [item for sublist in the_list for item in sublist]

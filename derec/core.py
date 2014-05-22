@@ -48,10 +48,9 @@ def make_reference_trace(source, targets, engine, source_time_function=None,
     if not isinstance(source, list):
         source = [source]
 
-    for t in targets:
-        response = engine.process(
-                sources=source,
-                targets=targets)
+    response = engine.process(
+            sources=source,
+            targets=targets)
     ref_seismos = du.response_to_dict(response)
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
@@ -467,20 +466,36 @@ if __name__ ==  "__main__":
     selfdir = selfdir.rsplit('/')[0]
     
     derec_home = os.environ["DEREC_HOME"]
-    store_dirs = [derec_home + '/fomostos']
+    store_dirs = [pjoin(derec_home, 'fomostos')]
 
     engine = LocalEngine(store_superdirs=store_dirs)
-    store_id = 'castor'
-    # load stations from file:
-    stations = model.load_stations(pjoin(derec_home, 'mseeds', 'castor',
-                            'reference_stations_castor.txt'))
 
-    event = model.Event(load='castor_event_2013-10-01.dat')
+    test_type = 'doctar'
+    add_noise = False
+
+    if test_type == 'castor':
+        store_id = 'castor'
+        stations = model.load_stations(pjoin(derec_home, 'mseeds', 'castor',
+                            'reference_stations_castor.txt'))
+        event = model.Event(load='castor_event_2013-10-01.dat')
+        channels = []
+    elif test_type == 'doctar':
+        #store_id = 'doctar_mainland_20Hz'
+        store_id = 'castor'
+        stations = model.load_stations(pjoin(derec_home, 'mseeds', 'doctar',
+                        'doctar_2011-11-01', 'stations.txt'))
+        event = model.Event(load=pjoin(derec_home, 'mseeds', 'doctar',
+                        'doctar_2011-11-01', 'doctar_2011-11-01_quakefile.dat'))
+        files = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01',
+        'restituted')
+        traces = []
+        traces.extend(io.load(fn) for fn in glob.glob(files+'/*'))
+        traces = du.flatten_list(traces)
+        channels = ['HHE', 'HHN', 'HHZ']
 
     phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                        store_id, 
                                                        ['p','P']))
-
     
     # load stations from file:
     # Event==================================================
@@ -494,7 +509,7 @@ if __name__ ==  "__main__":
     #
     #event.dump('castor_event_2013.dat')
 
-    targets = du.stations2targets(stations, store_id)
+    targets = du.stations2targets(stations, store_id, channels=channels)
 
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
@@ -510,16 +525,21 @@ if __name__ ==  "__main__":
     map(lambda x: x.regularize(), location_test_sources)
 
     rise_time=1.
-    noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 'checked_noise')
-
-    noise_fns = glob.glob(noisedir+'/*')
+    
     noise = []
-    for fn in noise_fns:
-        noise.extend(io.load(fn))
+    if add_noise:
+        noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 'checked_noise')
+        noise_fns = glob.glob(noisedir+'/*')
+        for fn in noise_fns:
+            noise.extend(io.load(fn))
         
     stf = [[0.,rise_time],[0.,1.]]
-    reference_seismograms = make_reference_trace(ref_source, targets, engine,
-            stf, noise=noise)
+    if test_type == 'castor':
+        reference_seismograms = make_reference_trace(ref_source, targets, engine,
+                stf, noise=noise)
+
+    elif test_type == 'doctar':
+        reference_seismograms = du.make_traces_dict(ref_source, targets, traces)
 
     # setup the misfit setup:
     norm = 2
