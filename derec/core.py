@@ -55,7 +55,7 @@ def make_reference_trace(source, targets, engine, source_time_function=None,
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
     if noise:
-        ref_seismos = noise_adder(noise, ref_seismos)
+        noise_adder(noise, ref_seismos)
 
     return ref_seismos
     
