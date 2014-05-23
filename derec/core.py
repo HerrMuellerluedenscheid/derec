@@ -3,8 +3,7 @@ from pyrocko.gf import *
 from pyrocko import model, gui_util, trace, moment_tensor, io
 from collections import defaultdict
 from scipy.signal import butter
-from scipy.ndimage import zoom
-from pyrocko.guts import Object, Float, Int, String, Complex, Tuple, List, load_string, Dict
+from pyrocko.guts import Object, load_string 
 from pyrocko.guts_array import Array
 
 import matplotlib.pyplot as plt
@@ -14,7 +13,6 @@ import progressbar
 import os
 import derec_utils as du
 import numpy as num
-import copy
 import glob
 
 pjoin = os.path.join
@@ -26,22 +24,6 @@ def equal_attributes(o1, o2):
     Return true if two objects are equal as for their attributes. 
     '''
     return o1.__dict__ == o2.__dict__
-
-
-def set_refine_parameter(ref_event, **kwargs):
-    '''
-    Returns dict. Key is the value of **kwargs. 
-    '''
-    events = {}
-    for k, vals in kwargs.iteritems():
-        for val in vals:
-            # mit event.copy ersetzen?
-            event_copy = copy.copy(ref_event)
-            exec('event_copy.%s=%s' % (k, val))
-            events[val]=event_copy
-
-    return events
-
 
 def make_reference_trace(source, targets, engine, source_time_function=None, 
         noise=None):
@@ -321,7 +303,7 @@ class TestCase(Object):
 
         shifted_candidates = [cand.copy() for i in range(len(t_shifts))]
         map(lambda t,s: t.shift(s), shifted_candidates, t_shifts)
-        #map(lambda t: t.snap(), shifted_candidates)
+        map(lambda t: t.snap(), shifted_candidates)
         return shifted_candidates
 
     @staticmethod
@@ -385,12 +367,16 @@ class TestCase(Object):
         :return lines_dict: dict with lines
         """
         lines_dict = defaultdict(dict)
+        reduce_value = reduce
         for source, target, tr in TestCase.iter_dict(traces_dict):
             if isinstance(tr, seismosizer.SeismosizerTrace):
                 tr = tr.pyrocko_trace()
 
+            if not isinstance(reduce, float):
+                reduce_value = reduce[source][target].tmin
+
             lines_dict[source][target] = pltlines.Line2D(
-                    tr.get_xdata()-reduce,
+                    tr.get_xdata()-reduce_value,
                     tr.get_ydata())
 
         return lines_dict 
@@ -406,7 +392,7 @@ class TestCase(Object):
     def store(self):
         return self.engine.get_store(self.store_id)
     
-    def process(self, verbose=False):
+    def process(self, verbose=False, debug=False):
         self.request_data(verbose)
         setup = self.test_case_setup
 
@@ -429,6 +415,9 @@ class TestCase(Object):
                                 self.reference_markers, 
                                 inplace=False)
 
+        for s, t, tr in TestCase.iter_dict(self.references):
+            tr.ydata = tr.ydata-tr.ydata.mean()
+
         self.apply_stf(setup.source_time_function)
 
         if verbose: print('chopping cand....')
@@ -438,6 +427,11 @@ class TestCase(Object):
                                 inplace=False)
 
         if verbose: print('calculating misfits...')
+
+        if debug:
+            trace.snuffle(self.raw_references.values()[0].values(),
+                          markers=self.reference_markers.values()[0].values())
+
         du.calculate_misfit(self, verbose)
 
     def best_source_misfit(self):
@@ -485,7 +479,7 @@ if __name__ ==  "__main__":
         stations = model.load_stations(pjoin(derec_home, 'mseeds', 'doctar',
                         'doctar_2011-11-01', 'stations.txt'))
         event = model.Event(load=pjoin(derec_home, 'mseeds', 'doctar',
-                        'doctar_2011-11-01', 'doctar_2011-11-01_quakefile.dat'))
+                        'doctar_2011-11-01_quakefile.dat'))
         files = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01',
         'restituted')
         traces = []
@@ -540,6 +534,10 @@ if __name__ ==  "__main__":
 
     elif test_type == 'doctar':
         reference_seismograms = du.make_traces_dict(ref_source, targets, traces)
+
+        # not all targets have a matching trace. Thus, when iterating over targets,
+        # this provokes a KeyError: 
+        targets = reference_seismograms.values()[0].keys()
 
     # setup the misfit setup:
     norm = 2

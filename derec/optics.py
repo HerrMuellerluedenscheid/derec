@@ -11,7 +11,10 @@ from pyrocko import trace
 
 from derec.core import TestCaseData, TestCaseSetup, TestCase
 import derec.derec_utils as du
-import vtk
+try:
+    import vtk
+except:
+    pass
 from gmtpy import GMT
 from copy import copy
 
@@ -131,6 +134,8 @@ class OpticBase():
         self.candidates_lines = None
         self.references_lines = None
         
+        self.candidates_markers = data_input.candidates_markers
+        self.reference_markers= data_input.reference_markers
         self.test_case_setup = data_input.test_case_setup
         self.misfit_setup = self.test_case_setup.misfit_setup
         self.targets = self.test_case_setup.targets
@@ -271,9 +276,14 @@ class OpticBase():
 
         axes_dict = defaultdict()
 
+        #for source,t, pr_cand_line in\
+        #    TestCase.iter_dict(self.get_processed_candidates_lines(
+        #                 reduce=self.reference_source.time)):
+
         for source,t, pr_cand_line in\
             TestCase.iter_dict(self.get_processed_candidates_lines(
-                         reduce=self.reference_source.time)):
+                         reduce=self.candidates_markers)):
+
             if not source.depth in depths:
                 continue
 
@@ -282,8 +292,10 @@ class OpticBase():
             
             if not isinstance(pr_ref, trace.Trace):
                 pr_ref = pr_ref.pyrocko_trace()
-
-            x_ref = pr_ref.get_xdata() - self.reference_source.time
+            
+            reduce_value = self.reference_markers.values()[0][t].tmin
+            #reduce_value = self.reference_source.time
+            x_ref = pr_ref.get_xdata() - reduce_value 
             y_ref = pr_ref.get_ydata()
                 
             gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=8)

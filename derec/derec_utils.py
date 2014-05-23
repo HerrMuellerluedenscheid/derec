@@ -19,6 +19,21 @@ from itertools import izip
 logger = logging.getLogger('derec_utils')
 
 
+def make_markers_dict(source, targets, markers):
+    '''
+    Create the standard 2d dict like:
+        dict[source][target] = marker_tmin
+    '''
+    targets_markers = {}
+    for m in markers:
+        tar = filter(lambda x: util.match_nslcs('.'.join(x.codes[:3])+'.*',
+            m.nslc_ids), targets)
+        tar = tar[0]
+        key = (source.depth, source.distance_to(tar))
+        targets_markers.update({key:m.tmin-source.time})
+
+    return targets_markers
+
 def make_traces_dict(source, targets, traces):
     targets_traces= {}
     for tr in traces:
@@ -26,6 +41,7 @@ def make_traces_dict(source, targets, traces):
         assert len(tar)==1
         tar = tar[0]
         targets_traces.update({tar:tr})
+
     return {source: targets_traces}
 
 re = 6371000.785
@@ -154,8 +170,8 @@ class PhaseCache():
             perc=None, use_cake=True):
 
         dist = source.distance_to(target)
-        args = (source.depth, dist)
-        key = (args, use_cake)
+        key = (source.depth, dist)
+        #key = (args, use_cake)
         if self.tmin_phase_cache.get(key, False):
             tmin = self.tmin_phase_cache[key]
         else:
@@ -190,7 +206,7 @@ class PhaseCache():
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             phase_cache=None, t_shift_frac=0., **kwargs):
+             picked_phases={}, t_shift_frac=0., **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -206,9 +222,10 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         perc = kwargs['perc']
     assert not phase_ids_end==perc and None in (phase_ids_end, perc)
 
-    if not phase_cache:
-        phase_cache = PhaseCache(store=store, phase_ids_start=phase_ids_start,
-                phase_ids_end=phase_ids_end)
+    phase_cache = PhaseCache(tmin_phase_cache=picked_phases,
+                             store=store, 
+                             phase_ids_start=phase_ids_start,
+                             phase_ids_end=phase_ids_end)
 
     parallelize = False 
     if kwargs.get('parallelize', False):
@@ -228,6 +245,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
             return_dict = defaultdict()
         
         for target in targets:
+
             
             tmin, tmax = phase_cache.get_cached_arrivals(target, source, **kwargs)
             
@@ -238,13 +256,11 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                 tmin += t_start_shift
                 tmax += t_end_shift 
 
-
-
             m = PhaseMarker(nslc_ids=[(target.codes)],
                             tmin=tmin,
                             tmax=tmax,
                             kind=1,
-                            event=source,
+                            event=source.pyrocko_event(),
                             phasename='drc')
 
             return_dict[target] = m
@@ -269,6 +285,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         #for source, tmp_dict in p.map(do_run, sources):
         #    phase_marker_dict[source] = tmp_dict
     else:
+        import pdb
+        pdb.set_trace()
+
         for source in sources:
             phase_marker_dict[source] = do_run(source)
 
@@ -350,8 +369,6 @@ def calculate_misfit(test_case, verbose=False):
 
     if verbose:
         pbar = progressbar.ProgressBar(maxval=len(sources)).start()
-    import pdb 
-    pdb.set_trace()
 
     for si, source in enumerate(sources):
         if verbose:
@@ -367,33 +384,33 @@ def calculate_misfit(test_case, verbose=False):
 
             shifted_candidates = test_case.make_shifted_candidates(source,
                     target)
-            try:
-                for c_d, r_d, m, n in reft.misfit(candidates=shifted_candidates,
-                                setups=mfsetup):
-                    print ti
-                    if m==None or n==None:
-                        print 'm,n =None'
-                        continue
 
-                    if m/n>=M_tmp:
-                        continue
+            #reft.deltat = round(reft.deltat, 6)
+            for cand_i in shifted_candidates:
+                #cand_i.deltat = round(cand_i.deltat, 6)
+                m,n,r_d,c_d = reft.misfit(candidate=cand_i, setup=mfsetup, 
+                        debug=True)
 
-                    elif m/n<M_tmp:
-                        M_tmp = m/n
-                        M = m
-                        N = n
-                        best_candidate = c_d
-                        best_reference = r_d
-            except trace.MisalignedTraces:
-                print 'warning: misaligned traces'
-                continue
+                if m==None or n==None:
+                    print 'm,n =None'
+                    continue
+
+                if m/n>=M_tmp:
+                    continue
+
+                elif m/n<M_tmp:
+                    M_tmp = m/n
+                    M = m
+                    N = n
+                    best_candidate = c_d
+                    best_reference = r_d
 
             try:
                 test_case.processed_candidates[source][target] = best_candidate
                 test_case.processed_references[source][target] = best_reference 
             except UnboundLocalError:
                 print 'M > 999 in each iteration. Check data ranges!'
-                raise
+                continue
 
             ms[ti] = M
             ns[ti] = N
