@@ -28,6 +28,8 @@ def make_markers_dict(source, targets, markers):
     for m in markers:
         tar = filter(lambda x: util.match_nslcs('.'.join(x.codes[:3])+'.*',
             m.nslc_ids), targets)
+        if len(tar)==0:
+            continue
         tar = tar[0]
         key = (source.depth, source.distance_to(tar))
         targets_markers.update({key:m.tmin-source.time})
@@ -206,7 +208,7 @@ class PhaseCache():
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             picked_phases={}, t_shift_frac=0., **kwargs):
+             picked_phases={}, t_shift_frac=0., return_cache=False, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -285,13 +287,14 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         #for source, tmp_dict in p.map(do_run, sources):
         #    phase_marker_dict[source] = tmp_dict
     else:
-        import pdb
-        pdb.set_trace()
 
         for source in sources:
             phase_marker_dict[source] = do_run(source)
 
-    return phase_marker_dict
+    if return_cache:
+        return phase_marker_dict, phase_cache
+    else:
+        return phase_marker_dict
 
 
 def chop_using_markers(traces, markers, *args, **kwargs):

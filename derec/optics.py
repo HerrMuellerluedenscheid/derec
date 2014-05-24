@@ -142,6 +142,7 @@ class OpticBase():
         self.sources = self.test_case_setup.sources
         self.reference_source = self.test_case_setup.reference_source
         self.misfits = data_input.misfits
+        self.phase_cache = data_input.phase_cache
 
     def gmt_map(self, **kwargs):
         sources_lon_lat = set()
@@ -281,8 +282,8 @@ class OpticBase():
         #                 reduce=self.reference_source.time)):
 
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.get_processed_candidates_lines(
-                         reduce=self.candidates_markers)):
+            TestCase.iter_dict(self.get_processed_candidates_lines()):
+                         #reduce=self.candidates_markers)):
 
             if not source.depth in depths:
                 continue
@@ -293,10 +294,15 @@ class OpticBase():
             if not isinstance(pr_ref, trace.Trace):
                 pr_ref = pr_ref.pyrocko_trace()
             
-            reduce_value = self.reference_markers.values()[0][t].tmin
-            #reduce_value = self.reference_source.time
-            x_ref = pr_ref.get_xdata() - reduce_value 
+            try:
+                reduce_value = self.phase_cache.get_cached_arrivals(t, source)
+            except AttributeError: 
+                reduce_value = self.reference_source.time
+
+            x_ref = pr_ref.get_xdata() 
+            x_ref = x_ref-x_ref[0]
             y_ref = pr_ref.get_ydata()
+
                 
             gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=8)
 
