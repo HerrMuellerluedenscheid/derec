@@ -268,27 +268,28 @@ class OpticBase():
         sources = sources if sources else self.sources
         depths = depths if depths else self.test_case_setup.depths
         alpha = 0.5/len(depths)
+        if alpha<=0.1:
+            alpha=0.1
 
         cmap = plt.get_cmap('Paired')
 
         gs = gridspec.GridSpec(len(self.targets)/3,3)
-        gs_dict= dict(zip(sorted(self.targets, key=lambda x: \
-                x.distance_to(sources[0])), gs))
+        gs_dict = dict(zip(sorted(self.targets, key=lambda x: \
+                (x.distance_to(sources[0]), x.codes[3])), gs))
 
         axes_dict = defaultdict()
 
-        #for source,t, pr_cand_line in\
-        #    TestCase.iter_dict(self.get_processed_candidates_lines(
-        #                 reduce=self.reference_source.time)):
-
         for source,t, pr_cand_line in\
             TestCase.iter_dict(self.get_processed_candidates_lines()):
-                         #reduce=self.candidates_markers)):
 
             if not source.depth in depths:
                 continue
 
-            ax = plt.subplot(gs_dict[t])
+            try:
+                ax = plt.subplot(gs_dict[t])
+            except KeyError:
+                continue
+
             pr_ref = self.processed_references[source][t]
             
             if not isinstance(pr_ref, trace.Trace):
@@ -302,7 +303,6 @@ class OpticBase():
             x_ref = pr_ref.get_xdata() 
             x_ref = x_ref-x_ref[0]
             y_ref = pr_ref.get_ydata()
-
                 
             gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=8)
 

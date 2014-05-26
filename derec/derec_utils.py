@@ -362,13 +362,16 @@ def filter_traces_dict(self, traces_dict, tfade, freqlimits):
 def calculate_misfit(test_case, verbose=False):
     
     sources = test_case.sources
-    targets = test_case.targets
+    targets = filter(lambda x: not util.match_nslcs('.'.join(x.codes),
+                                    test_case.blacklist), test_case.targets)
     references = test_case.references
     assert len(references.items())==1
     total_misfit = defaultdict()
 
     mfsetup = test_case.misfit_setup
     norm = mfsetup.norm
+
+    outlier_threshold = test_case.test_case_setup.outlier_threshold
 
     if verbose:
         pbar = progressbar.ProgressBar(maxval=len(sources)).start()
@@ -388,9 +391,7 @@ def calculate_misfit(test_case, verbose=False):
             shifted_candidates = test_case.make_shifted_candidates(source,
                     target)
 
-            #reft.deltat = round(reft.deltat, 6)
             for cand_i in shifted_candidates:
-                #cand_i.deltat = round(cand_i.deltat, 6)
                 m,n,r_d,c_d = reft.misfit(candidate=cand_i, setup=mfsetup, 
                         debug=True)
 
@@ -420,11 +421,19 @@ def calculate_misfit(test_case, verbose=False):
 
         M = num.power(num.sum(num.abs(num.power(ms, norm))), 1./norm)
         N = num.power(num.sum(num.abs(num.power(ns, norm))), 1./norm)
-            
-        total_misfit[source] = M/N
+        
+        M_total = M/N
+
+        if M_total>=outlier_threshold:
+            outliers[source] = M_total
+        else:
+            total_misfit[source] = M_total
+
     if verbose:
         pbar.update(si+1)
         pbar.finish()
+
+    test_case.outliers = outliers
     test_case.set_misfit(total_misfit)
 
 def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,

@@ -61,6 +61,8 @@ class TestCaseSetup(Object):
     test_parameter = String.T(optional=True, default=None)
     test_parameter_value = Float.T(optional=True, default=None)
 
+    outlier_threshold = Float.T(optional=True, default=10.)
+
     #def __init__(self, **kwargs):
     #    self.__dict__.update(kwargs)
 

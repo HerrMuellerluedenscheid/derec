@@ -124,6 +124,8 @@ class TestCase(Object):
         self.candidates= {}
 
         self.phase_cache = None
+        self.blacklist = ()
+        self.outliers = defaultdict()
 
     def request_data(self, verbose=False):
         if verbose:
