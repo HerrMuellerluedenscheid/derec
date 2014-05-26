@@ -123,6 +123,10 @@ class TestCase(Object):
         self.processed_candidates = defaultdict(dict)
         self.candidates= {}
 
+        self.phase_cache = None
+        self.blacklist = ()
+        self.outliers = defaultdict()
+
     def request_data(self, verbose=False):
         if verbose:
             print 'requesting data....'
@@ -360,21 +364,25 @@ class TestCase(Object):
 
 
     @staticmethod
-    def lines_dict(traces_dict, reduce=0.):
+    def lines_dict(traces_dict, reduce=None):
         """
         Create matplotlib.lines.Line2D objects from traces dicts.
         :param reduce: subtract time from each x-value:
         :return lines_dict: dict with lines
         """
         lines_dict = defaultdict(dict)
-        reduce_value = reduce
         for source, target, tr in TestCase.iter_dict(traces_dict):
             if isinstance(tr, seismosizer.SeismosizerTrace):
                 tr = tr.pyrocko_trace()
-
-            if not isinstance(reduce, float):
-                reduce_value = reduce[source][target].tmin
-
+            
+            if reduce:
+                if isinstance(reduce, float):
+                    reduce_value = reduce
+                else:
+                    reduce_value = reduce[source][target].tmin
+            else:
+                reduce_value = tr.get_xdata()[0]
+            
             lines_dict[source][target] = pltlines.Line2D(
                     tr.get_xdata()-reduce_value,
                     tr.get_ydata())
@@ -415,8 +423,8 @@ class TestCase(Object):
                                 self.reference_markers, 
                                 inplace=False)
 
-        for s, t, tr in TestCase.iter_dict(self.references):
-            tr.ydata = tr.ydata-tr.ydata.mean()
+        #for s, t, tr in TestCase.iter_dict(self.references):
+        #    tr.ydata = tr.ydata-tr.ydata.mean()
 
         self.apply_stf(setup.source_time_function)
 
