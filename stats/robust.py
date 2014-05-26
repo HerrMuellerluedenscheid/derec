@@ -39,7 +39,7 @@ if __name__ ==  "__main__":
     
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [pjoin(derec_home, 'fomostos')]
-    store_dirs.append(pjoin('/','scratch', 'local1', 'marius', 'doctar_inversion', 'gfdb'))
+    #store_dirs.append(pjoin('/','scratch', 'local1', 'marius', 'doctar_inversion', 'gfdb'))
     noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 're-checked_noise')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
     file_name = 'robust_check_results_%s.txt'%time_string
@@ -56,9 +56,9 @@ if __name__ ==  "__main__":
     verbose = True
     
     if test_type=='doctar':
-        store_id = 'crust2_m5_25Hz_extended'
-        data_base_dir = pjoin(derec_home, 'mseeds', 'doctar')
-        stations_file = 'doctar_stations.txt'
+        store_id = 'doctar_mainland_20Hz'
+        data_base_dir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01')
+        stations_file = 'stations.txt'
         event_file = 'doctar_2011-11-01_quakefile.dat'
         phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                            store_id, 
@@ -167,7 +167,15 @@ if __name__ ==  "__main__":
         best_source, best_misfit = test_case.best_source_misfit()
         angle_diff = best_source.pyrocko_moment_tensor().\
                     angle(ref_source_moment_tensor)
-        lateral_shift = num.sqrt(num.abs(best_source.north_shift+_ref_source.north_shift)**2+num.abs(best_source.east_shift+_ref_source.east_shift))
+
+        angle_sign = 1.
+        if best_source.pyrocko_moment_tensor().strike<=ref_source_moment_tensor.strike:
+            angle_sign = -1.
+
+        angle_diff *= angle_sign
+        lateral_shift = num.sqrt(best_source.north_shift**2+best_source.east_shift**2)
+        lateral_shift *= best_source.east_shift/abs(best_source.east_shift)
+
         if abs(best_source.depth-_ref_source.depth)<=200:
             if verbose:
                 print 'got it, a: %s, north shift: %s'%(angle_diff, lateral_shift)
