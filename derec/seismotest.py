@@ -22,15 +22,24 @@ tdict = {'depth':[5e3, 10e3, 15e3],
 #   mnd=0.) for depth in [5e3, 10e3, 15e3] for lat in [11.0,11.1,11.2]]
 print orthodrome.distance_accurate50m_numpy(10., 10., 10.5,10.)
 
-sources = [
+sources1 = [
    gf.DCSource(
    lat=10.0,
    lon=10.0,
    depth=depth,
    magnitude=magnitude,
-   strike=33.,
-   dip=80.,
-   rake=5.) for depth in [5e3] for magnitude in [2.]]
+   strike=18.,
+   dip=12.,
+   rake=-105.) for depth in [5e3] for magnitude in [2.]]
+sources2 = [
+   gf.DCSource(
+   lat=10.0,
+   lon=10.0,
+   depth=depth,
+   magnitude=magnitude,
+   strike=214.,
+   dip=78.,
+   rake=93.) for depth in [5e3] for magnitude in [2.]]
 
 targets = [
     gf.Target(
@@ -43,10 +52,18 @@ targets = [
 
 direc = pjoin(os.environ['DEREC_HOME'], 'fomostos')
 engine = gf.LocalEngine(store_superdirs=[direc])
-response = engine.process(
-            sources=sources,
+response2 = engine.process(
+            sources=sources2,
+            targets=targets)
+
+response1 = engine.process(
+            sources=sources1,
             targets=targets)
 
 #print response
+traces = []
+traces.extend(response1.pyrocko_traces())
+traces.extend(response2.pyrocko_traces())
 
-trace.snuffle(response.pyrocko_traces())
+trace.snuffle(traces)
+#trace.snuffle(response2.pyrocko_traces())

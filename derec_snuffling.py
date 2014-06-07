@@ -28,6 +28,7 @@ misfit = None
 
 class Derec(Snuffling):
     '''
+    *pre-filter: use high/low pass filter to filter traces before processing
     
     '''
     def setup(self):
@@ -53,6 +54,7 @@ class Derec(Snuffling):
         self.add_parameter(Param('Rise Time [s]', 'rise_time', 1., 0.5, 5.))
         self.add_parameter(Param('num inversion steps', 'num_inversion_steps',\
                 2., 1, 50.))
+        self.add_parameter(Switch('Pre-filter', 'pre_filter', True))
         self.add_parameter(Switch('Post invert', 'post_invert', False))
         self.add_parameter(Switch('Pre invert', 'pre_invert', False))
         self.add_trigger('Load Misfit Setup', self.load_misfit_setup) 
@@ -107,6 +109,12 @@ class Derec(Snuffling):
             depths = [self.reference_source.depth]
         sources = du.test_event_generator(self.reference_source, depths)
         traces = self.get_pile().all()
+        if self.pre_filter:
+            traces = map(lambda x: x.copy(), traces)
+            map(lambda x: x.lowpass(4, self.lowpass), traces)
+            map(lambda x: x.highpass(4, self.highpass), traces)
+            print 'verify traces are copied'
+        
         self.traces_dict = du.make_traces_dict(self.reference_source, \
                 self.targets,
                 traces)

@@ -81,8 +81,9 @@ def noise_adder(noise, traces, tshift=120.):
             noise_trace = noise_trace[0]
                 
             if need_downsample(noise_trace, tr):
-                assert noise_trace.deltat>tr.deltat
-                tr.downsample_to(noise_trace.deltat)
+                deltat_max = max(tr.deltat, noise_trace.deltat)
+                tr.downsample_to(deltat_max)
+                noise_trace.downsample_to(deltat_max)
 
             tmin_index = tshift*tr.deltat
             tmax_index = tmin_index+len(tr.get_ydata())
@@ -127,15 +128,24 @@ class TestCase(Object):
         self.blacklist = ()
         self.outliers = defaultdict()
 
+        self.scale_minmax = False
+
     def request_data(self, verbose=False):
         if verbose:
             print 'requesting data....'
             pb = self.update_progressbar
         else:
             pb = None
-        self.response = self.engine.process(status_callback=pb, 
+        try:
+            self.response = self.engine.process(status_callback=pb, 
                                 sources=self.sources,
                                 targets=self.targets)
+        except meta.OutOfBounds:
+            print 'requested depths: '
+            for s in self.sources:
+                print s.depth
+            raise
+
         if verbose: print 'finished'
         self.set_raw_candidates(du.response_to_dict(self.response))
     
@@ -364,10 +374,10 @@ class TestCase(Object):
 
 
     @staticmethod
-    def lines_dict(traces_dict, reduce=None):
+    def lines_dict(traces_dict, reduction=None):
         """
         Create matplotlib.lines.Line2D objects from traces dicts.
-        :param reduce: subtract time from each x-value:
+        :param reduction: subtract time from each x-value:
         :return lines_dict: dict with lines
         """
         lines_dict = defaultdict(dict)
@@ -375,16 +385,29 @@ class TestCase(Object):
             if isinstance(tr, seismosizer.SeismosizerTrace):
                 tr = tr.pyrocko_trace()
             
-            if reduce:
-                if isinstance(reduce, float):
-                    reduce_value = reduce
+            if reduction:
+                if isinstance(reduction, float):
+                    reduction_value = reduction
+                elif isinstance(reduction, dict):
+                    try:
+                        reduction_value = reduction[source][target].tmin
+                    except:
+                        try:
+                            reduction_value = reduction[target].tmin
+                        except:
+                            raise
                 else:
-                    reduce_value = reduce[source][target].tmin
+                    try:
+                        reduction_value=reduction.get_cached_tmin(target, source)
+                        reduction_value+=source.time
+                    except:
+                        print "no valid reduction value"
+                        pass
             else:
-                reduce_value = tr.get_xdata()[0]
+                reduction_value = tr.get_xdata()[0]
             
             lines_dict[source][target] = pltlines.Line2D(
-                    tr.get_xdata()-reduce_value,
+                    tr.get_xdata()-reduction_value,
                     tr.get_ydata())
 
         return lines_dict 
@@ -424,7 +447,7 @@ class TestCase(Object):
                                 inplace=False)
 
         #for s, t, tr in TestCase.iter_dict(self.references):
-        #    tr.ydata = tr.ydata-tr.ydata.mean()
+            #tr.ydata = tr.ydata-tr.ydata.mean()
 
         self.apply_stf(setup.source_time_function)
 

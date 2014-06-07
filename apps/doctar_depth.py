@@ -26,6 +26,7 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(derec_home, 'mseeds', 'doctar',
                     'doctar_2011-11-01', 'stations.txt'))
     event = model.Event(load=pjoin(derec_home, 'mseeds', 'doctar',
+                    'doctar_2011-11-01',
                     'doctar_2011-11-01_quakefile.dat'))
     files = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01',
                                 'restituted')
@@ -37,19 +38,18 @@ if __name__ ==  "__main__":
     traces.extend(io.load(fn) for fn in glob.glob(files+'/*'))
     traces = du.flatten_list(traces)
 
-    map(lambda x: x.highpass(2, 0.7), traces)
+    map(lambda x: x.highpass(2, 0.5), traces)
     channels = ['HHE', 'HHN', 'HHZ']
 
-    phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
-                                                       store_id, 
-                                                       ['p','P']))
+    phase_ids_start = ['p','P']
 
     targets = du.stations2targets(stations, store_id, channels=channels)
     ref_source = DCSource.from_pyrocko_event(event)
 
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
-    depths=num.linspace(ref_source.depth-3000, ref_source.depth+3000, 9)
+    #depths=num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    depths= range(1000, 8000, 200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)
@@ -64,9 +64,9 @@ if __name__ ==  "__main__":
 
     # setup the misfit setup:
     norm = 2
-    taper = trace.CosFader(xfrac=0.2) 
+    taper = trace.CosFader(xfrac=0.333) 
     
-    z, p, k = butter(2, [1.0*num.pi*2, 4.0*num.pi*2.], 
+    z, p, k = butter(2, [0.7*num.pi*2, 6.0*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -90,16 +90,16 @@ if __name__ ==  "__main__":
                                     store_id=store_id,
                                     misfit_setup=misfit_setup,
                                     source_time_function=stf,
-                                    number_of_time_shifts=1,
-                                    percentage_of_shift=30.,
+                                    number_of_time_shifts=100,
+                                    percentage_of_shift=40.,
                                     phase_ids_start=phase_ids_start,
                                     static_length=3.,
                                     marker_perc_length=0.001,
-                                    marker_shift_frac=0.7,
+                                    marker_shift_frac=0.5,
                                     depths=depths) 
 
     test_case = TestCase( test_case_setup )
-    test_case.blacklist = (('Y7','L004','','HHN'),)
+    test_case.blacklist = (('Y7','L004','','HHN'),('Y7','L001','','HHN'),)
 
     test_case.set_raw_references(reference_seismograms)
 

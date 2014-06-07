@@ -146,14 +146,15 @@ def cake_first_arrival(distance, depth, model, phases=None):
     Get very first arrival of *phases*. 
     """
     if not phases:
-        phases = ['p','P']
+        phases = ['p','P', 'pP']
     
     phases = [cake.PhaseDef(ph) for ph in phases]
-
-    tmin = min(model.arrivals([distance*cake.m2d], 
+    arrivals = model.arrivals([distance*cake.m2d], 
                             phases,
                             zstart=depth,
-                            zstop=depth), key=lambda x: x.t).t
+                            zstop=depth)
+
+    tmin = min(arrivals, key=lambda x: x.t).t
     return tmin
 
 class PhaseCache():
@@ -167,19 +168,25 @@ class PhaseCache():
         self.store = store
         self.phase_ids_start = phase_ids_start
         self.phase_ids_end = phase_ids_end
+    
+    def get_cached_tmin(self, target, source):
+        dist = source.distance_to(target)
+        key = (source.depth, dist)
+        return self.tmin_phase_cache[key]
+      
 
     def get_cached_arrivals(self, target, source, static_length=0., 
             perc=None, use_cake=True):
 
         dist = source.distance_to(target)
         key = (source.depth, dist)
-        #key = (args, use_cake)
-        if self.tmin_phase_cache.get(key, False):
-            tmin = self.tmin_phase_cache[key]
-        else:
+        
+        try:
+            tmin = self.get_cached_tmin(target, source)
+        except KeyError:
             if use_cake:
                 tmin = cake_first_arrival(dist, source.depth, self.model,
-                        phases=self.phase_ids_start.split('|'))
+                        phases=self.phase_ids_start)
             else:
                 tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
             self.tmin_phase_cache[key] = tmin
@@ -243,26 +250,27 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         sources = [sources]
 
     def do_run(source, return_dict=None):
+        p_event = source.pyrocko_event()
         if return_dict is None:
             return_dict = defaultdict()
         
         for target in targets:
 
-            
             tmin, tmax = phase_cache.get_cached_arrivals(target, source, **kwargs)
             
             if t_shift_frac:
-                t_start_shift = -(tmax-tmin)*t_shift_frac
+
+                t_start_shift = abs(tmax-tmin)*t_shift_frac
                 t_end_shift = t_start_shift
 
-                tmin += t_start_shift
-                tmax += t_end_shift 
+                tmin -= t_start_shift
+                tmax -= t_end_shift 
 
             m = PhaseMarker(nslc_ids=[(target.codes)],
                             tmin=tmin,
                             tmax=tmax,
                             kind=1,
-                            event=source.pyrocko_event(),
+                            event=p_event,
                             phasename='drc')
 
             return_dict[target] = m
@@ -359,6 +367,12 @@ def filter_traces_dict(self, traces_dict, tfade, freqlimits):
         map(lambda x: x.transfer(tfade, freqlimits), s.values())
 
 
+def scale_minmax(t1, t2):
+    t1max = max(abs(t1.ydata))
+    t2max = max(abs(t2.ydata))
+    t2.ydata *= t1max/t2max
+
+
 def calculate_misfit(test_case, verbose=False):
     
     sources = test_case.sources
@@ -392,6 +406,9 @@ def calculate_misfit(test_case, verbose=False):
                     target)
 
             for cand_i in shifted_candidates:
+                if test_case.scale_minmax: 
+                    scale_minmax(reft, cand_i)
+
                 m,n,r_d,c_d = reft.misfit(candidate=cand_i, setup=mfsetup, 
                         debug=True)
 
@@ -425,7 +442,7 @@ def calculate_misfit(test_case, verbose=False):
         M_total = M/N
 
         if M_total>=outlier_threshold:
-            outliers[source] = M_total
+            test_case.outliers[source] = M_total
         else:
             total_misfit[source] = M_total
 
@@ -433,7 +450,6 @@ def calculate_misfit(test_case, verbose=False):
         pbar.update(si+1)
         pbar.finish()
 
-    test_case.outliers = outliers
     test_case.set_misfit(total_misfit)
 
 def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
@@ -527,7 +543,7 @@ def apply_stf(traces_dict, stf):
     for s, target_traces in traces_dict.items():
         for t, trac in target_traces.items():
             dt = trac.deltat
-            assert(stf[0][1]-stf[0][0] >= 3* dt)
+            #assert(stf[0][1]-stf[0][0] >= 2* dt)
 
             x = trac.get_xdata()
 

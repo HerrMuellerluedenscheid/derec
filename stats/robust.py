@@ -39,23 +39,25 @@ if __name__ ==  "__main__":
     
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [pjoin(derec_home, 'fomostos')]
-    #store_dirs.append(pjoin('/','scratch', 'local1', 'marius', 'doctar_inversion', 'gfdb'))
+    store_dirs.append(pjoin('/','scratch', 'local1', 'marius', 'doctar_inversion', 'gfdb'))
     noisedir = pjoin(derec_home, 'mseeds', 'iris_data', 're-checked_noise')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
-    file_name = 'robust_check_results_%s.txt'%time_string
+    file_name = 'robust_check%s.txt'%time_string
     num_stations = 10
-    stf = [[0.,1.], [0.,1.]]
     dz = 2*km
     num_depths = 9
-    num_tests = 10
+    num_tests = 500
     
     engine = LocalEngine(store_superdirs=store_dirs)
-    test_type = 'doctar'
+    test_type = 'castor'
     pb = None
-    add_noise = True
+    add_noise = True 
     verbose = True
-    
+    debug = True
+
     if test_type=='doctar':
+        stf = [[0.,0.1], [0.,1.]]
+        #store_id = 'crust2_m5_10Hz'
         store_id = 'doctar_mainland_20Hz'
         data_base_dir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01')
         stations_file = 'stations.txt'
@@ -65,9 +67,10 @@ if __name__ ==  "__main__":
                                                            ['p','P']))
 
     elif test_type=='castor':
+        stf = [[0.,1.], [0.,1.]]
         store_id = 'castor'
         data_base_dir = pjoin(derec_home, 'mseeds', 'castor')
-        stations_file = 'reference_stations_castor.txt'
+        stations_file = 'stations.txt'
         event_file = 'castor_event_2013-10-01.dat'
         phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
                                                            store_id, 
@@ -76,12 +79,18 @@ if __name__ ==  "__main__":
     stations = model.load_stations(pjoin(data_base_dir, stations_file))
 
     targets = du.stations2targets(stations, store_id)
+
     event = model.Event(load=pjoin(data_base_dir, event_file))
     _ref_source = DCSource.from_pyrocko_event(event)
+
+    if test_type=='doctar':
+        targets = filter(lambda x: x.distance_to(_ref_source)<50000., targets)
+
     depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
     ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
     location_test_sources_lists = du.make_lots_of_test_events(_ref_source, depths, 
-            {'strike':10, 'dip':10, 'rake':10, 'north_shift':5000 }, 
+            {'strike':5, 'dip':5, 'rake':5, 'north_shift':2000,
+                'east_shift': 2000}, 
             num_tests,
             func='normal') 
     i=0
@@ -89,8 +98,9 @@ if __name__ ==  "__main__":
     # setup the misfit setup:
     norm = 2
     taper = trace.CosFader(xfrac=0.2) 
+    #taper = trace.CosFader(xfade=2.0) 
     
-    z, p, k = butter(2, [0.001*num.pi*2, 2.0*num.pi*2.], 
+    z, p, k = butter(2, [0.01*num.pi*4, 2.0*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -114,11 +124,11 @@ if __name__ ==  "__main__":
                                     store_id=store_id,
                                     misfit_setup=misfit_setup,
                                     source_time_function=stf,
-                                    number_of_time_shifts=9,
-                                    percentage_of_shift=10.,
+                                    number_of_time_shifts=15,
+                                    percentage_of_shift=30.,
                                     phase_ids_start=phase_ids_start,
-                                    static_length=4.,
-                                    marker_perc_length=50.,
+                                    static_length=5.,
+                                    marker_perc_length=10.,
                                     marker_shift_frac=0.2,
                                     depths=depths) 
 
@@ -136,6 +146,7 @@ if __name__ ==  "__main__":
         noise = []
         for fn in noise_fns:
             noise.extend(io.load(fn))
+            map(lambda x: x.highpass(2, 0.3), noise)
         if not noise:
             print 'wanted to add noise, but didnt find some'
     else:
@@ -146,7 +157,7 @@ if __name__ ==  "__main__":
                                                     stf,
                                                     noise=noise)
 
-    reference_seismograms.values()[0].values()[0].snuffle()
+    #trace.snuffle(reference_seismograms.values()[0].values()[0])
 
 
     results = []
@@ -169,12 +180,18 @@ if __name__ ==  "__main__":
                     angle(ref_source_moment_tensor)
 
         angle_sign = 1.
-        if best_source.pyrocko_moment_tensor().strike<=ref_source_moment_tensor.strike:
+        if best_source.strike<=_ref_source.strike:
             angle_sign = -1.
 
         angle_diff *= angle_sign
         lateral_shift = num.sqrt(best_source.north_shift**2+best_source.east_shift**2)
-        lateral_shift *= best_source.east_shift/abs(best_source.east_shift)
+        print best_source.east_shift
+        print lateral_shift
+
+        try:
+            lateral_shift *= best_source.east_shift/abs(best_source.east_shift)
+        except ZeroDivisionError:
+            print best_source.east_shift
 
         if abs(best_source.depth-_ref_source.depth)<=200:
             if verbose:
@@ -185,13 +202,12 @@ if __name__ ==  "__main__":
                 print 'failed, a: %s, north shift: %s'%(angle_diff, lateral_shift)
             got_it = 0
 
-        if verbose:
+        if debug:
             op = optics.OpticBase(test_case)
             op.stack_plot()
             plt.show()
 
-        if not verbose:
-            pb = pbar(i, num_tests, pb)
+        pb = pbar(i, num_tests, pb)
 
         results.append([lateral_shift, angle_diff, best_misfit, got_it])
         

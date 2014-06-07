@@ -13,6 +13,11 @@ import sys
 import os
 
 pjoin = os.path.join
+font = {'family':'normal',
+        'size' : 9  }
+
+matplotlib.rc('font', **font)
+matplotlib.rc('text', usetex=True)
 
 def add_line_to_ca(line):
     line.set_figure(plt.gcf())
@@ -34,7 +39,7 @@ def combinator(lists_dict):
             result[k].append(v)
     return result
 
-depth = 2000.
+depth = 5000.
 
 file_names = sys.argv[1:]
 if not file_names:
@@ -65,11 +70,11 @@ all_targets = optics.values()[0].targets
 # change the *depth* to see a different depth.
 #-------------------------------------------------------==
 
-depth = 2000.
+depth = 5000.
 #name = 'regional_new'
 descriptor = ''
 
-if True:
+if False:
     print '(1) start generating processed plots'
     fig_dict = OpticBase.figure_dict([t.codes for t in all_targets]) 
     for i,k in enumerate(sorted_keys):
@@ -106,7 +111,7 @@ if True:
 #---------------------------------------------
 if True:
     print '(2)start generating diff plot'
-    fig = plt.figure()
+    fig = plt.figure(figsize=(3,2))
     ax = fig.add_subplot(111)
     for date in data:
         setup = date.test_case_setup
@@ -116,15 +121,17 @@ if True:
         test_parameter_value = setup.test_parameter_value
         best_s = min(date.misfits, key=date.misfits.get)
         zdiff = date.test_case_setup.reference_source.depth-best_s.depth
-        ax.plot(test_parameter_value, zdiff, 'o')
+        ax.plot(test_parameter_value, zdiff/1000., 'ob')
     ax.autoscale()
-    ax.set_xlabel(test_parameter)
+    #ax.set_xlabel(test_parameter.replace("_", " ")+' [s]')
+    ax.set_xlabel('rise time [s]')
+    ax.set_ylabel(r'$\triangle$z [km]')
     fn = file_name_path(name, 
             test_parameter=test_parameter,
             descriptor='', 
             test_type='z_diff_vs_tp.pdf', 
             extra='')
-    fig.savefig(fn)
+    fig.savefig(fn, pad_inches=0.1, bbox_inches='tight')
     #plt.show()
     print 'done'
 

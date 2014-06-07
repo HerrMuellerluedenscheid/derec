@@ -18,6 +18,9 @@ except:
 from gmtpy import GMT
 from copy import copy
 
+font = {'family' : 'normal', 
+    'size'   : 11} 
+matplotlib.rc('font', **font)
 
 
 matplotlib.rcParams['font.size'] = 7
@@ -122,6 +125,9 @@ class OpticBase():
         elif test_case_data:
             self.test_case_data = test_case_data
             data_input = self.test_case_data
+        
+        # should use that everywhere...
+        self.data = data_input
 
         self.candidates = data_input.candidates
         self.references = data_input.references
@@ -142,7 +148,10 @@ class OpticBase():
         self.sources = self.test_case_setup.sources
         self.reference_source = self.test_case_setup.reference_source
         self.misfits = data_input.misfits
-        self.phase_cache = data_input.phase_cache
+        try:
+            self.phase_cache = data_input.phase_cache
+        except AttributeError:
+            self.phase_cache = {}
 
     def gmt_map(self, **kwargs):
         sources_lon_lat = set()
@@ -210,14 +219,6 @@ class OpticBase():
             ax.axes.get_yaxis().set_visible(False)
             ax.autoscale()
 
-    def plot_marker_vs_distance(self):
-        """
-        Plot:
-            x-axis: Distance
-            y-axis: Marker tmin, and marker max
-        """
-        fig = plt.figure()
-
     def distance_sort_targets(self, ref_source, targets=[]):
         """
         return a list of targets sorted by distance to given event
@@ -233,6 +234,9 @@ class OpticBase():
         """
         sources = self.sources if not sources else sources
         targets = self.targets if not targets else targets
+        max_xlim = 0
+        min_xlim = 1e20
+
 
         for source in sources:
             i = 0
@@ -241,24 +245,38 @@ class OpticBase():
             for target in [t for t in self.distance_sort_targets(source,targets=targets)\
                         if t.codes[3]==channel]:
                     m = markers_dict[source][target]
-                    c = traces_dict[source][target]
-                    pt = c.pyrocko_trace()
-
-                    axs[i].plot(pt.get_xdata(), pt.get_ydata())
+                    pt = traces_dict[source][target]
+                    if not isinstance(pt, trace.Trace):
+                        pt = pt.pyrocko_trace()
+                    
+                    xdata = pt.get_xdata()
+                    ydata = pt.get_ydata()
+                    axs[i].plot(xdata, ydata)
                     axs[i].axvline(m.tmin, label='P')
                     axs[i].axvline(m.tmax, label='P')
 
                     gca_label('.'.join(target.codes[:3]), ax=axs[i])
                     axs[i].yaxis.set_major_locator(MaxNLocator(prune='lower'))
+                    if xdata[0]<min_xlim:
+                        min_xlim = xdata[0]
+                    if xdata[-1]>max_xlim:
+                        max_xlim = xdata[-1]
 
                     i+=1
+
+            # TODO: hier noch die source time abziehen....
+            map(lambda x: x.set_xlim([min_xlim, max_xlim]), axs)
 
             fig.subplots_adjust(hspace=0)
             plt.setp([a.get_xticklabels() for a in fig.axes[:-1]], visible=False)
             fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
-            yield source, fig
+            if len(sources)==1:
+                return fig
+        #else:
+        #    yield source, fig
 
-    def stack_plot(self, sources=None, depths=None, fig=None):
+    def stack_plot(self, sources=None, depths=None, fig=None, show_markers=False,
+            exclude_outliers=True, fix_size=True):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
         area of source, that you would like to look at.
@@ -279,11 +297,23 @@ class OpticBase():
 
         axes_dict = defaultdict()
 
+        try:
+            outlier_depths = [outl.depth for outl in
+                self.data.outliers.keys()]
+        except AttributeError:
+            outlier_depths = []
+
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.get_processed_candidates_lines()):
+            TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.reference_markers.values()[0])):
+            #TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.candidates_markers)):
 
             if not source.depth in depths:
                 continue
+
+            if exclude_outliers:
+                if source.depth in outlier_depths:
+                    print 'outlier at z=',source.depth
+                    continue
 
             try:
                 ax = plt.subplot(gs_dict[t])
@@ -294,38 +324,51 @@ class OpticBase():
             
             if not isinstance(pr_ref, trace.Trace):
                 pr_ref = pr_ref.pyrocko_trace()
-            
-            try:
-                reduce_value = self.phase_cache.get_cached_arrivals(t, source)
-            except AttributeError: 
-                reduce_value = self.reference_source.time
 
             x_ref = pr_ref.get_xdata() 
-            x_ref = x_ref-x_ref[0]
+            try:
+                ref_m = self.reference_markers.values()[0][t]
+                x_0 =ref_m.tmin
+                #x_0 = self.phase_cache.get_cached_arrivals(t, source)[0]
+            except AttributeError:
+                print 'using first sample to reduce'
+                x_0 = x_ref[0]
+
+            x_ref = x_ref-x_0
             y_ref = pr_ref.get_ydata()
+            
+            if show_markers:
+                try:
+                    t_marker = self.phase_cache.get_cached_arrivals(t, source)[0]
+                    t_marker -= x_0
+                    ax.axvline(x=t_marker)
+                except AttributeError: 
+                    pass
                 
-            gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=8)
+            gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=11)
 
             pr_cand_line.set_label("%s m"%float(source.depth))
             pr_cand_line.set_color(cmap(self.scalez255(source.depth)))
             ax.add_line(pr_cand_line)
 
             p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=alpha)
+
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.tick_params(axis='both', which='major', labelsize=6)
+            plt.tick_params(axis='both', which='major', labelsize=11)
             ax.autoscale()
+            ax.set_xlim([min(x_ref), max(x_ref)])
             axes_dict[t] = ax
+            plt.locator_params(nbins=4)
             if fig:
                 ax.set_figure(fig)
 
-        plt.subplots_adjust(left=None,
-                            bottom=None,
-                            right=None,
-                            top=None,
-                            wspace=None,
-                            hspace=0.5)
-
-        plt.legend(loc=2, prop={'size':6})
+        #plt.subplots_adjust(left=None,
+        #                   bottom=None,
+        #                   right=None,
+        #                   top=None,
+        #                   wspace=None,
+        #                   hspace=0.35)
+        plt.legend(loc=2, prop={'size':11})
         plt.gcf().suptitle('%s, %s'%(
             self.test_case_setup.test_parameter,
             self.test_case_setup.test_parameter_value))
@@ -461,8 +504,11 @@ class OpticBase():
         return TestCase.get_sources_where(param_dict, self.sources)
 
     def scalez255(self, z): 
-        minz = min(self.test_case_setup.depths)
-        maxz = max(self.test_case_setup.depths)
+        if len(self.test_case_setup.depths)==1:
+            return 147
+        else:
+            minz = min(self.test_case_setup.depths)
+            maxz = max(self.test_case_setup.depths)
         try:
             return int((z-minz)*255/(maxz-minz))
         except ZeroDivisionError:
