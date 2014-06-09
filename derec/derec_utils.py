@@ -144,7 +144,7 @@ def azi_to_location_digits(azi):
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             picked_phases={}, t_shift_frac=0., cache=True, return_cache=False, **kwargs):
+             picked_phases=defaultdict(dict), t_shift_frac=0., cache=True, return_cache=False, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -160,10 +160,10 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         perc = kwargs['perc']
     assert not phase_ids_end==perc and None in (phase_ids_end, perc)
 
-    phase_cache = pc.PhaseCache(tmin_phase_cache=picked_phases,
-                             store=store, 
-                             phase_ids_start=phase_ids_start,
-                             phase_ids_end=phase_ids_end)
+    phase_cache = pc.PhaseCache(picked_phases=picked_phases,
+                                 store=store, 
+                                 phase_ids_start=phase_ids_start,
+                                 phase_ids_end=phase_ids_end)
     print 'created new phasecache instance, ', phase_cache
 
     parallelize = False 
@@ -203,12 +203,16 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                             phasename='drc')
 
 
-
         phase_marker_dict[source][target] = m
 
     if not cache:
         del phase_cache
         print 'deleted phase_cache instance'
+        try:
+            print 'trying to print phase_cache instance...'
+            print phase_cache
+        except:
+            print 'but throws an exception-> instance deleted'
         #phase_cache.flush()
 
     if return_cache:
