@@ -141,14 +141,14 @@ def azi_to_location_digits(azi):
     return r
 
 
-def cake_first_arrival(distance, depth, model, phases=None):
+def cake_first_arrival(distance, depth, model, phase_ids=None):
     """
     Get very first arrival of *phases*. 
     """
-    if not phases:
-        phases = ['p','P', 'pP']
+    if not phase_ids:
+        phase_ids= ['p','P', 'pP']
     
-    phases = [cake.PhaseDef(ph) for ph in phases]
+    phases = [cake.PhaseDef(ph) for ph in phase_ids]
     arrivals = model.arrivals([distance*cake.m2d], 
                             phases,
                             zstart=depth,
@@ -168,25 +168,32 @@ class PhaseCache():
         self.store = store
         self.phase_ids_start = phase_ids_start
         self.phase_ids_end = phase_ids_end
-    
+
+    def flush(self):
+        self.tmin_phase_cache = defaultdict()
+        self.tmax_phase_cache = defaultdict()
+        print 'flushedd  ' , self.tmin_phase_cache
+
     def get_cached_tmin(self, target, source):
         dist = source.distance_to(target)
         key = (source.depth, dist)
         return self.tmin_phase_cache[key]
       
-
     def get_cached_arrivals(self, target, source, static_length=0., 
             perc=None, use_cake=True):
+        print static_length, 'gca'
 
         dist = source.distance_to(target)
         key = (source.depth, dist)
         
         try:
             tmin = self.get_cached_tmin(target, source)
+            print 'got caches tmin', tmin
         except KeyError:
             if use_cake:
                 tmin = cake_first_arrival(dist, source.depth, self.model,
-                        phases=self.phase_ids_start)
+                        phase_ids=self.phase_ids_start)
+                print 'didn et tmin ',  tmin
             else:
                 tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
             self.tmin_phase_cache[key] = tmin
@@ -215,7 +222,7 @@ class PhaseCache():
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             picked_phases={}, t_shift_frac=0., return_cache=False, **kwargs):
+             picked_phases={}, t_shift_frac=0., cache=True, return_cache=False, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -235,6 +242,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                              store=store, 
                              phase_ids_start=phase_ids_start,
                              phase_ids_end=phase_ids_end)
+    print 'phasecache instance, ', phase_cache
 
     parallelize = False 
     if kwargs.get('parallelize', False):
@@ -249,10 +257,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
     if not isinstance(sources, list):
         sources = [sources]
 
-    def do_run(source, return_dict=None):
+    phase_marker_dict = defaultdict(dict)
+    for source in sources:
         p_event = source.pyrocko_event()
-        if return_dict is None:
-            return_dict = defaultdict()
         
         for target in targets:
 
@@ -273,31 +280,12 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                             event=p_event,
                             phasename='drc')
 
-            return_dict[target] = m
-        return return_dict 
 
-    phase_marker_dict = defaultdict()
 
-    if parallelize:
-        nworkers = 1
-        #for source, tmp_dict in parimap(do_run, sources):
-        manager = Manager()
-        return_dict = manager.dict()
-        jobs = []
-        for i in range(nworkers):
-            p = Process(target=do_run, args=(sources, return_dict))
-            jobs.append(p)
-            p.start()
+        phase_marker_dict[source][target] = m
 
-        for proc in jobs:
-            proc.join()
-        
-        #for source, tmp_dict in p.map(do_run, sources):
-        #    phase_marker_dict[source] = tmp_dict
-    else:
-
-        for source in sources:
-            phase_marker_dict[source] = do_run(source)
+    if not cache:
+        phase_cache.flush()
 
     if return_cache:
         return phase_marker_dict, phase_cache
@@ -516,7 +504,8 @@ def stations2targets(stations, store_id=None, channels=[]):
             channels = s.get_channels()
         if not channels:
             channels = 'NEZ'
-        target = [Target(codes=(s.network,s.station,s.location,component),
+            
+        target = [Target(codes=(s.network,s.station,s.location,'*'+component),
                                  lat=s.lat,
                                  lon=s.lon,
                                  store_id=store_id,

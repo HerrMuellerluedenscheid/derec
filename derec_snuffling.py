@@ -3,6 +3,7 @@ import os
 import matplotlib.pyplot as plt
 import copy
 from collections import defaultdict
+from PyQt4 import QtGui
 
 from pyrocko.gf.meta import ConfigTypeA
 from pyrocko.snuffling import Snuffling, Param, Switch, NoViewerSet, Choice
@@ -21,7 +22,6 @@ from derec.yaml_derec import *
 pjoin = os.path.join
 fail_message = 'Need to load a setup, first'
 derec_home = os.environ["DEREC_HOME"]
-store_dirs = [derec_home + '/fomostos']
 k = 1000.
 misfit = None
 
@@ -36,8 +36,9 @@ class Derec(Snuffling):
         
         self.set_name('Depth Relocation')
         self.add_parameter(Choice('Store: ', 'store_id_choice',
-                                    'Need to select a superdir first.',
-                                    ['Need to select a superdir first.']))
+                                    'select superdir first',
+                                    ['select superdir first']))
+
         self.add_parameter(Param('Static marker length [s]', 'static_length', \
                 3, 1, 10))
         self.add_parameter(Param('Relative Marker length [%]',\
@@ -51,26 +52,29 @@ class Derec(Snuffling):
                 6, 0, 30))
         self.add_parameter(Param('rel. trace shift [%]', 'perc_of_shift', 20.,\
                 0., 100.))
-        self.add_parameter(Param('Rise Time [s]', 'rise_time', 1., 0.5, 5.))
+        self.add_parameter(Param('Rise Time [s]', 'rise_time', 0.5, 0.1, 2.))
         self.add_parameter(Param('num inversion steps', 'num_inversion_steps',\
                 2., 1, 50.))
-        self.add_parameter(Switch('Pre-filter', 'pre_filter', True))
+        self.add_parameter(Switch('Pre-filter with Main filter', 'pre_filter', True))
         self.add_parameter(Switch('Post invert', 'post_invert', False))
         self.add_parameter(Switch('Pre invert', 'pre_invert', False))
         self.add_trigger('Load Misfit Setup', self.load_misfit_setup) 
         self.add_trigger('Load Default Setup', self.load_setup) 
         self.add_trigger('Generate Markers', self.generate_markers) 
-        self.add_trigger('Select Store Directory', self.setup_id_choice)
+        self.add_trigger('Add Store Directory', self.add_store_dir)
         self.add_trigger('Save result', self.save_result)
         self.add_trigger('Save setup', self.save_setup)
         self.add_trigger('BB', self.bb)
         self.set_live_update(False)
 
         self.test_case_setup = None
-        self.phase_ids_start = 'p|P'
+        self.phase_ids_start = ['p','P']
+        self.engine = LocalEngine(store_superdirs=[])
         self._store_ids = []
         self.sources = []
         self.targets = []
+        self._ma= []
+        self.__reference_source = None
         self.reference_source = None
 
     def call(self):
@@ -79,47 +83,39 @@ class Derec(Snuffling):
         self.cleanup()
 
         # FOR TESTING
-        self.load_setup()
+        #self.load_setup()
         #self.generate_markers()
         self.mts = {}
         self.best_optics = {}
-
-        if not self.test_case_setup:
-            self.fail(fail_message)
-        
-        self.test_case_setup = core.TestCaseSetup(**self.__orig_setup_dict)
-        self.active_event, self.stations = self.get_active_event_and_stations()
-        if not self.targets:
+    
+        if (not self.targets or not self.__reference_source):
+            self.active_event, self.stations = self.get_active_event_and_stations()
             self.targets = du.stations2targets(self.stations, \
                     self.store_id_choice)
+            self.__reference_source = DCSource.from_pyrocko_event(self.active_event)
+        
+        reference_source = DCSource(**self.__reference_source_dict)
 
-        #if not self.reference_source:
-        #    self.reference_source = du.event2source(self.active_event, 'DC')
-        if self.reference_source:
-            self.reference_source.__dict__ = self.__reference_source_dict
+        depths = num.linspace(self.z_min, self.z_max, self.num_depths)
 
-        self.mts.update({'original input': mopad.MomentTensor(\
-                self.active_event.moment_tensor.m6())})
-
-        _depths = num.linspace(self.z_min, self.z_max, self.num_depths)
-
-        if not self.pre_invert:
-            depths = _depths
-        else:
-            depths = [self.reference_source.depth]
         sources = du.test_event_generator(self.reference_source, depths)
         traces = self.get_pile().all()
+
         if self.pre_filter:
             traces = map(lambda x: x.copy(), traces)
             map(lambda x: x.lowpass(4, self.lowpass), traces)
             map(lambda x: x.highpass(4, self.highpass), traces)
-            print 'verify traces are copied'
-        
+
         self.traces_dict = du.make_traces_dict(self.reference_source, \
                 self.targets,
                 traces)
 
         stf = [[0., self.rise_time],[0.,1.]]
+
+        #self.mts.update({'original input': mopad.MomentTensor(\
+        #        self.active_event.moment_tensor.m6())})
+
+        
         # TODO: Qt4 wie directory waehlen fuer engine dirs
         test_case_setup = TestCaseSetup(reference_source=self.reference_source,
                                         sources=sources,
@@ -161,10 +157,8 @@ class Derec(Snuffling):
                         'reference_source': best_source,
                         'sources': sources})
             test_case_setup = core.TestCaseSetup(**tcd)
-            test_case = core.TestCase(test_case_setup)
 
-        else:
-            test_case = core.TestCase(test_case_setup)
+        test_case = core.TestCase(test_case_setup)
 
         test_case.set_raw_references(self.traces_dict)
         test_case.set_reference_markers(self.ref_markers_dict)
@@ -328,8 +322,13 @@ class Derec(Snuffling):
     def new_sdr(self, origin, grad, distance):
         return dict(zip(origin.keys(), origin.values()+grad*distance))
 
-    def setup_id_choice(self):
-        store_ids = self.input_filename(caption='Select a store') 
+    def add_store_dir(self):
+        self.engine.store_superdirs.append( str(QtGui.QFileDialog.getExistingDirectory(None, 
+                                 'Open working directory', 
+                                 '~', 
+                                 QtGui.QFileDialog.ShowDirsOnly)))
+        self._store_ids = self.engine.get_store_ids()
+        self.set_parameter_choices('store_id_choice', self._store_ids) 
 
     def load_misfit_setup(self):
         fn = self.input_filename(caption='Select a misfit setup')
@@ -365,7 +364,7 @@ class Derec(Snuffling):
         self.phase_ids_start = self.test_case_setup.phase_ids_start
         self.engine = self.test_case_setup.engine
         self.misfit_setup = self.test_case_setup.misfit_setup
-        self._store_ids.extend(self.test_case_setup.engine.get_store_ids())
+        self._store_ids.extend(self.engine.get_store_ids())
         self.set_parameter_choices('store_id_choice', self._store_ids) 
 
         self.__orig_setup_dict = self.test_case_setup.__dict__
@@ -381,13 +380,9 @@ class Derec(Snuffling):
         f = open(fn, 'r')
         f.write(self.dumped_setup)
         f.close()
-
+    
     def generate_markers(self):
-        try:
-            self.viewer.remove_markers(self.markers)
-        except AttributeError:
-            self.viewer = self.get_viewer()
-
+        self.cleanup()
         self.active_event, self.stations = self.get_active_event_and_stations()
 
         if not self.targets:
@@ -395,20 +390,29 @@ class Derec(Snuffling):
                     self.store_id_choice)
 
         if not self.reference_source:
-            self.reference_source = du.event2source(self.active_event, 'DC')
+            self.reference_source = DCSource.from_pyrocko_event(self.active_event)
             self.__reference_source_dict = self.reference_source.__dict__
-
+        
+        self.ref_markers_dict = None
         self.ref_markers_dict = du.chop_ranges(self.reference_source,
                        self.targets,
                        self.engine.get_store(self.store_id_choice),
                        self.phase_ids_start,
+                       return_cache=False,
+                       cache=False,
                        perc=self.marker_perc_length,
                        static_length=self.static_length,
                        t_shift_frac=self.marker_shift_frac,
                        use_cake=True)
+        print self.ref_markers_dict
 
-        self.markers = self.ref_markers_dict.values()[0].values()
-        self.add_markers(self.markers)
+        self._ma = self.ref_markers_dict.values()[0].values()
+        for m in self._ma:
+            print self.static_length
+            print m.tmin, m.tmax
+            print m
+        
+        self.add_markers(self._ma)
 
     def source2mt(self, source): 
         return mopad.MomentTensor(source.pyrocko_moment_tensor().m6())
@@ -455,7 +459,6 @@ class Derec(Snuffling):
             xx.autoscale()
 
         plt.draw()
-
 
                 
 def __snufflings__():
