@@ -148,5 +148,6 @@ hax = histfig.add_subplot(111)
 concat = num.concatenate((results_gotit, results_no))
 depths = set(concat.T[3])
 hax.hist(concat.T[3], len(depths)-1)
+plt.savefig('%s%s_his.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
 plt.show()

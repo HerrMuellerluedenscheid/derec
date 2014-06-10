@@ -418,9 +418,11 @@ def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
     return source_event
 
 
-def stations2targets(stations, store_id=None, channels=[]):
+def stations2targets(stations, store_id=None, channels=[], measureq='*'):
     '''
     Convert pyrockos original stations into seismosizer targets.
+
+    :param measureq: measuring quantity type like HH, BH or *
     '''
     targets = []
     for s in stations:
@@ -429,7 +431,7 @@ def stations2targets(stations, store_id=None, channels=[]):
         if not channels:
             channels = 'NEZ'
             
-        target = [Target(codes=(s.network,s.station,s.location,'*'+component),
+        target = [Target(codes=(s.network,s.station,s.location, measureq+component),
                                  lat=s.lat,
                                  lon=s.lon,
                                  store_id=store_id,
