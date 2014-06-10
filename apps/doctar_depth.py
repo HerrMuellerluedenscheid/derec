@@ -59,6 +59,10 @@ if __name__ ==  "__main__":
     rise_time=0.2
     
     stf = [[0.,rise_time],[0.,1.]]
+    for t in targets:
+        print t
+    for t in traces:
+        print t
     reference_seismograms = du.make_traces_dict(ref_source, targets, traces)
     targets = reference_seismograms.values()[0].keys()
 
@@ -109,14 +113,14 @@ if __name__ ==  "__main__":
                                     targets, 
                                     test_case.store,
                                     phase_ids_start,
-                                    picked_phases=markers_dict,
+                                    tmin_phase_cache=markers_dict,
                                     perc=test_case_setup.marker_perc_length,
                                     static_length=test_case_setup.static_length,
                                     t_shift_frac=test_case_setup.marker_shift_frac,
                                     return_cache=True,
                                     use_cake=use_cake)
 
-    test_case.phase_cache = phase_cache
+    #test_case.phase_cache = phase_cache
     test_case.set_reference_markers(extended_ref_marker)
 
     test_case.process(verbose=True, debug=False)

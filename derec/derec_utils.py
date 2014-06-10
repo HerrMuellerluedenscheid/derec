@@ -40,7 +40,8 @@ def make_markers_dict(source, targets, markers):
 def make_traces_dict(source, targets, traces):
     targets_traces= {}
     for tr in traces:
-        tar = filter(lambda x: x.codes==tr.nslc_id, targets)
+        tar = filter(lambda x: util.match_nslc('.'.join(x.codes),
+            tr.nslc_id), targets)
         assert len(tar)==1
         tar = tar[0]
         targets_traces.update({tar:tr})
@@ -144,7 +145,7 @@ def azi_to_location_digits(azi):
 
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             picked_phases=defaultdict(dict), t_shift_frac=0., cache=True, return_cache=False, **kwargs):
+             tmin_phase_cache={}, t_shift_frac=0., cache=True, return_cache=False, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -160,7 +161,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         perc = kwargs['perc']
     assert not phase_ids_end==perc and None in (phase_ids_end, perc)
 
-    phase_cache = pc.PhaseCache(picked_phases=picked_phases,
+    phase_cache = pc.PhaseCache(tmin_phase_cache=tmin_phase_cache,
                                  store=store, 
                                  phase_ids_start=phase_ids_start,
                                  phase_ids_end=phase_ids_end)
@@ -431,9 +432,9 @@ def stations2targets(stations, store_id=None, channels=[]):
         if not channels:
             channels = s.get_channels()
         if not channels:
-            channels = 'NEZ'
+            channels = ['*N','*E','*Z']
             
-        target = [Target(codes=(s.network,s.station,s.location,'*'+component),
+        target = [Target(codes=(s.network,s.station,s.location,component),
                                  lat=s.lat,
                                  lon=s.lon,
                                  store_id=store_id,
