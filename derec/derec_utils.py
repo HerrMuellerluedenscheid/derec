@@ -12,6 +12,7 @@ from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.parimap import parimap
 from scipy import interpolate
+from derec import phase_cache as pc
 
 from multiprocessing import Pool, Pipe, Process, Manager
 from itertools import izip
@@ -141,81 +142,9 @@ def azi_to_location_digits(azi):
     return r
 
 
-def cake_first_arrival(distance, depth, model, phases=None):
-    """
-    Get very first arrival of *phases*. 
-    """
-    if not phases:
-        phases = ['p','P', 'pP']
-    
-    phases = [cake.PhaseDef(ph) for ph in phases]
-    arrivals = model.arrivals([distance*cake.m2d], 
-                            phases,
-                            zstart=depth,
-                            zstop=depth)
-
-    tmin = min(arrivals, key=lambda x: x.t).t
-    return tmin
-
-class PhaseCache():
-    def __init__(self, tmin_phase_cache=defaultdict(), 
-            tmax_phase_cache=defaultdict(), store=None, phase_ids_start=[], 
-            phase_ids_end=[]):
-
-        self.tmin_phase_cache = tmin_phase_cache
-        self.tmax_phase_cache = tmax_phase_cache
-        self.model = store.config.earthmodel_1d
-        self.store = store
-        self.phase_ids_start = phase_ids_start
-        self.phase_ids_end = phase_ids_end
-    
-    def get_cached_tmin(self, target, source):
-        dist = source.distance_to(target)
-        key = (source.depth, dist)
-        return self.tmin_phase_cache[key]
-      
-
-    def get_cached_arrivals(self, target, source, static_length=0., 
-            perc=None, use_cake=True):
-
-        dist = source.distance_to(target)
-        key = (source.depth, dist)
-        
-        try:
-            tmin = self.get_cached_tmin(target, source)
-        except KeyError:
-            if use_cake:
-                tmin = cake_first_arrival(dist, source.depth, self.model,
-                        phases=self.phase_ids_start)
-            else:
-                tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
-            self.tmin_phase_cache[key] = tmin
-
-        if self.tmax_phase_cache.get(key, False):
-            tmax = self.tmax_phase_cache[key]
-        else:
-            if perc:
-                tmax = tmin + static_length + tmin * perc / 100.
-
-            elif use_cake:
-                print 'use cake'
-                tmax = cake_first_arrival(dist, source.depth, self.model,
-                        phases=self.phase_ids_end.split('|'))
-
-            else:
-                print 'use fomosto'
-                tmax = store.t('first(%s)'%self.phase_ids_end, key)
-            self.tmax_phase_cache[key] = tmax
-
-
-        tmin += source.time
-        tmax += source.time
-
-        return tmin, tmax
-
 
 def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             picked_phases={}, t_shift_frac=0., return_cache=False, **kwargs):
+             picked_phases={}, t_shift_frac=0., cache=True, return_cache=False, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -231,10 +160,11 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         perc = kwargs['perc']
     assert not phase_ids_end==perc and None in (phase_ids_end, perc)
 
-    phase_cache = PhaseCache(tmin_phase_cache=picked_phases,
+    phase_cache = pc.PhaseCache(tmin_phase_cache=picked_phases,
                              store=store, 
                              phase_ids_start=phase_ids_start,
                              phase_ids_end=phase_ids_end)
+    print 'created new phasecache instance, ', phase_cache
 
     parallelize = False 
     if kwargs.get('parallelize', False):
@@ -249,10 +179,9 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
     if not isinstance(sources, list):
         sources = [sources]
 
-    def do_run(source, return_dict=None):
+    phase_marker_dict = defaultdict(dict)
+    for source in sources:
         p_event = source.pyrocko_event()
-        if return_dict is None:
-            return_dict = defaultdict()
         
         for target in targets:
 
@@ -273,31 +202,14 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                             event=p_event,
                             phasename='drc')
 
-            return_dict[target] = m
-        return return_dict 
 
-    phase_marker_dict = defaultdict()
 
-    if parallelize:
-        nworkers = 1
-        #for source, tmp_dict in parimap(do_run, sources):
-        manager = Manager()
-        return_dict = manager.dict()
-        jobs = []
-        for i in range(nworkers):
-            p = Process(target=do_run, args=(sources, return_dict))
-            jobs.append(p)
-            p.start()
+        phase_marker_dict[source][target] = m
 
-        for proc in jobs:
-            proc.join()
-        
-        #for source, tmp_dict in p.map(do_run, sources):
-        #    phase_marker_dict[source] = tmp_dict
-    else:
-
-        for source in sources:
-            phase_marker_dict[source] = do_run(source)
+    if not cache:
+        del phase_cache
+        print 'deleted phase_cache instance'
+        #phase_cache.flush()
 
     if return_cache:
         return phase_marker_dict, phase_cache
@@ -516,7 +428,8 @@ def stations2targets(stations, store_id=None, channels=[]):
             channels = s.get_channels()
         if not channels:
             channels = 'NEZ'
-        target = [Target(codes=(s.network,s.station,s.location,component),
+            
+        target = [Target(codes=(s.network,s.station,s.location,'*'+component),
                                  lat=s.lat,
                                  lon=s.lon,
                                  store_id=store_id,
