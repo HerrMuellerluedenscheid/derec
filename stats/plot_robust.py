@@ -38,7 +38,8 @@ def SaveFigureAsImage(fileName,fig=None,**kwargs):
 font = {'family' : 'normal',
         'size'   : 9}
 
-use_scatter = False
+use_scatter = True
+only_failed = True
 matplotlib.rc('font', **font)
 
 file_name = sys.argv[1]
@@ -70,13 +71,16 @@ correct_depth = 5000
 cb = None
 gotit = 0
 
+
 for a,b,mf,d in results[:max_data]:
+        
     if not d in [0,1]:
         if not use_scatter or not isinstance(d, float):
             if abs(d-correct_depth)<=200:
                 d=1
             else:
                 d=0
+
     if d==1.:
         gotit+=1
         c = 'bo'
@@ -91,12 +95,29 @@ for a,b,mf,d in results[:max_data]:
 
 print 'total got it: ', gotit
 print '%s percent got it '%(float(gotit)/float(i)*100)
+
+results = results[:max_data]
+
+if only_failed:
+    results_gotit = []
+    results_no = []
+    for r in results:
+        if r[3]==1 or abs(r[3]-correct_depth)<=201:
+            results_gotit.append(r)
+        else:
+            results_no.append(r)
+    results = num.array(results_no)
+    results_gotit = num.array(results_gotit)
+    sc = ax.scatter(abs(results_gotit.T[0])/1000, abs(results_gotit.T[1]),
+            c='0.75', s=8, lw=0.5, alpha=0.5)
+
+            
+    
 if use_scatter:
     print 'scatterplot'
-    t_results = num.array(results[:max_data])
 
-    sc = plt.scatter(abs(t_results.T[0])/1000, abs(t_results.T[1]),
-            c=t_results.T[3]/1000, s=8, lw=0.5,
+    sc = ax.scatter(abs(results.T[0])/1000, abs(results.T[1]),
+            c=results.T[3]/1000, s=8, lw=0.2,
             vmin=zmin, vmax=zmax, cmap=cmap)
     plt.colorbar(sc, label='z [km]')
     
@@ -109,12 +130,23 @@ if use_scatter:
 
 print 'total number of tests: ', i
 #plt.colorbar(im)
-
+typestr = ''
+if use_scatter:
+    typestr+='_zccode'
+if only_failed:
+    typestr+= '_only_failed'
 
 plt.xlabel('Mislocation [km]' )
 plt.ylabel('Angle [deg]')
 plt.xlim([0, 12])
 plt.ylim([0, 60])
 #plt.suptitle(file_name)
-plt.savefig('figure1.pdf', transparent=True, pad_inches=0.01, bbox_inches='tight')
+plt.savefig('%s%s.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+
+histfig = plt.figure(figsize=(4,3), dpi=100)
+hax = histfig.add_subplot(111)
+concat = num.concatenate((results_gotit, results_no))
+depths = set(concat.T[3])
+hax.hist(concat.T[3], len(depths)-1)
+
 plt.show()
