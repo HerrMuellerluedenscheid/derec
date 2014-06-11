@@ -22,7 +22,7 @@ class PhaseCache():
             phase_ids_start=None, phase_ids_end=None):
 
         self.tmin_phase_cache = tmin_phase_cache if tmin_phase_cache else defaultdict()
-        self.tmax_phase_cache = tmax_phase_cache if tmin_phase_cache else defaultdict()
+        self.tmax_phase_cache = tmax_phase_cache if tmax_phase_cache else defaultdict()
         self.model = store.config.earthmodel_1d
         self.store = store
         self.phase_ids_start = phase_ids_start if phase_ids_start else ['p','P']
