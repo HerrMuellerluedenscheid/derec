@@ -49,7 +49,7 @@ if __name__ ==  "__main__":
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
     #depths=num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
-    depths= range(1000, 8000, 200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    depths= range(1000, 8000,1000) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)

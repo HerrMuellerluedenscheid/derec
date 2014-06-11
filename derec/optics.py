@@ -296,6 +296,7 @@ class OpticBase():
                 (x.distance_to(sources[0]), x.codes[3])), gs))
 
         axes_dict = defaultdict()
+        pc_lines = []
 
         try:
             outlier_depths = [outl.depth for outl in
@@ -350,7 +351,7 @@ class OpticBase():
             pr_cand_line.set_label("%s m"%float(source.depth))
             pr_cand_line.set_color(cmap(self.scalez255(source.depth)))
             ax.add_line(pr_cand_line)
-
+            pc_lines.append(pr_cand_line)
             p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=alpha)
 
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
@@ -368,7 +369,11 @@ class OpticBase():
         #                   top=None,
         #                   wspace=None,
         #                   hspace=0.35)
-        plt.legend(loc=2, prop={'size':11})
+        #plt.legend(loc=2, prop={'size':11})
+        norm = matplotlib.colors.Normalize(vmin=min(depths), vmax=max(depths))
+        cb = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm,
+                orientation='horizontal', extend='both')
+
         plt.gcf().suptitle('%s, %s'%(
             self.test_case_setup.test_parameter,
             self.test_case_setup.test_parameter_value))
