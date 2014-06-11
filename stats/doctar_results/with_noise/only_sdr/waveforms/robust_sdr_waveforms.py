@@ -59,7 +59,7 @@ if __name__ ==  "__main__":
     pb = None
     add_noise = True 
     verbose = True
-    debug = False
+    debug = True
     write_depth = True
 
     if test_type=='doctar':
@@ -94,7 +94,7 @@ if __name__ ==  "__main__":
 
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
     offset = 3000
-    depths = range(_ref_source.depth-offset, _ref_source.depth+offset, 200)
+    depths = range(int(_ref_source.depth-offset),int(_ref_source.depth+offset), 1000)
     print depths
     #depths=[_ref_source.depth]
 
@@ -161,7 +161,7 @@ if __name__ ==  "__main__":
         for fn in noise_fns:
             noise.extend(io.load(fn))
         if not noise:
-            print 'wanted to add noise, but didnt find some'
+            print 'wanted to add noise, but didnt find any '
     else:
         noise = None
 

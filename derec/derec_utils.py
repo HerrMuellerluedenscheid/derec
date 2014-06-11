@@ -143,8 +143,8 @@ def azi_to_location_digits(azi):
 
 
 
-def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             picked_phases={}, t_shift_frac=0., cache=True, return_cache=False, **kwargs):
+def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=None,
+             picked_phases={}, t_shift_frac=0., cache=True, return_cache=False, channel_prefix='', **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -170,6 +170,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         paralellize = True
 
     use_cake = False
+
     if kwargs.get('use_cake', False):
         use_cake = True
 
@@ -193,15 +194,16 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
                 tmin -= t_start_shift
                 tmax -= t_end_shift 
+            
+            ids = list(target.codes)
+            ids[3] = channel_prefix+ids[3]
 
-            m = PhaseMarker(nslc_ids=[(target.codes)],
+            m = PhaseMarker(nslc_ids=[tuple(ids)],
                             tmin=tmin,
                             tmax=tmax,
                             kind=1,
                             event=p_event,
                             phasename='drc')
-
-
 
             phase_marker_dict[source][target] = m
 
@@ -319,7 +321,6 @@ def calculate_misfit(test_case, verbose=False):
             for cand_i in shifted_candidates:
                 if test_case.scale_minmax: 
                     scale_minmax(reft, cand_i)
-
                 m,n,r_d,c_d = reft.misfit(candidate=cand_i, setup=mfsetup, 
                         debug=True)
 
@@ -429,7 +430,7 @@ def stations2targets(stations, store_id=None, channels=[], measureq=''):
             channels = s.get_channels()
         if not channels:
             channels = 'NEZ'
-            
+        print channels
         target = [Target(codes=(s.network,s.station,s.location, measureq+component),
                                  lat=s.lat,
                                  lon=s.lon,

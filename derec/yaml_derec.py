@@ -45,7 +45,7 @@ class TestCaseSetup(Object):
     source_time_function = List.T(List.T(Float.T()))
     number_of_time_shifts = Int.T()
     percentage_of_shift = Float.T()
-    phase_ids_start = String.T()
+    phase_ids_start = List.T(String.T(optional=True, default=['p','P']))
     channel_map = Dict.T(String.T(), Int.T(), 
                          optional=True, 
                          default={'N':1, 'E':2, 'Z':3})

@@ -380,10 +380,14 @@ class OpticBase():
 
         return axes_dict
 
-    def plot_misfits(self):
-        fig = plt.figure()
+    def plot_misfits(self, ax=None):
+        if not ax:
+            fig = plt.figure()
         plot_misfit_dict(self.misfits, ax=plt.gca())
-        return fig
+        try:
+            return fig
+        except UnboundLocalError:
+            return 
 
     def get_candidate_line(self, source, target):
         if not self.candidates_lines:

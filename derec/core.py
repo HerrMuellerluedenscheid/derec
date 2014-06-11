@@ -437,7 +437,7 @@ class TestCase(Object):
                                               t_shift_frac=\
                                                       setup.marker_shift_frac,
                                               use_cake=True)
-        
+
         self.set_candidates_markers( extended_test_marker )
 
         if verbose: print('chopping ref....')
@@ -445,9 +445,6 @@ class TestCase(Object):
                                 self.raw_references, 
                                 self.reference_markers, 
                                 inplace=False)
-
-        #for s, t, tr in TestCase.iter_dict(self.references):
-            #tr.ydata = tr.ydata-tr.ydata.mean()
 
         self.apply_stf(setup.source_time_function)
 
