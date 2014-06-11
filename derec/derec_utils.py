@@ -418,7 +418,7 @@ def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
     return source_event
 
 
-def stations2targets(stations, store_id=None, channels=[], measureq='*'):
+def stations2targets(stations, store_id=None, channels=[], measureq=''):
     '''
     Convert pyrockos original stations into seismosizer targets.
 

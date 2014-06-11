@@ -6,9 +6,6 @@ def cake_first_arrival(distance, depth, model, phase_ids=None):
     """
     Get very first arrival of *phases*. 
     """
-    if not phase_ids:
-        phase_ids= ['p','P', 'pP']
-    
     phases = [cake.PhaseDef(ph) for ph in phase_ids]
     arrivals = model.arrivals([distance*cake.m2d], 
                             phases,
@@ -21,26 +18,19 @@ def cake_first_arrival(distance, depth, model, phase_ids=None):
 
 
 class PhaseCache():
-    def __init__(self, tmin_phase_cache=defaultdict(), 
-            tmax_phase_cache=defaultdict(), store=None, phase_ids_start=[], 
-            phase_ids_end=[]):
+    def __init__(self, tmin_phase_cache=None, tmax_phase_cache=None, store=None,
+            phase_ids_start=None, phase_ids_end=None):
 
-        self.tmin_phase_cache = tmin_phase_cache
-        #print 'new, tmin_phase_cache', self.tmin_phase_cache
-        self.tmax_phase_cache = tmax_phase_cache
+        self.tmin_phase_cache = tmin_phase_cache if tmin_phase_cache else defaultdict()
+        self.tmax_phase_cache = tmax_phase_cache if tmin_phase_cache else defaultdict()
         self.model = store.config.earthmodel_1d
         self.store = store
-        self.phase_ids_start = phase_ids_start
-        self.phase_ids_end = phase_ids_end
+        self.phase_ids_start = phase_ids_start if phase_ids_start else ['p','P']
+        self.phase_ids_end = phase_ids_end 
 
     def flush(self):
         self.tmin_phase_cache = defaultdict()
         self.tmax_phase_cache = defaultdict()
-        #self.model = store.config.earthmodel_1d
-        #self.store = store
-        #self.phase_ids_start = phase_ids_start
-        #self.phase_ids_end = phase_ids_end
-        print 'phase cache: "flushed myself..." ' , self.tmin_phase_cache
 
     def get_cached_tmin(self, target, source):
         dist = source.distance_to(target)
@@ -49,19 +39,16 @@ class PhaseCache():
       
     def get_cached_arrivals(self, target, source, static_length=0., 
             perc=None, use_cake=True):
-        print static_length, 'gca'
 
         dist = source.distance_to(target)
         key = (source.depth, dist)
         
         try:
             tmin = self.get_cached_tmin(target, source)
-            print 'cool, I got a cached tmin', tmin
         except KeyError:
             if use_cake:
                 tmin = cake_first_arrival(dist, source.depth, self.model,
                         phase_ids=self.phase_ids_start)
-                print 'mmm, I didnt get tmin-> cak-> cake',  tmin
             else:
                 tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
             self.tmin_phase_cache[key] = tmin
