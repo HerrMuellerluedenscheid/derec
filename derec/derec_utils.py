@@ -532,7 +532,16 @@ def set_randomized_values(source_list, ranges, func='uniform'):
     for k,v in ranges.items():
         sourceval = getattr(source_list[0], k)
         if func=='uniform':
-            val = num.random.uniform(sourceval-v, sourceval+v)
+            if isinstance(v, list) and len(v)==2:
+                randompm = num.random.choice([-1,1])
+                minrange = sourceval+v[0]
+                maxrange = sourceval+v[1]
+                minrange *= randompm
+                maxrange *= randompm
+            else:
+                minrange = sourceval-v
+                maxrange = sourceval+v
+            val = num.random.uniform(minrange, maxrange)
         elif func=='normal':
             val = num.random.normal(sourceval, v)
         values.update({k: val})

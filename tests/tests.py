@@ -30,65 +30,31 @@ class TestFSU(unittest.TestCase):
         
     
     def test_random_event_generation(self):
+        num_sources = 100
         sources_lists = du.make_lots_of_test_events(self.source, [1000,2000,3000], 
                 {'strike':10,
                 'dip':10,
                 'rake':10}, 
-                10000)
+                num_sources)
 
-        assert len(sources_lists)==10000
-        for i in range(10000-1):
+        assert len(sources_lists)==num_sources
+        for i in range(num_sources-1):
             for n in range(len(sources_lists[0])):
                 assert sources_lists[0][n].dip!=sources_lists[i+1][n].dip
 
-    def test_generate_markers(self):
-        store_id = 'castor'
-        target = Target(lat=10., lon=10., store_id=store_id)
-        source = DCSource(lat=10., lon=10.1, depth=5000)
-        engine = LocalEngine(store_superdirs=[derec_home+'/fomostos'])
-        #self.active_event, self.stations = self.get_active_event_and_stations()
- 
-        #if not self.targets:
-        #    self.targets = du.stations2targets(self.stations, \
-        #            self.store_id_choice)
- 
-        
-        #    self.reference_source = DCSource.from_pyrocko_event(self.active_event)
-        #    self.__reference_source_dict = self.reference_source.__dict__
- 
-        tmins = [] 
-        #for sl in [2.,3.]:
-        a, c = du.chop_ranges(source,
-                               [target],
-                               engine.get_store(store_id),
-                               ['p', 'P'],
-                               return_cache=True,
-                               cache=True,
-                               perc=0.0001,
-                               static_length=1,
-                               t_shift_frac=0.5,
-                               use_cake=True)
-        
-        del c #c.flush()
-        self._ma = a.values()[0].values()
-        tmins.append(self._ma[0].tmin)
-        #assert tmins[0]!=tmins[1]
-
-        print a.values()[0].values()[0].tmin
- 
-        b = du.chop_ranges(source,
-                               [target],
-                               engine.get_store(store_id),
-                               ['p'],
-                               return_cache=False,
-                               cache=False,
-                               perc=0.0001,
-                               static_length=2,
-                               t_shift_frac=0.5,
-                               use_cake=True)
-        m = b.values()[0].values()[0]
-        print m.tmin
-        print m.tmax-m.tmin
+    def test_random_event_generation_range(self):
+        num_sources = 100
+        sources_lists = du.make_lots_of_test_events(self.source, [1000,2000,3000], 
+                {'strike':10,
+                'dip':10,
+                'rake':[10,20]}, 
+                num_sources)
+        import pdb
+        pdb.set_trace()
+        assert len(sources_lists)==num_sources
+        for i in range(num_sources-1):
+            for n in range(len(sources_lists[0])):
+                assert sources_lists[0][n].dip!=sources_lists[i+1][n].dip
 
         
 
