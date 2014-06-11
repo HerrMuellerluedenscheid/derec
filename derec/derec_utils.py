@@ -164,7 +164,6 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
                              store=store, 
                              phase_ids_start=phase_ids_start,
                              phase_ids_end=phase_ids_end)
-    print 'created new phasecache instance, ', phase_cache
 
     parallelize = False 
     if kwargs.get('parallelize', False):
@@ -204,7 +203,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
 
 
-        phase_marker_dict[source][target] = m
+            phase_marker_dict[source][target] = m
 
     if not cache:
         del phase_cache
