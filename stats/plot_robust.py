@@ -3,46 +3,21 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as num
 
-#cmap = matplotlib.cm.jet(20)
-cmap = matplotlib.cm.get_cmap('jet')
-
-
-def SaveFigureAsImage(fileName,fig=None,**kwargs):
-    ''' Save a Matplotlib figure as an image without borders or frames.
-       Args:
-            fileName (str): String that ends in .png etc.
-
-            fig (Matplotlib figure instance): figure you want to save as the image
-        Keyword Args:
-            orig_size (tuple): width, height of the original image used to maintain 
-            aspect ratio.
-    '''
-    fig_size = fig.get_size_inches()
-    w,h = fig_size[0], fig_size[1]
-    fig.patch.set_alpha(0)
-    if kwargs.has_key('orig_size'): # Aspect ratio scaling if required
-        w,h = kwargs['orig_size']
-        w2,h2 = fig_size[0],fig_size[1]
-        fig.set_size_inches([(w2/w)*w,(w2/w)*h])
-        fig.set_dpi((w2/w)*fig.get_dpi())
-    a=fig.gca()
-    a.set_frame_on(False)
-    a.set_xticks([]); a.set_yticks([])
-    plt.axis('off')
-    plt.xlim(0,h); plt.ylim(w,0)
-    fig.savefig(fileName, transparent=True, bbox_inches='tight', \
-                        pad_inches=0)
-
-
 
 font = {'family' : 'normal',
         'size'   : 9}
+matplotlib.rc('font', **font)
 
 use_scatter = True
-use_abs = False
+scatter_type = 'angle_location'
+use_abs = True
 only_failed = False
+xlabel = ''
+ylabel = ''
+suptitle = ''
+correct_depth = 5000
+cmap = matplotlib.cm.get_cmap('jet')
 
-matplotlib.rc('font', **font)
 
 file_name = sys.argv[1]
 
@@ -52,33 +27,25 @@ results = []
 for l in f.readlines():
     results.append(map(float, l.split()))
 
-# for plotting 1 of 2 figures side by side on a4:
-
 fig = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
-#fig = plt.figure()
 ax = fig.add_subplot(111)
 max_data = 2000
 i=1
 
-zmin = min(num.array(results).T[3])/1000.
-zmax = max(num.array(results).T[3])/1000.
-print zmin, zmax
-
+zmin = min(num.array(results).T[3])
+zmax = max(num.array(results).T[3])
 
 cnorm = matplotlib.colors.Normalize(vmin=zmin-0.1*zmin, vmax=zmax+0.1*zmax)
 scalarMap = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
-correct_depth = 5000
-#correct_depth = None
 
 cb = None
 gotit = 0
 
-if use_abs:
-    map(abs, results[:][0])
-    map(abs, results[:][1])
-
 for a,b,mf,d in results[:max_data]:
-        
+    if use_abs:
+        a = abs(a)
+        b = abs(b)
+
     if not d in [0,1]:
         if not use_scatter or not isinstance(d, float):
             if abs(d-correct_depth)<=200:
@@ -89,10 +56,10 @@ for a,b,mf,d in results[:max_data]:
     if d==1.:
         gotit+=1
         c = 'bo'
-        ax.plot(a/1000.,b, c, markersize=3.3)
+        ax.plot(a,b, c, markersize=3.3)
     elif d==0.:
         c = 'ro'
-        ax.plot(a/1000.,b, c, markersize=3.3)
+        ax.plot(a,b, c, markersize=3.3)
     else:
         use_scatter = True
         break
@@ -113,45 +80,57 @@ if only_failed:
             results_no.append(r)
     results = num.array(results_no)
     results_gotit = num.array(results_gotit)
-    sc = ax.scatter(results_gotit.T[0]/1000, results_gotit.T[1],
+    sc = ax.scatter(results_gotit.T[0], results_gotit.T[1],
             c='0.75', s=8, lw=0.5, alpha=0.5)
 else:
     results = num.array(results)
 
-if use_abs:
-    map(abs, results.T[0])
-    map(abs, results.T[1])
-
-    
 if use_scatter:
     print 'scatterplot'
+    print 'scatter type: ', scatter_type
 
-    sc = ax.scatter(results.T[0]/1000, results.T[1],
-            c=results.T[3]/1000, s=8, lw=0.2,
-            vmin=zmin, vmax=zmax, cmap=cmap)
-    plt.colorbar(sc, label='z [km]')
+    if scatter_type=='angle_location':
+        X = results.T[0]
+        Y = results.T[1]
+        Z = results.T[3]
+        if use_abs:
+            X = abs(X)
+            Y = abs(Y) 
+
+        vmin = zmin
+        vmax = zmax
+        cb_label = 'z [km]'
+
+
+    elif scatter_type=='depth_location':
+        X = results.T[0]
+        Y = results.T[3]
+        Z = results.T[1]
+        if use_abs:
+            X = abs(X)
+            Z = abs(Z) 
+
+        vmin = min(Z) 
+        vmax = max(Z) 
+        cb_label = 'angle [deg]'
+
+
+    sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
+    plt.colorbar(sc, label=cb_label)
     
 
-#color = scalarMap.to_rgba(d, alpha=0.5)
-#c='o'
-#ax.plot(abs(a)/1000.,abs(b), c, color=color, markersize=3.3)
-#if not cb:
-#    i+=1
-
 print 'total number of tests: ', i
-#plt.colorbar(im)
 typestr = ''
 if use_scatter:
     typestr+='_zccode'
 if only_failed:
     typestr+= '_only_failed'
 
-plt.xlabel('Mislocation [km]' )
-plt.ylabel('Mislocation [km]' )
-#plt.ylabel('Angle [deg]')
+plt.xlabel(xlabel)
+plt.ylabel(ylabel)
 #plt.xlim([0, 12])
 #plt.ylim([0, 60])
-#plt.suptitle(file_name)
+plt.suptitle(suptitle)
 plt.savefig('%s%s.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
 histfig = plt.figure(figsize=(4,3), dpi=100)
@@ -161,7 +140,7 @@ if only_failed:
 else:
     concat = results
 depths = set(concat.T[3])
-print depths
+
 hax.hist(concat.T[3], len(depths)-1)
 plt.savefig('%s%s_his.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
