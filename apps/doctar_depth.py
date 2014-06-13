@@ -51,7 +51,7 @@ if __name__ ==  "__main__":
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
     #depths=num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
-    depths= range(1000, 8000,1000) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    depths= range(1000, 8000,200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)
@@ -93,7 +93,7 @@ if __name__ ==  "__main__":
                                     misfit_setup=misfit_setup,
                                     source_time_function=stf,
                                     number_of_time_shifts=11,
-                                    time_shift=0.1,
+                                    time_shift=0.2,
                                     #percentage_of_shift=5.,
                                     phase_ids_start=phase_ids_start,
                                     static_length=3.,
@@ -102,7 +102,7 @@ if __name__ ==  "__main__":
                                     depths=depths) 
 
     test_case = TestCase( test_case_setup )
-    test_case.pre_highpass = (2,0.5)
+    test_case.pre_highpass = (2,0.4)
     test_case.blacklist = (('Y7','L004','','HHN'),('Y7','L001','','HHN'),)
 
     test_case.set_raw_references(reference_seismograms)

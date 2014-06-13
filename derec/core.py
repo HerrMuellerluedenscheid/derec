@@ -446,7 +446,7 @@ class TestCase(Object):
 
         setup = self.test_case_setup
 
-        if verbose: print('chopping candidates....')
+        if verbose: print('get chopping ranges....')
         extended_test_marker, c_pc = du.chop_ranges(self.sources,
                                               self.targets,
                                               self.store,
@@ -458,11 +458,8 @@ class TestCase(Object):
                                                       setup.marker_shift_frac,
                                               use_cake=True)
 
-        for m in extended_test_marker.values()[0].values():
-            print m.nslc_ids
-
         if self.picked:
-            print 'align phases by picked ones'
+            if verbose: print 'align phases by picked ones'
             alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
             du.align(alignment, extended_test_marker, static_shift=\
                     -setup.source_time_function[0][1])

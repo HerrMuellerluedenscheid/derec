@@ -1,4 +1,3 @@
-# An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
 import numpy as num
 from collections import defaultdict
 import matplotlib
@@ -356,7 +355,7 @@ class OpticBase():
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.tick_params(axis='both', which='major', labelsize=11)
             ax.autoscale()
-            #ax.set_xlim([min(x_ref), max(x_ref)])
+            ax.set_xlim([min(x_ref), max(x_ref)])
             axes_dict[t] = ax
             plt.locator_params(nbins=4)
             if fig:
