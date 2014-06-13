@@ -1,4 +1,3 @@
-# An example from scipy cookbook demonstrating the use of numpy arrys in vtk 
 import numpy as num
 from collections import defaultdict
 import matplotlib
@@ -289,7 +288,7 @@ class OpticBase():
         if alpha<=0.1:
             alpha=0.1
 
-        cmap = plt.get_cmap('Paired')
+        cmap = plt.get_cmap('coolwarm')
 
         gs = gridspec.GridSpec(len(self.targets)/3,3)
         gs_dict = dict(zip(sorted(self.targets, key=lambda x: \
@@ -305,9 +304,9 @@ class OpticBase():
             outlier_depths = []
 
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.reference_markers.values()[0])):
-            #TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.candidates_markers)):
-
+            TestCase.iter_dict(self.get_processed_candidates_lines()):
+            #TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.reference_markers.values()[0])):
+            
             if not source.depth in depths:
                 continue
 
@@ -329,13 +328,12 @@ class OpticBase():
             x_ref = pr_ref.get_xdata() 
             try:
                 ref_m = self.reference_markers.values()[0][t]
-                x_0 =ref_m.tmin
-                #x_0 = self.phase_cache.get_cached_arrivals(t, source)[0]
+                #x_0 =ref_m.tmin
             except AttributeError:
                 print 'using first sample to reduce'
-                x_0 = x_ref[0]
+                #x_0 = x_ref[0]
 
-            x_ref = x_ref-x_0
+            #x_ref = x_ref-x_0
             y_ref = pr_ref.get_ydata()
             
             if show_markers:
@@ -363,16 +361,22 @@ class OpticBase():
             if fig:
                 ax.set_figure(fig)
 
-        #plt.subplots_adjust(left=None,
-        #                   bottom=None,
-        #                   right=None,
-        #                   top=None,
-        #                   wspace=None,
-        #                   hspace=0.35)
-        #plt.legend(loc=2, prop={'size':11})
+        plt.subplots_adjust(left=None,
+                           bottom=None,
+                           right=None,
+                           top=None,
+                           wspace=0.3,
+                           hspace=0.3)
+        
         norm = matplotlib.colors.Normalize(vmin=min(depths), vmax=max(depths))
-        cb = matplotlib.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm,
-                orientation='horizontal', extend='both')
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm._A = []
+
+        fig = plt.gcf()
+        fig.subplots_adjust(right=0.90)
+        cbar_ax = fig.add_axes([0.2, 0.02, 0.6, 0.03])
+        fig.colorbar(sm, cmap=cmap, norm=norm, cax=cbar_ax,\
+                orientation='horizontal', boundaries=depths)
 
         plt.gcf().suptitle('%s, %s'%(
             self.test_case_setup.test_parameter,
@@ -380,10 +384,14 @@ class OpticBase():
 
         return axes_dict
 
-    def plot_misfits(self):
-        fig = plt.figure()
+    def plot_misfits(self, ax=None):
+        if not ax:
+            fig = plt.figure()
         plot_misfit_dict(self.misfits, ax=plt.gca())
-        return fig
+        try:
+            return fig
+        except UnboundLocalError:
+            return 
 
     def get_candidate_line(self, source, target):
         if not self.candidates_lines:

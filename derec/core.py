@@ -130,6 +130,9 @@ class TestCase(Object):
 
         self.scale_minmax = False
 
+        self.picked = None
+        self.pre_highpass = None
+        
     def request_data(self, verbose=False):
         if verbose:
             print 'requesting data....'
@@ -295,14 +298,18 @@ class TestCase(Object):
 
         return dumped
 
-    def make_t_shifts(self, trac, num_samples, perc):
+    def make_t_shifts(self, trac, num_samples, perc=0., seconds=0.):
         """
         :param trac: pyrocko.trace.Trace
         :param num_samples: number of time shifts
         :param perc: percentage of trace length to be shifted 
         :return: numpy array. 
         """
-        t_shift_max = (trac.tmax - trac.tmin) / 100. * perc
+        if perc:
+            t_shift_max = (trac.tmax - trac.tmin) / 100. * perc
+        elif seconds:
+            t_shift_max = seconds
+
         return num.linspace(-t_shift_max/2., t_shift_max/2, num_samples)
 
     def make_shifted_candidates(self, source, target):
@@ -311,9 +318,14 @@ class TestCase(Object):
         """
         shifted_candidates = []
         cand = self.candidates[source][target]
+
+        if self.test_case_setup.number_of_time_shifts==0:
+            return [cand.copy()]
+
         t_shifts = self.make_t_shifts(cand,
                 self.test_case_setup.number_of_time_shifts, 
-                self.test_case_setup.percentage_of_shift)
+                self.test_case_setup.percentage_of_shift,
+                self.test_case_setup.time_shift)
 
         shifted_candidates = [cand.copy() for i in range(len(t_shifts))]
         map(lambda t,s: t.shift(s), shifted_candidates, t_shifts)
@@ -404,7 +416,7 @@ class TestCase(Object):
                         print "no valid reduction value"
                         pass
             else:
-                reduction_value = tr.get_xdata()[0]
+                reduction_value = 0.
             
             lines_dict[source][target] = pltlines.Line2D(
                     tr.get_xdata()-reduction_value,
@@ -425,19 +437,35 @@ class TestCase(Object):
     
     def process(self, verbose=False, debug=False):
         self.request_data(verbose)
+        
+        if self.pre_highpass:
+            for s,t,tr in TestCase.iter_dict(self.raw_candidates):
+                tr.highpass(*self.pre_highpass)
+            for s,t,tr in TestCase.iter_dict(self.raw_references):
+                tr.highpass(*self.pre_highpass)
+
         setup = self.test_case_setup
 
-        if verbose: print('chopping candidates....')
-        extended_test_marker = du.chop_ranges(self.sources,
+        if verbose: print('get chopping ranges....')
+        extended_test_marker, c_pc = du.chop_ranges(self.sources,
                                               self.targets,
                                               self.store,
                                               setup.phase_ids_start,
+                                              return_cache=True,
                                               perc=setup.marker_perc_length,
                                               static_length=setup.static_length,
                                               t_shift_frac=\
                                                       setup.marker_shift_frac,
                                               use_cake=True)
-        
+
+        if self.picked:
+            if verbose: print 'align phases by picked ones'
+            alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
+            du.align(alignment, extended_test_marker, static_shift=\
+                    -setup.source_time_function[0][1])
+            du.align(alignment, self.raw_candidates, static_shift=\
+                    -setup.source_time_function[0][1])
+
         self.set_candidates_markers( extended_test_marker )
 
         if verbose: print('chopping ref....')
@@ -445,9 +473,6 @@ class TestCase(Object):
                                 self.raw_references, 
                                 self.reference_markers, 
                                 inplace=False)
-
-        #for s, t, tr in TestCase.iter_dict(self.references):
-            #tr.ydata = tr.ydata-tr.ydata.mean()
 
         self.apply_stf(setup.source_time_function)
 
@@ -473,16 +498,12 @@ class TestCase(Object):
             
 
     @staticmethod
-    def iter_dict(traces_dict, only_values=False):
+    def iter_dict(*args, **kwargs):
         """
         Iterate over a 2D-dict, yield each value.
         """
-        for key1, key_val in traces_dict.iteritems():
-            for key2, val in key_val.iteritems():
-                if only_values:
-                    yield val
-                else:
-                    yield key1, key2, val
+        return du.iter_dict(*args, **kwargs)
+
 
 
 if __name__ ==  "__main__":
@@ -509,7 +530,7 @@ if __name__ ==  "__main__":
         store_id = 'castor'
         stations = model.load_stations(pjoin(derec_home, 'mseeds', 'doctar',
                         'doctar_2011-11-01', 'stations.txt'))
-        event = model.Event(load=pjoin(derec_home, 'mseeds', 'doctar',
+        event = model.Event(load=pjoin(derec_home, 'mseeds', 'doctar','doctar_2011-11-01',
                         'doctar_2011-11-01_quakefile.dat'))
         files = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01',
         'restituted')
@@ -518,9 +539,7 @@ if __name__ ==  "__main__":
         traces = du.flatten_list(traces)
         channels = ['HHE', 'HHN', 'HHZ']
 
-    phase_ids_start = '|'.join(du.get_tabulated_phases(engine,
-                                                       store_id, 
-                                                       ['p','P']))
+    phase_ids_start =  ['p','P']
     
     # load stations from file:
     # Event==================================================

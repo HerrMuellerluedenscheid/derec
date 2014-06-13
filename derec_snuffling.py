@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import copy
 from collections import defaultdict
 from PyQt4 import QtGui
+from scipy.signal import butter
 
 from pyrocko.gf.meta import ConfigTypeA
 from pyrocko.snuffling import Snuffling, Param, Switch, NoViewerSet, Choice
@@ -36,26 +37,34 @@ class Derec(Snuffling):
         
         self.set_name('Depth Relocation')
         self.add_parameter(Choice('Store: ', 'store_id_choice',
-                                    'select superdir first',
-                                    ['select superdir first']))
+                                    'doctar_mainland_20Hz',
+                                    ['doctar_mainland_20Hz']))
 
         self.add_parameter(Param('Static marker length [s]', 'static_length', \
                 3, 1, 10))
         self.add_parameter(Param('Relative Marker length [%]',\
-                'marker_perc_length', 10., 0., 100.))
+                'marker_perc_length', 0.1, 0., 100.))
         self.add_parameter(Param('Minimal Depth [m]', 'z_min', 1*k, 0., 100*k))
         self.add_parameter(Param('Maximal Depth [m]', 'z_max', 10*k, 0., 100*k))
-        self.add_parameter(Param('Number of Depths', 'num_depths', 3, 1, 21))
+        self.add_parameter(Param('Number of Depths', 'num_depths', 21, 1, 50))
         self.add_parameter(Param('rel. Shift of Marker []', 'marker_shift_frac',\
-                0.3, 0., 1.))
+                0.5, 0., 1.))
         self.add_parameter(Param('Number of Time Shifts', 'num_time_shifts',\
-                6, 0, 30))
+                80., 0., 100.))
         self.add_parameter(Param('rel. trace shift [%]', 'perc_of_shift', 20.,\
                 0., 100.))
-        self.add_parameter(Param('Rise Time [s]', 'rise_time', 0.5, 0.1, 2.))
+        self.add_parameter(Param('Rise Time [s]', 'rise_time', 0.1, 0.1, 2.))
         self.add_parameter(Param('num inversion steps', 'num_inversion_steps',\
-                2., 1, 50.))
-        self.add_parameter(Switch('Pre-filter with Main filter', 'pre_filter', True))
+                10,1,100))
+        #self.add_parameter(Param('Fader [s]', 'xfade',\
+        #        0.3, 0.1, 10.))
+        self.add_parameter(Param('Fader [s]', 'xfrac',\
+                0.333, 0.01, 1.))
+        self.add_parameter(Param('Highpass [Hz]', 'highpass',\
+                0.7, 0.01, 100.))
+        self.add_parameter(Param('Lowpass [Hz]', 'lowpass',\
+                6., 1., 100.))
+        self.add_parameter(Switch('Pre-filter with Main filter', 'pre_filter', False))
         self.add_parameter(Switch('Post invert', 'post_invert', False))
         self.add_parameter(Switch('Pre invert', 'pre_invert', False))
         self.add_trigger('Load Misfit Setup', self.load_misfit_setup) 
@@ -69,7 +78,7 @@ class Derec(Snuffling):
 
         self.test_case_setup = None
         self.phase_ids_start = ['p','P']
-        self.engine = LocalEngine(store_superdirs=[])
+        self.engine = LocalEngine(store_superdirs=[pjoin(derec_home,'fomostos')])
         self._store_ids = []
         self.sources = []
         self.targets = []
@@ -82,29 +91,31 @@ class Derec(Snuffling):
 
         self.cleanup()
 
-        # FOR TESTING
-        #self.load_setup()
-        #self.generate_markers()
+        self.generate_markers()
+        viewer = self.get_viewer()
+
         self.mts = {}
         self.best_optics = {}
     
-        if (not self.targets or not self.__reference_source):
+        if (not self.targets or not self.reference_source):
             self.active_event, self.stations = self.get_active_event_and_stations()
             self.targets = du.stations2targets(self.stations, \
-                    self.store_id_choice)
-            self.__reference_source = DCSource.from_pyrocko_event(self.active_event)
-        
-        reference_source = DCSource(**self.__reference_source_dict)
+                    self.store_id_choice, 
+                    measureq='HH')
+            self.reference_source = DCSource.from_pyrocko_event(self.active_event)
+
+        reference_source = du.clone(self.reference_source)
 
         depths = num.linspace(self.z_min, self.z_max, self.num_depths)
 
         sources = du.test_event_generator(self.reference_source, depths)
-        traces = self.get_pile().all()
+        traces = self.chopper_selected_traces(fallback=True)
+        #self.get_pile().all()
 
         if self.pre_filter:
             traces = map(lambda x: x.copy(), traces)
-            map(lambda x: x.lowpass(4, self.lowpass), traces)
-            map(lambda x: x.highpass(4, self.highpass), traces)
+            map(lambda x: x.lowpass(4, viewer.lowpass), traces)
+            map(lambda x: x.highpass(4, viewer.highpass), traces)
 
         self.traces_dict = du.make_traces_dict(self.reference_source, \
                 self.targets,
@@ -112,22 +123,41 @@ class Derec(Snuffling):
 
         stf = [[0., self.rise_time],[0.,1.]]
 
+        norm = 2
+        #taper = trace.CosFader(xfade=self.xfade)
+        taper = trace.CosFader(xfrac=self.xfrac)
+    
+        z, p, k = butter(2, [self.lowpass*num.pi*2, self.highpass*num.pi*2.],
+                           'band',
+                           analog=True,
+                           output='zpk')
+    
+        z = map(complex, z)
+        p = map(complex, p)
+        k = complex(k)
+    
+        fresponse = trace.PoleZeroResponse(z,p,k)
+        fresponse.validate()
+    
+        misfit_setup = trace.MisfitSetup(norm=norm, 
+                                         taper=taper, 
+                                         domain='time_domain',
+                                         filter=fresponse)
+    
         #self.mts.update({'original input': mopad.MomentTensor(\
         #        self.active_event.moment_tensor.m6())})
 
-        
         # TODO: Qt4 wie directory waehlen fuer engine dirs
         test_case_setup = TestCaseSetup(reference_source=self.reference_source,
                                         sources=sources,
                                         targets=self.targets,
                                         engine=self.engine,
                                         store_id=self.store_id_choice,
-                                        misfit_setup=self.misfit_setup,
+                                        misfit_setup=misfit_setup,
                                         source_time_function=stf,
                                         number_of_time_shifts=int(\
                                                 self.num_time_shifts),
                                         percentage_of_shift=self.perc_of_shift,
-                                        phase_ids_start=self.phase_ids_start,
                                         static_length=self.static_length,
                                         marker_perc_length=\
                                                 self.marker_perc_length,
@@ -162,39 +192,42 @@ class Derec(Snuffling):
 
         test_case.set_raw_references(self.traces_dict)
         test_case.set_reference_markers(self.ref_markers_dict)
-
+        
         print 'STARTING DEPTH INVERSION============================'
         test_case.process(verbose=False)
+        test_case.validate()
+        
 
-        self.best_optics.update({'depth inversion':\
-            optics.OpticBase(test_case)})
+        #self.best_optics.update({'depth inversion':\
+        #    optics.OpticBase(test_case)})
 
-        tmp_out_dir = self.tempdir()
+        #tmp_out_dir = self.tempdir()
+        ob = optics.OpticBase(test_case)
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ob.plot_misfits(ax=ax)
+        fig =plt.figure()
+        ob.stack_plot()
+        plt.show()
+        #fig.canvas.draw()
 
-        fig = self.figure()
-        optics.plot_misfit_dict(test_case.misfits, ax=fig.gca())
-        fig.canvas.draw()
-
-        #optic = optics.OpticBase(test_case)
         #fig = self.figure()
-        #optic.stack_plot()
-        #plt.show()
         #for ax in axs.values():
         #    fig.add_axes(ax)
         #
         #fig.canvas.draw()
     
-        self.dumped_results = test_case.yaml_dump(pjoin(tmp_out_dir, \
-                'derec_results.yaml'))
-        self.dumped_setup = test_case.yaml_dump_setup(pjoin(tmp_out_dir, \
-                'derec_setup.yaml'))
+        #self.dumped_results = test_case.yaml_dump(pjoin(tmp_out_dir, \
+        #        'derec_results.yaml'))
+        #self.dumped_setup = test_case.yaml_dump_setup(pjoin(tmp_out_dir, \
+        #        'derec_setup.yaml'))
 
-        last_misfit = min(test_case.misfits.values())
-        misfit = last_misfit
-        for k,v in test_case.misfits.iteritems():
-            if v==last_misfit:
-                depth = k.depth
-                break
+        #last_misfit = min(test_case.misfits.values())
+        #misfit = last_misfit
+        #for k,v in test_case.misfits.iteritems():
+        #    if v==last_misfit:
+        #        depth = k.depth
+        #        break
 
         if self.post_invert:
             print 'STARTING POST INVERSION============================'
@@ -216,7 +249,7 @@ class Derec(Snuffling):
             self.plot_inversion(mfsdr, title='Post Inversion')
 
         self.plot_optics()
-        plt.show()
+        #plt.show()
 
     def invert(self, setup, source, last_test_case=None,\
             traces_dict=None, marker_dict=None):
@@ -387,11 +420,44 @@ class Derec(Snuffling):
 
         if not self.targets:
             self.targets = du.stations2targets(self.stations, \
-                    self.store_id_choice)
+                    self.store_id_choice, 
+                    measureq='HH')
 
         if not self.reference_source:
             self.reference_source = DCSource.from_pyrocko_event(self.active_event)
-            self.__reference_source_dict = self.reference_source.__dict__
+            #self.__reference_source_dict = self.reference_source.__dict__
+        
+        selected_markers = self.get_viewer().selected_markers()
+
+        self.ref_markers_dict = du.chop_ranges(self.reference_source,
+                       self.targets,
+                       self.engine.get_store(self.store_id_choice),
+                       self.phase_ids_start,
+                       return_cache=False,
+                       cache=False,
+                       picked_phases=selected_markers,
+                       perc=self.marker_perc_length,
+                       static_length=self.static_length,
+                       t_shift_frac=self.marker_shift_frac,
+                       use_cake=True, 
+                       channel_prefix='*')
+
+        self._ma = self.ref_markers_dict.values()[0].values()
+        
+        self.add_markers(self._ma)
+    
+    def extend_markers(self):
+        self.cleanup()
+        self.active_event, self.stations = self.get_active_event_and_stations()
+
+        if not self.targets:
+            self.targets = du.stations2targets(self.stations, \
+                    self.store_id_choice, 
+                    measureq='HH')
+
+        if not self.reference_source:
+            self.reference_source = DCSource.from_pyrocko_event(self.active_event)
+            #self.__reference_source_dict = self.reference_source.__dict__
         
         self.ref_markers_dict = None
         self.ref_markers_dict = du.chop_ranges(self.reference_source,
@@ -403,14 +469,10 @@ class Derec(Snuffling):
                        perc=self.marker_perc_length,
                        static_length=self.static_length,
                        t_shift_frac=self.marker_shift_frac,
-                       use_cake=True)
-        print self.ref_markers_dict
+                       use_cake=True, 
+                       channel_prefix='*')
 
         self._ma = self.ref_markers_dict.values()[0].values()
-        for m in self._ma:
-            print self.static_length
-            print m.tmin, m.tmax
-            print m
         
         self.add_markers(self._ma)
 

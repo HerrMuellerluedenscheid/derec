@@ -6,6 +6,7 @@ import urllib
 import types 
 import ctypes 
 import progressbar
+import copy
 from collections import defaultdict
 from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model
 from pyrocko.gf.seismosizer import *
@@ -20,20 +21,33 @@ from itertools import izip
 logger = logging.getLogger('derec_utils')
 
 
-def make_markers_dict(source, targets, markers):
+def make_markers_dict(source, targets, markers, keytype='dist_z', guess_others=True):
     '''
     Create the standard 2d dict like:
         dict[source][target] = marker_tmin
+
+    :param guess_others: If only one of three possible channels was marked 
+           associate with other two channels as well
     '''
-    targets_markers = {}
+    if keytype=='dist_z':
+        targets_markers = {}
+    else:
+        targets_markers = defaultdict(dict)
+
     for m in markers:
-        tar = filter(lambda x: util.match_nslcs('.'.join(x.codes[:3])+'.*',
-            m.nslc_ids), targets)
-        if len(tar)==0:
-            continue
-        tar = tar[0]
-        key = (source.depth, source.distance_to(tar))
-        targets_markers.update({key:m.tmin-source.time})
+        if guess_others:
+            tar = filter(lambda x: util.match_nslcs('.'.join(x.codes[:3])+'.*',
+                m.nslc_ids), targets)
+        else:
+            tar = filter(lambda x: util.match_nslcs('.'.join(x.codes[:3])+'.*',
+                m.nslc_ids), targets)
+        
+        for t in tar:
+            if keytype=='dist_z':
+                key = (source.depth, source.distance_to(t))
+                targets_markers.update({key:m.tmin-source.time})
+            else:
+                targets_markers[source][t] = m
 
     return targets_markers
 
@@ -52,6 +66,31 @@ re = 6371000.785
 class NoMatchingTraces(Exception):
     def __str__(self):
         return 'No matching traces found.'
+
+
+def get_phase_alignment(ref, can):
+    '''
+    :param rm: ref markers
+    :param cm: candidates markers (to be aligned)
+    '''
+    alignment = defaultdict(dict)
+    dref_targets = ref.values()[0]
+    t_ref_source = ref.keys()[0].time
+    for s,t,mtmin in iter_dict(can):
+        shift = (dref_targets[t].tmin-t_ref_source)-mtmin
+        alignment[s][t] = shift
+    
+    return alignment
+
+
+def align(alignment, unaligned, static_shift=0.):
+    for s,t,ali in iter_dict(alignment):
+        ali += static_shift
+        if isinstance(unaligned[s][t], trace.Trace):
+            unaligned[s][t].shift(ali)
+        else:
+            unaligned[s][t].tmin -= ali
+            unaligned[s][t].tmax -= ali
 
 
 def lat_lon_relative_shift(olat, olon, north_shift=0., east_shift=0.):
@@ -143,8 +182,8 @@ def azi_to_location_digits(azi):
 
 
 
-def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
-             picked_phases={}, t_shift_frac=0., cache=True, return_cache=False, **kwargs):
+def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=None,
+             picked_phases={}, t_shift_frac=None, return_cache=False, channel_prefix='', **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -170,6 +209,7 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
         paralellize = True
 
     use_cake = False
+
     if kwargs.get('use_cake', False):
         use_cake = True
 
@@ -186,35 +226,37 @@ def chop_ranges(sources, targets, store, phase_ids_start,  phase_ids_end=None,
 
             tmin, tmax = phase_cache.get_cached_arrivals(target, source, **kwargs)
             
-            if t_shift_frac:
+            ids = list(target.codes)
+            ids[3] = channel_prefix+ids[3]
 
-                t_start_shift = abs(tmax-tmin)*t_shift_frac
-                t_end_shift = t_start_shift
-
-                tmin -= t_start_shift
-                tmax -= t_end_shift 
-
-            m = PhaseMarker(nslc_ids=[(target.codes)],
+            m = PhaseMarker(nslc_ids=[tuple(ids)],
                             tmin=tmin,
                             tmax=tmax,
                             kind=1,
                             event=p_event,
                             phasename='drc')
 
-
-
             phase_marker_dict[source][target] = m
-
-    if not cache:
-        del phase_cache
-        print 'deleted phase_cache instance'
-        #phase_cache.flush()
-
+    shift_markers(phase_marker_dict, t_shift_frac, copy=False)
+    
     if return_cache:
         return phase_marker_dict, phase_cache
     else:
         return phase_marker_dict
 
+def shift_markers(markers, t_shift_frac, copy=True):
+    if copy:
+        markers = copy.deepcopy(markers)
+
+    for s,t,m in iter_dict(markers):
+
+        t_shift = abs(m.tmax-m.tmin)*t_shift_frac
+
+        m.tmin -= t_shift
+        m.tmax -= t_shift
+    
+    if copy:
+        return markers
 
 def chop_using_markers(traces, markers, *args, **kwargs):
     '''
@@ -319,7 +361,6 @@ def calculate_misfit(test_case, verbose=False):
             for cand_i in shifted_candidates:
                 if test_case.scale_minmax: 
                     scale_minmax(reft, cand_i)
-
                 m,n,r_d,c_d = reft.misfit(candidate=cand_i, setup=mfsetup, 
                         debug=True)
 
@@ -429,7 +470,6 @@ def stations2targets(stations, store_id=None, channels=[], measureq=''):
             channels = s.get_channels()
         if not channels:
             channels = 'NEZ'
-            
         target = [Target(codes=(s.network,s.station,s.location, measureq+component),
                                  lat=s.lat,
                                  lon=s.lon,
@@ -573,3 +613,16 @@ def clone(instance, **kwargs):
 
 def flatten_list(the_list):
     return [item for sublist in the_list for item in sublist]
+
+
+def iter_dict(traces_dict, only_values=False):
+    """
+    Iterate over a 2D-dict, yield each value.
+    """
+    for key1, key_val in traces_dict.iteritems():
+        for key2, val in key_val.iteritems():
+            if only_values:
+                yield val
+            else:
+                yield key1, key2, val
+
