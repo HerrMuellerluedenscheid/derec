@@ -27,6 +27,7 @@ class PhaseCache():
         self.store = store
         self.phase_ids_start = phase_ids_start if phase_ids_start else ['p','P']
         self.phase_ids_end = phase_ids_end 
+        self.as_dict = defaultdict(dict)
 
     def flush(self):
         self.tmin_phase_cache = defaultdict()
@@ -52,6 +53,7 @@ class PhaseCache():
             else:
                 tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
             self.tmin_phase_cache[key] = tmin
+        self.as_dict[source][target] = tmin
 
         if self.tmax_phase_cache.get(key, False):
             tmax = self.tmax_phase_cache[key]
