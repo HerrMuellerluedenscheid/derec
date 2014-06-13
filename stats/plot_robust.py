@@ -38,9 +38,9 @@ def SaveFigureAsImage(fileName,fig=None,**kwargs):
 font = {'family' : 'normal',
         'size'   : 9}
 
-use_scatter = True
-use_abs = False
-only_failed = False
+use_scatter = True 
+use_abs = False 
+only_failed = True 
 
 matplotlib.rc('font', **font)
 
@@ -60,8 +60,8 @@ ax = fig.add_subplot(111)
 max_data = 2000
 i=1
 
-zmin = min(num.array(results).T[3])/1000.
-zmax = max(num.array(results).T[3])/1000.
+zmin = min(num.array(results).T[3])
+zmax = max(num.array(results).T[3])
 print zmin, zmax
 
 
@@ -69,19 +69,19 @@ cnorm = matplotlib.colors.Normalize(vmin=zmin-0.1*zmin, vmax=zmax+0.1*zmax)
 scalarMap = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
 correct_depth = 5000
 #correct_depth = None
+grace = 200
 
 cb = None
 gotit = 0
 
-if use_abs:
-    map(abs, results[:][0])
-    map(abs, results[:][1])
-
 for a,b,mf,d in results[:max_data]:
+    if use_abs:
+        a = abs(a)
+        b = abs(b)
         
     if not d in [0,1]:
         if not use_scatter or not isinstance(d, float):
-            if abs(d-correct_depth)<=200:
+            if abs(d-correct_depth)<=grace:
                 d=1
             else:
                 d=0
@@ -107,13 +107,13 @@ if only_failed:
     results_gotit = []
     results_no = []
     for r in results:
-        if r[3]==1 or abs(r[3]-correct_depth)<=201:
+        if r[3]==1 or abs(r[3]-correct_depth)<=grace:
             results_gotit.append(r)
         else:
             results_no.append(r)
     results = num.array(results_no)
     results_gotit = num.array(results_gotit)
-    sc = ax.scatter(results_gotit.T[0]/1000, results_gotit.T[1],
+    sc = ax.scatter(results_gotit.T[0], results_gotit.T[1],
             c='0.75', s=8, lw=0.5, alpha=0.5)
 else:
     results = num.array(results)
@@ -126,10 +126,10 @@ if use_abs:
 if use_scatter:
     print 'scatterplot'
 
-    sc = ax.scatter(results.T[0]/1000, results.T[1],
-            c=results.T[3]/1000, s=8, lw=0.2,
+    sc = ax.scatter(results.T[0], results.T[1],
+            c=results.T[3], s=8, lw=0.2,
             vmin=zmin, vmax=zmax, cmap=cmap)
-    plt.colorbar(sc, label='z [km]')
+    plt.colorbar(sc, label='z [m]')
     
 
 #color = scalarMap.to_rgba(d, alpha=0.5)
@@ -146,8 +146,8 @@ if use_scatter:
 if only_failed:
     typestr+= '_only_failed'
 
-plt.xlabel('Mislocation [km]' )
-plt.ylabel('Mislocation [km]' )
+#plt.xlabel('Mislocation [km]' )
+#plt.ylabel('Mislocation [km]' )
 #plt.ylabel('Angle [deg]')
 #plt.xlim([0, 12])
 #plt.ylim([0, 60])
@@ -162,7 +162,7 @@ else:
     concat = results
 depths = set(concat.T[3])
 print depths
-hax.hist(concat.T[3], len(depths)-1)
+hax.hist(concat.T[3], len(depths))
 plt.savefig('%s%s_his.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
 plt.show()
