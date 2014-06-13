@@ -37,14 +37,16 @@ if __name__ ==  "__main__":
     traces = []
     traces.extend(io.load(fn) for fn in glob.glob(files+'/*'))
     traces = du.flatten_list(traces)
-
-    map(lambda x: x.highpass(2, 0.5), traces)
     channels = ['HHE', 'HHN', 'HHZ']
 
     phase_ids_start = ['p','P']
 
     targets = du.stations2targets(stations, store_id, channels=channels)
     ref_source = DCSource.from_pyrocko_event(event)
+    #targets = filter(lambda x: x.distance_to(ref_source)<=40000, targets)
+
+
+
 
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
@@ -90,8 +92,9 @@ if __name__ ==  "__main__":
                                     store_id=store_id,
                                     misfit_setup=misfit_setup,
                                     source_time_function=stf,
-                                    number_of_time_shifts=100,
-                                    percentage_of_shift=40.,
+                                    number_of_time_shifts=11,
+                                    time_shift=0.1,
+                                    #percentage_of_shift=5.,
                                     phase_ids_start=phase_ids_start,
                                     static_length=3.,
                                     marker_perc_length=0.001,
@@ -99,24 +102,26 @@ if __name__ ==  "__main__":
                                     depths=depths) 
 
     test_case = TestCase( test_case_setup )
+    test_case.pre_highpass = (2,0.5)
     test_case.blacklist = (('Y7','L004','','HHN'),('Y7','L001','','HHN'),)
 
     test_case.set_raw_references(reference_seismograms)
 
-    markers_dict = du.make_markers_dict(ref_source, targets, markers)
+    markers_dict_cache = du.make_markers_dict(ref_source, targets, markers)
+    markers_dict= du.make_markers_dict(ref_source, targets, markers, keytype='st')
 
-    extended_ref_marker, phase_cache = du.chop_ranges(ref_source, 
+    extended_ref_marker, ref_phase_cache = du.chop_ranges(ref_source, 
                                     targets, 
                                     test_case.store,
                                     phase_ids_start,
-                                    picked_phases=markers_dict,
+                                    picked_phases=markers_dict_cache,
                                     perc=test_case_setup.marker_perc_length,
                                     static_length=test_case_setup.static_length,
                                     t_shift_frac=test_case_setup.marker_shift_frac,
                                     return_cache=True,
                                     use_cake=use_cake)
 
-    test_case.phase_cache = phase_cache
+    test_case.picked = markers_dict
     test_case.set_reference_markers(extended_ref_marker)
 
     test_case.process(verbose=True, debug=False)
