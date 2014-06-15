@@ -45,8 +45,8 @@ if __name__ ==  "__main__":
     noisedir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_noise',
             'displacement')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
-    note = 'with_noise_false_doctar_newz'
-    false_store_id = 'false_doctar_mainland_20Hz'
+    note = 'with_noise'
+    false_store_id = None#'false_doctar_mainland_20Hz'
 
     file_name = 'robust_check%s_%s.txt'%(time_string, note)
     num_stations = 10
@@ -59,7 +59,7 @@ if __name__ ==  "__main__":
     pb = None
     add_noise = True 
     verbose = True
-    debug = False
+    debug = True
     write_depth = True
 
     if test_type=='doctar':
@@ -94,7 +94,8 @@ if __name__ ==  "__main__":
 
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
     offset = 3000
-    depths = range(_ref_source.depth-offset, _ref_source.depth+offset, 200)
+
+    depths = range(_ref_source.depth-offset, _ref_source.depth+offset, 1000)
     print depths
     #depths=[_ref_source.depth]
 
@@ -111,7 +112,7 @@ if __name__ ==  "__main__":
     #taper = trace.CosFader(xfrac=0.333) 
     taper = trace.CosFader(xfade=1.0) 
     
-    z, p, k = butter(2, [0.7*num.pi*2, 6.0*num.pi*2.], 
+    z, p, k = butter(2, [0.7*num.pi*2, 6.5*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -136,12 +137,12 @@ if __name__ ==  "__main__":
                                    store_id=store_id,
                                    misfit_setup=misfit_setup,
                                    source_time_function=stf,
-                                   number_of_time_shifts=41,
-                                   percentage_of_shift=30.,
+                                   number_of_time_shifts=61,
+                                   percentage_of_shift=45.,
                                    phase_ids_start=phase_ids_start,
                                    static_length=2.8,
                                    marker_perc_length=5.0,
-                                   marker_shift_frac=0.30,
+                                   marker_shift_frac=0.50,
                                    depths=depths) 
 
     extended_ref_marker, phase_cache = du.chop_ranges(_ref_source, 
@@ -169,7 +170,7 @@ if __name__ ==  "__main__":
                                                     stf,
                                                     noise=noise)
 
-    map(lambda x: x.highpass(4, 0.5), reference_seismograms.values()[0].values())
+    #map(lambda x: x.highpass(4, 0.5), reference_seismograms.values()[0].values())
     #map(lambda x: x.lowpass(4,10.)), reference_seismograms.values()[0].values())
 
     #trace.snuffle(reference_seismograms.values()[0].values()[0])
@@ -188,6 +189,7 @@ if __name__ ==  "__main__":
         test_case_setup.sources = location_test_sources
 
         test_case = core.TestCase( test_case_setup )
+        test_case.pre_highpass = (2.,0.4)
         test_case.phase_cache = phase_cache
         test_case.set_raw_references(reference_seismograms)
 
