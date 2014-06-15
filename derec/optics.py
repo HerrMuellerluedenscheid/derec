@@ -368,14 +368,15 @@ class OpticBase():
                            wspace=0.3,
                            hspace=0.3)
         
-        norm = matplotlib.colors.Normalize(vmin=min(depths), vmax=max(depths))
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        sm._A = []
 
-        fig = plt.gcf()
-        fig.subplots_adjust(right=0.90)
-        cbar_ax = fig.add_axes([0.2, 0.02, 0.6, 0.03])
-        fig.colorbar(sm, cmap=cmap, norm=norm, cax=cbar_ax,\
+        if len(depths)>=2:
+            norm = matplotlib.colors.Normalize(vmin=min(depths), vmax=max(depths))
+            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            sm._A = []
+            fig = plt.gcf()
+            fig.subplots_adjust(right=0.90)
+            cbar_ax = fig.add_axes([0.2, 0.02, 0.6, 0.03])
+            fig.colorbar(sm, cmap=cmap, norm=norm, cax=cbar_ax,\
                 orientation='horizontal', boundaries=depths)
 
         plt.gcf().suptitle('%s, %s'%(
