@@ -16,6 +16,7 @@ xlabel = ''
 ylabel = ''
 suptitle = ''
 correct_depth = 5000
+grace = 200
 cmap = matplotlib.cm.get_cmap('jet')
 
 
@@ -48,7 +49,7 @@ for a,b,mf,d in results[:max_data]:
 
     if not d in [0,1]:
         if not use_scatter or not isinstance(d, float):
-            if abs(d-correct_depth)<=200:
+            if abs(d-correct_depth)<=grace:
                 d=1
             else:
                 d=0
@@ -74,7 +75,7 @@ if only_failed:
     results_gotit = []
     results_no = []
     for r in results:
-        if r[3]==1 or abs(r[3]-correct_depth)<=201:
+        if r[3]==1 or abs(r[3]-correct_depth)<=grace:
             results_gotit.append(r)
         else:
             results_no.append(r)
@@ -128,8 +129,7 @@ if only_failed:
 
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
-#plt.xlim([0, 12])
-#plt.ylim([0, 60])
+
 plt.suptitle(suptitle)
 plt.savefig('%s%s.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
@@ -140,8 +140,8 @@ if only_failed:
 else:
     concat = results
 depths = set(concat.T[3])
+print depths
 
-hax.hist(concat.T[3], len(depths)-1)
 plt.savefig('%s%s_his.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
 plt.show()

@@ -132,6 +132,7 @@ class TestCase(Object):
 
         self.picked = None
         self.pre_highpass = None
+        self.reduce_half_rise = False
         
     def request_data(self, verbose=False):
         if verbose:
@@ -459,13 +460,17 @@ class TestCase(Object):
                                               use_cake=True)
 
         if self.picked:
-            if verbose: print 'align phases by picked ones'
-            alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
-            du.align(alignment, extended_test_marker, static_shift=\
-                    -setup.source_time_function[0][1])
-            du.align(alignment, self.raw_candidates, static_shift=\
-                    -setup.source_time_function[0][1])
+            if verbose: print 'align phases with picked ones'
+            if self.reduce_half_rise:
+                if verbose: print 'and reduce by t_rise'
+                static_shift = -setup.source_time_function[0][1]
+            else:
+                static_shift = 0.
 
+            #alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
+            alignment = du.get_phase_alignment(self.phase_cache.as_dict, c_pc.as_dict)
+            du.align(alignment, extended_test_marker, static_shift=static_shift)
+            du.align(alignment, self.raw_candidates, static_shift=static_shift)
         self.set_candidates_markers( extended_test_marker )
 
         if verbose: print('chopping ref....')

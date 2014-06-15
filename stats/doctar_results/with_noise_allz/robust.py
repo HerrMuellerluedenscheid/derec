@@ -54,8 +54,8 @@ if __name__ ==  "__main__":
     noisedir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_noise',
             'displacement')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
-    note = 'with_noise_false_doctar_newz'
-    false_store_id = 'false_doctar_mainland_20Hz'
+    note = 'allz_prefilt20s_false5'
+    false_store_id = 'false_doctar5_mainland_20Hz'
 
     file_name = 'robust_check%s_%s.txt'%(time_string, note)
     num_stations = 10
@@ -73,8 +73,6 @@ if __name__ ==  "__main__":
 
     if test_type=='doctar':
         stf = [[0.,0.2], [0.,1.]]
-        #store_id = 'crust2_m5_10Hz'
-        # Das ist der neu gebaute store:
         store_id = 'doctar_mainland_20Hz'
         data_base_dir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01')
         stations_file = 'stations.txt'
@@ -184,7 +182,7 @@ if __name__ ==  "__main__":
                                                     stf,
                                                     noise=noise)
 
-    map(lambda x: x.highpass(4, 0.5), reference_seismograms.values()[0].values())
+    #map(lambda x: x.highpass(4, 0.05), reference_seismograms.values()[0].values())
     #map(lambda x: x.lowpass(4,10.)), reference_seismograms.values()[0].values())
 
     #trace.snuffle(reference_seismograms.values()[0].values()[0])
@@ -203,6 +201,7 @@ if __name__ ==  "__main__":
         test_case_setup.sources = location_test_sources
 
         test_case = core.TestCase( test_case_setup )
+        test_case.pre_highpass = (2, 0.3)
         test_case.phase_cache = phase_cache
         test_case.set_raw_references(reference_seismograms)
 

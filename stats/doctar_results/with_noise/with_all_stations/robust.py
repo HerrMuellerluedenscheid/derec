@@ -196,7 +196,7 @@ if __name__ ==  "__main__":
         try:
             test_case.process()
         except meta.OutOfBounds:
-            i-=1
+            print 'out of bounds'
             continue
 
         best_source, best_misfit = test_case.best_source_misfit()
