@@ -1,5 +1,6 @@
 from collections import defaultdict
 from pyrocko import cake
+from pyrocko.gui_util import PhaseMarker
 
 
 def cake_first_arrival(distance, depth, model, phase_ids=None):
@@ -52,8 +53,16 @@ class PhaseCache():
                         phase_ids=self.phase_ids_start)
             else:
                 tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
+
             self.tmin_phase_cache[key] = tmin
-        self.as_dict[source][target] = tmin
+
+        m = PhaseMarker(nslc_ids=[target.codes],
+                        tmin=tmin,
+                        tmax=tmin,
+                        kind=1,
+                        event=None,
+                        phasename='cached')
+        self.as_dict[source][target] = m
 
         if self.tmax_phase_cache.get(key, False):
             tmax = self.tmax_phase_cache[key]
