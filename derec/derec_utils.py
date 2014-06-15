@@ -77,7 +77,16 @@ def get_phase_alignment(ref, can):
     dref_targets = ref.values()[0]
     t_ref_source = ref.keys()[0].time
     for s,t,mtmin in iter_dict(can):
-        shift = (dref_targets[t].tmin-t_ref_source)-mtmin
+        try:
+            #shift = (dref_targets[t].tmin-t_ref_source)-mtmin
+            shift = (dref_targets[t].tmin)-mtmin
+        except TypeError:
+            try:
+                shift =\
+                (dref_targets[t].tmin-t_ref_source)-(mtmin.tmin-t_ref_source)
+            except:
+                raise
+
         alignment[s][t] = shift
     
     return alignment
