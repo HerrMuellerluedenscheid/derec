@@ -1,3 +1,0 @@
-
-0.5Hz-4Hz.txt wurde nur mit 9 tshifts gerechnet. 
-0.5Hz-4Hz21tshifts.txt wurde mit 21 tshifts gerechnet. 
