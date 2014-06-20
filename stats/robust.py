@@ -200,7 +200,6 @@ if __name__ ==  "__main__":
 
         test_case = core.TestCase( test_case_setup )
         test_case.pre_highpass = (2.,0.4)
-        #test_case.yaml_dump_setup('doctar_setup.yaml')
         test_case.phase_cache = phase_cache
 
         test_case.set_raw_references(reference_seismograms)

@@ -25,6 +25,11 @@ matplotlib.rc('font', **font)
 matplotlib.rcParams['font.size'] = 7
 
 def plot_misfit_dict(mfdict, ax=None, **kwargs):
+
+    if not kwargs.get('marker', False):
+        kwargs.update({'marker':'o',
+                       'lw':0})
+
     if not ax:
         fig = plt.figure()
         ax = fig.add_subplot(111)

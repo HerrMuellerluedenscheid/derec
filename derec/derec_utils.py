@@ -717,7 +717,6 @@ def L2_norm(u, v, scaling=None, verbose=False):
         for c_j in c:
             M = L2_norm_inner(y_j, x_j, c_j)
             M_tmp[M] = c_j
-            print c_j, M
         min_M = min(M_tmp.keys())
 
         if verbose: 

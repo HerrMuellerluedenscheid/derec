@@ -43,15 +43,10 @@ if __name__ ==  "__main__":
 
     targets = du.stations2targets(stations, store_id, channels=channels)
     ref_source = DCSource.from_pyrocko_event(event)
-    #targets = filter(lambda x: x.distance_to(ref_source)<=40000, targets)
-
-
-
 
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
-    #depths=num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
-    depths= range(1000, 8000,200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    depths= range(400, 8000,200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)
@@ -92,8 +87,8 @@ if __name__ ==  "__main__":
                                     store_id=store_id,
                                     misfit_setup=misfit_setup,
                                     source_time_function=stf,
-                                    number_of_time_shifts=11,
-                                    percentage_of_shift=1.,
+                                    number_of_time_shifts=21,
+                                    #percentage_of_shift=4.,
                                     time_shift=0.2,
                                     phase_ids_start=phase_ids_start,
                                     static_length=3.,
