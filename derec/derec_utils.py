@@ -21,6 +21,16 @@ from itertools import izip
 logger = logging.getLogger('derec_utils')
 
 
+def drange(start, stop, step):
+    out = []
+    i = step
+    while i<stop:
+        out.append(i)
+        i += step
+
+    return out
+
+
 def make_markers_dict(source, targets, markers, keytype='dist_z', guess_others=True):
     '''
     Create the standard 2d dict like:
@@ -45,16 +55,24 @@ def make_markers_dict(source, targets, markers, keytype='dist_z', guess_others=T
         for t in tar:
             if keytype=='dist_z':
                 key = (source.depth, source.distance_to(t))
-                targets_markers.update({key:m.tmin-source.time})
+                #targets_markers.update({key:m.tmin-source.time})
+                targets_markers.update({key:m.tmin})
             else:
                 targets_markers[source][t] = m
 
     return targets_markers
 
 def make_traces_dict(source, targets, traces):
+    """
+    Create a 2d dict with *source* as first and *targets* as second key(s).
+
+    traces are matched by nslc_id on target codes.
+    """
     targets_traces= {}
     for tr in traces:
         tar = filter(lambda x: x.codes==tr.nslc_id, targets)
+        if len(tar)==0:
+            continue
         assert len(tar)==1
         tar = tar[0]
         targets_traces.update({tar:tr})
@@ -75,6 +93,7 @@ def get_phase_alignment(ref, can):
     '''
     alignment = defaultdict(dict)
     dref_targets = ref.values()[0]
+    
     t_ref_source = ref.keys()[0].time
     for s,t,mtmin in iter_dict(can):
         try:
@@ -192,7 +211,7 @@ def azi_to_location_digits(azi):
 
 
 def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=None,
-             picked_phases={}, t_shift_frac=None, return_cache=False, channel_prefix='', **kwargs):
+             picked_phases={}, t_shift_frac=None, return_cache=False, channel_prefix='', setup=None, **kwargs):
     '''
     Create extended phase markers as preparation for chopping.
 
@@ -200,25 +219,24 @@ def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=No
     last arriving phase of phase_start.
     :return:
     :param static_length: length of marker
-    :param perc: Percentage of tmin-t0 to add to base.
 
     static offset soll ersetzt werden....
     '''
-    if kwargs.get('perc', False):
-        perc = kwargs['perc']
-    assert not phase_ids_end==perc and None in (phase_ids_end, perc)
+
+    if setup:
+        phase_ids_start = setup.phase_ids_start
+        static_length = setup.static_length
+        t_shift_frac = setup.marker_shift_frac
+        perc = setup.percentage_of_shift
+
+        kwargs.update({'perc':perc})
 
     phase_cache = pc.PhaseCache(tmin_phase_cache=picked_phases,
                              store=store, 
                              phase_ids_start=phase_ids_start,
                              phase_ids_end=phase_ids_end)
 
-    parallelize = False 
-    if kwargs.get('parallelize', False):
-        paralellize = True
-
     use_cake = False
-
     if kwargs.get('use_cake', False):
         use_cake = True
 
@@ -333,6 +351,44 @@ def scale_minmax(t1, t2):
     t1max = max(abs(t1.ydata))
     t2max = max(abs(t2.ydata))
     t2.ydata *= t1max/t2max
+
+
+def scale_magnitude(t1, t2):
+    '''
+    :param t1: trace that needs to be scaled
+    :param t2: trace that is used to find scaling
+    '''
+    if isinstance(t1, trace.Trace):
+        t1 = t1.get_ydata()
+    if isinstance(t1, trace.Trace):
+        t2 = t2.get_ydata()
+
+    return num.sum(t1* t2)/num.sum(t1**2)
+
+
+def get_scaling(r, c):
+    '''
+    :param r: reference traces dict
+    :param c: candidates traces dict (the trace will be scaled)
+    '''
+    r = r.values()[0]
+    scalings = defaultdict()
+
+    for s,tc_tr in c.items():
+        big_ref = []
+        big_can = []
+        for t, c_tr in tc_tr.items():
+            r_tr = r[t]
+
+            big_ref.extend(r_tr.get_ydata())
+            big_can.extend(c_tr.get_ydata())
+
+        big_can = num.array(big_can)
+        big_ref = num.array(big_ref)
+    
+        scalings[s] = scale_magnitude(big_can, big_ref)
+
+    return scalings
 
 
 def calculate_misfit(test_case, verbose=False):
@@ -452,7 +508,7 @@ def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
                                 strike=s,
                                 dip=d,
                                 rake=r,
-                                magnitude=event.magnitude)
+                                magnitude=mag)
 
     elif source_type=='EX':
         m = event.moment_tensor.moment_magnitude
@@ -621,6 +677,9 @@ def clone(instance, **kwargs):
 
 
 def flatten_list(the_list):
+    """
+    Efficiently converts a 2d list into 1d
+    """
     return [item for sublist in the_list for item in sublist]
 
 
@@ -634,4 +693,54 @@ def iter_dict(traces_dict, only_values=False):
                 yield val
             else:
                 yield key1, key2, val
+
+
+def L2_norm(u, v, scaling=None, verbose=False):
+    '''
+    :param u: candidates
+    :param v: references
+    :param c: scaling dict, keys are sources, for u
+    '''
+    M_final = defaultdict()
+    M_tmp = defaultdict()
+    if not scaling:
+        c = num.linspace(0.1,2.1, 21)
+    else:
+        c = scaling
+
+    if verbose:
+        print 'scaling factors: ', c
+
+    for source in u.keys():
+        x_j = v[source]
+        y_j = u[source]
+        for c_j in c:
+            M = L2_norm_inner(y_j, x_j, c_j)
+            M_tmp[M] = c_j
+        min_M = min(M_tmp.keys())
+
+        if verbose: 
+            print source.depth, M_tmp[min_M]
+            if M_tmp[min_M]==c[0] or M_tmp[min_M]==c[len(c)-1]:
+                print 'warning: m2 norm found uppermost/lowermost scaling as best fit'
+        M_final[source] = min_M
+
+    return M_final
+
+
+def L2_norm_inner(u, v, c=1.):
+    '''
+    calculate M and N for one dict of target/traces
+    :param u: candidates
+    :param v: references
+    :param c: global scaling for u
+    '''
+    m_i = num.float64()
+    n_i = num.float64()
+    for target in u.keys():
+        x_i = v[target].get_ydata()
+        y_i = u[target].get_ydata()
+        m_i += num.sum((x_i-y_i*c)**2)
+        n_i += num.sum(x_i**2)
+    return num.sqrt(m_i)/num.sqrt(n_i)
 

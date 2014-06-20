@@ -304,7 +304,7 @@ class OpticBase():
             outlier_depths = []
 
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.get_processed_candidates_lines()):
+            TestCase.iter_dict(self.get_processed_candidates_lines(reduction=sources[0].time)):
             #TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.reference_markers.values()[0])):
             
             if not source.depth in depths:
@@ -334,6 +334,7 @@ class OpticBase():
                 #x_0 = x_ref[0]
 
             #x_ref = x_ref-x_0
+            x_ref -=sources[0].time
             y_ref = pr_ref.get_ydata()
             
             if show_markers:
@@ -355,7 +356,7 @@ class OpticBase():
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.tick_params(axis='both', which='major', labelsize=11)
             ax.autoscale()
-            ax.set_xlim([min(x_ref), max(x_ref)])
+            #ax.set_xlim([min(x_ref), max(x_ref)])
             axes_dict[t] = ax
             plt.locator_params(nbins=4)
             if fig:

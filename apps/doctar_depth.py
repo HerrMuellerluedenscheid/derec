@@ -1,6 +1,6 @@
 from derec.yaml_derec import *
 from derec.core import *
-from derec.optics import OpticBase
+from derec.optics import OpticBase, plot_misfit_dict
 from pyrocko.gf import *
 from pyrocko import model, trace, io, gui_util
 from scipy.signal import butter
@@ -22,7 +22,7 @@ if __name__ ==  "__main__":
 
     engine = LocalEngine(store_superdirs=store_dirs)
 
-    store_id = 'doctar_mainland_20Hz'
+    store_id = 'doctar_mainland_20Hz_200m'
     stations = model.load_stations(pjoin(derec_home, 'mseeds', 'doctar',
                     'doctar_2011-11-01', 'stations.txt'))
     event = model.Event(load=pjoin(derec_home, 'mseeds', 'doctar',
@@ -39,7 +39,7 @@ if __name__ ==  "__main__":
     traces = du.flatten_list(traces)
     channels = ['HHE', 'HHN', 'HHZ']
 
-    phase_ids_start = ['p','P']
+    phase_ids_start = ['p', 'P']
 
     targets = du.stations2targets(stations, store_id, channels=channels)
     ref_source = DCSource.from_pyrocko_event(event)
@@ -68,7 +68,7 @@ if __name__ ==  "__main__":
     norm = 2
     taper = trace.CosFader(xfrac=0.333) 
     
-    z, p, k = butter(2, [0.7*num.pi*2, 6.0*num.pi*2.], 
+    z, p, k = butter(2, [0.7*num.pi*2, 5.0*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -93,8 +93,8 @@ if __name__ ==  "__main__":
                                     misfit_setup=misfit_setup,
                                     source_time_function=stf,
                                     number_of_time_shifts=11,
+                                    percentage_of_shift=1.,
                                     time_shift=0.2,
-                                    #percentage_of_shift=5.,
                                     phase_ids_start=phase_ids_start,
                                     static_length=3.,
                                     marker_perc_length=0.001,
@@ -102,13 +102,13 @@ if __name__ ==  "__main__":
                                     depths=depths) 
 
     test_case = TestCase( test_case_setup )
-    test_case.pre_highpass = (2,0.4)
+    test_case.pre_highpass = (2,0.5)
     test_case.blacklist = (('Y7','L004','','HHN'),('Y7','L001','','HHN'),)
 
     test_case.set_raw_references(reference_seismograms)
 
     markers_dict_cache = du.make_markers_dict(ref_source, targets, markers)
-    markers_dict= du.make_markers_dict(ref_source, targets, markers, keytype='st')
+    markers_dict = du.make_markers_dict(ref_source, targets, markers, keytype='st')
 
     extended_ref_marker, ref_phase_cache = du.chop_ranges(ref_source, 
                                     targets, 
@@ -127,7 +127,11 @@ if __name__ ==  "__main__":
     test_case.process(verbose=True, debug=False)
 
     ob = OpticBase(test_case)
+    plt.figure()
     ob.stack_plot()
+    plt.figure()
     ob.plot_misfits()
+    plot_misfit_dict(test_case.scaled_misfits)
+     
     plt.show()
     

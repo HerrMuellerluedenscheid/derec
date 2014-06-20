@@ -459,7 +459,7 @@ class TestCase(Object):
                                                       setup.marker_shift_frac,
                                               use_cake=True)
 
-        if self.picked:
+        if self.picked or self.phase_cache:
             if verbose: print 'align phases with picked ones'
             if self.reduce_half_rise:
                 if verbose: print 'and reduce by t_rise'
@@ -467,10 +467,14 @@ class TestCase(Object):
             else:
                 static_shift = 0.
 
-            #alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
-            alignment = du.get_phase_alignment(self.phase_cache.as_dict, c_pc.as_dict)
+            if self.picked:
+                alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
+            elif self.phase_cache:
+                alignment = du.get_phase_alignment(self.phase_cache.as_dict,\
+                        c_pc.as_dict)
             du.align(alignment, extended_test_marker, static_shift=static_shift)
             du.align(alignment, self.raw_candidates, static_shift=static_shift)
+
         self.set_candidates_markers( extended_test_marker )
 
         if verbose: print('chopping ref....')
@@ -494,6 +498,17 @@ class TestCase(Object):
                           markers=self.reference_markers.values()[0].values())
 
         du.calculate_misfit(self, verbose)
+
+        self.scaled_misfits = self.L2_misfit(verbose=verbose)
+
+    def L2_misfit(self, verbose=False, scaling=None):
+        misfits = du.L2_norm(self.processed_candidates,
+                             self.processed_references,
+                             scaling=scaling, 
+                             verbose=verbose)
+        return misfits
+
+
 
     def best_source_misfit(self):
         minmf = min(self.misfits.values())

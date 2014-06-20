@@ -64,26 +64,6 @@ class TestCaseSetup(Object):
 
     outlier_threshold = Float.T(optional=True, default=10.)
 
-    #def __init__(self, **kwargs):
-    #    self.__dict__.update(kwargs)
-
-    #    for k,v in kwargs.items():
-    #        setattr(self, k, v)
-    #        print getattr(self, k, v)
-
-    #    @property
-    #    def sources(self):
-    #        if not self._sources:
-    #            print self._sources
-    #            return self._sources
-    #        else:
-    #            self._sources = du.test_event_generator(self.reference_source,\
-    #                                               self.depths)
-    #            
-    #            self._sources.regularize()
-
-    #            return self._sources
-
 
 class TestCaseData(Object):
     """
