@@ -1,6 +1,7 @@
 from collections import defaultdict
 import matplotlib.lines as pltlines
 import matplotlib.pyplot as plt
+import time
 import progressbar
 import os
 from derec import derec_utils as du
@@ -33,7 +34,13 @@ def pbar(i, num_tests, pb=None ):
 
 
 if __name__ ==  "__main__":
+    mfsumfig = plt.figure()
+    mfax = mfsumfig.add_subplot(111)
+    plt.ion()
+    plt.show()
 
+    mfsum = 0
+    i=0
     selfdir = pjoin(os.getcwd(), __file__.rsplit('/', 1)[0])
     selfdir = selfdir.rsplit('/')[0]
     
@@ -61,7 +68,7 @@ if __name__ ==  "__main__":
     print 'dont add noise'
     add_noise = True
     verbose = True
-    debug = True
+    debug = False
     write_depth = True
 
     if test_type=='doctar':
@@ -97,12 +104,12 @@ if __name__ ==  "__main__":
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
     offset = 3000
 
-    depths = du.drange(_ref_source.depth-offset, _ref_source.depth+offset, 1000)
+    depths = du.drange(_ref_source.depth-offset, _ref_source.depth+offset, 2000)
     #depths=[_ref_source.depth]
     print depths
 
     smaller_magnitude_source = du.clone(_ref_source)
-    smaller_magnitude_source.magnitude = 1.8
+    smaller_magnitude_source.magnitude = 1.9
     print 'setting false magnitude to ', smaller_magnitude_source.magnitude
     ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
     location_test_sources_lists = du.make_lots_of_test_events(smaller_magnitude_source, depths, 
@@ -170,18 +177,11 @@ if __name__ ==  "__main__":
     else:
         noise = None
 
-    reference_seismograms = core.make_reference_trace(_ref_source,
-                                                    targets, engine,
-                                                    stf,
-                                                    noise=noise)
 
-    #map(lambda x: x.highpass(4, 0.5), reference_seismograms.values()[0].values())
-    #map(lambda x: x.lowpass(4,10.)), reference_seismograms.values()[0].values())
-
-    #trace.snuffle(reference_seismograms.values()[0].values()[0])
 
     results = []
 
+        
     if false_store_id:
         test_case_setup.store_id = false_store_id
         test_case_setup.engine.store_id = false_store_id
@@ -189,14 +189,20 @@ if __name__ ==  "__main__":
             t.store_id = false_store_id
 
     for location_test_sources in location_test_sources_lists:
+        reference_seismograms = core.make_reference_trace(_ref_source,
+                                                        targets, engine,
+                                                        stf,
+                                                        noise=noise)
+
         i+=1
 
         test_case_setup.sources = location_test_sources
 
         test_case = core.TestCase( test_case_setup )
         test_case.pre_highpass = (2.,0.4)
-        test_case.yaml_dump_setup('doctar_setup.yaml')
+        #test_case.yaml_dump_setup('doctar_setup.yaml')
         test_case.phase_cache = phase_cache
+
         test_case.set_raw_references(reference_seismograms)
 
         test_case.set_reference_markers(extended_ref_marker)
@@ -240,7 +246,29 @@ if __name__ ==  "__main__":
             plt.figure()
             op = optics.OpticBase(test_case)
             op.stack_plot()
+            misfit_fig = plt.figure()
+            misfit_ax1 = misfit_fig.add_subplot(212)
+            misfit_ax1.set_title('scaled')
+            op.plot_scaled_misfits(ax=misfit_ax1, 
+                                   marker='o', 
+                                   color='b', 
+                                   lw=0)
+
+            misfit_ax2 = misfit_fig.add_subplot(211)
+            misfit_ax2.set_title('un-scaled')
+            op.plot_misfits(ax=misfit_ax2, 
+                            marker='o', 
+                            color='r',
+                           lw=0)
             plt.show()
+
+
+        mfsum = num.sum(test_case.scaled_misfits.values())
+        print test_case.scaled_misfits.values()
+        mfax.plot(i, mfsum, 'bo')
+        mfax.autoscale()
+        plt.draw()
+        time.sleep(0.05)
 
         pb = pbar(i, num_tests, pb)
 

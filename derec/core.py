@@ -6,6 +6,7 @@ from scipy.signal import butter
 from pyrocko.guts import Object, load_string 
 from pyrocko.guts_array import Array
 
+import copy
 import matplotlib.pyplot as plt
 import time
 import matplotlib.lines as pltlines
@@ -438,12 +439,15 @@ class TestCase(Object):
     
     def process(self, verbose=False, debug=False):
         self.request_data(verbose)
-        
         if self.pre_highpass:
             for s,t,tr in TestCase.iter_dict(self.raw_candidates):
+                #tr = tr.copy()
                 tr.highpass(*self.pre_highpass)
+                #self.raw_candidates[s][t] = tr
             for s,t,tr in TestCase.iter_dict(self.raw_references):
+                #tr = tr.copy()
                 tr.highpass(*self.pre_highpass)
+                #self.raw_candidates[s][t] = tr
 
         setup = self.test_case_setup
 

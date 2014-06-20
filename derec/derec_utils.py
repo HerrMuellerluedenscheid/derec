@@ -702,7 +702,6 @@ def L2_norm(u, v, scaling=None, verbose=False):
     :param c: scaling dict, keys are sources, for u
     '''
     M_final = defaultdict()
-    M_tmp = defaultdict()
     if not scaling:
         c = num.linspace(0.1,2.1, 21)
     else:
@@ -712,11 +711,13 @@ def L2_norm(u, v, scaling=None, verbose=False):
         print 'scaling factors: ', c
 
     for source in u.keys():
+        M_tmp = defaultdict()
         x_j = v[source]
         y_j = u[source]
         for c_j in c:
             M = L2_norm_inner(y_j, x_j, c_j)
             M_tmp[M] = c_j
+            print c_j, M
         min_M = min(M_tmp.keys())
 
         if verbose: 

@@ -88,4 +88,15 @@ class PhaseCache():
 
         return tmin, tmax
 
+    def __str__(self):
+        st = 'phase_ids_start: '
+        for id in self.phase_ids_start:
+            st+= '%s| '%id
+        st+='\n'
+        
+        for k in self.tmin_phase_cache.keys()[0:9]:
+            st+= str(k)+str(self.tmin_phase_cache[k])
+
+        return st
+
 

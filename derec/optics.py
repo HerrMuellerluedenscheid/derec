@@ -24,7 +24,7 @@ matplotlib.rc('font', **font)
 
 matplotlib.rcParams['font.size'] = 7
 
-def plot_misfit_dict(mfdict, ax=None):
+def plot_misfit_dict(mfdict, ax=None, **kwargs):
     if not ax:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -33,7 +33,7 @@ def plot_misfit_dict(mfdict, ax=None):
     for s,v in mfdict.items():
         depths.append(s.depth); values.append(v) 
 
-    ax.plot(depths, values, 'o')
+    ax.plot(depths, values, **kwargs)
     ax.autoscale()
     plt.xlabel('Depth [km]')
     plt.ylabel('L2 Misfit m/n') 
@@ -147,6 +147,7 @@ class OpticBase():
         self.sources = self.test_case_setup.sources
         self.reference_source = self.test_case_setup.reference_source
         self.misfits = data_input.misfits
+        self.scaled_misfits = data_input.scaled_misfits
         try:
             self.phase_cache = data_input.phase_cache
         except AttributeError:
@@ -386,14 +387,26 @@ class OpticBase():
 
         return axes_dict
 
-    def plot_misfits(self, ax=None):
+    def plot_misfits(self, ax=None, **kwargs):
         if not ax:
             fig = plt.figure()
-        plot_misfit_dict(self.misfits, ax=plt.gca())
+        plot_misfit_dict(self.misfits, ax=plt.gca(), **kwargs)
         try:
             return fig
         except UnboundLocalError:
             return 
+
+    def plot_scaled_misfits(self, ax=None, **kwargs):
+        if not ax:
+            fig = plt.figure()
+            ax = plt.add_subplot(111)
+        plot_misfit_dict(self.scaled_misfits, ax=plt.gca(), **kwargs)
+        try:
+            return fig
+        except UnboundLocalError:
+            return 
+
+
 
     def get_candidate_line(self, source, target):
         if not self.candidates_lines:
