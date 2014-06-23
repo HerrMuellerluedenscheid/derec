@@ -61,7 +61,7 @@ if __name__ ==  "__main__":
     print 'dont add noise'
     add_noise = False
     verbose = True
-    debug = True
+    debug = False
     write_depth = True
 
     if test_type=='doctar':
@@ -103,8 +103,8 @@ if __name__ ==  "__main__":
 
     ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
     location_test_sources_lists = du.make_lots_of_test_events(_ref_source, depths, 
-            {'strike':10., 'dip':10., 'rake':10., 'north_shift':3000,
-                'east_shift': 3000.}, 
+            {'strike':5., 'dip':5., 'rake':5., 'north_shift':1000,
+                'east_shift': 1000.}, 
             num_tests,
             func='normal') 
     i=0
@@ -114,7 +114,7 @@ if __name__ ==  "__main__":
     #taper = trace.CosFader(xfrac=0.333) 
     taper = trace.CosFader(xfade=1.0) 
     
-    z, p, k = butter(2, [0.7*num.pi*2, 6.5*num.pi*2.], 
+    z, p, k = butter(2, [0.7*num.pi*2, 6.0*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -139,11 +139,11 @@ if __name__ ==  "__main__":
                                    store_id=store_id,
                                    misfit_setup=misfit_setup,
                                    source_time_function=stf,
-                                   number_of_time_shifts=0,
-                                   percentage_of_shift=5.,
+                                   number_of_time_shifts=41,
+                                   percentage_of_shift=20.,
                                    phase_ids_start=phase_ids_start,
-                                   static_length=2.8,
-                                   marker_perc_length=5.0,
+                                   static_length=1.8,
+                                   marker_perc_length=50.0,
                                    marker_shift_frac=0.50,
                                    depths=depths) 
     
@@ -171,11 +171,6 @@ if __name__ ==  "__main__":
                                                     targets, engine,
                                                     stf,
                                                     noise=noise)
-
-    #map(lambda x: x.highpass(4, 0.5), reference_seismograms.values()[0].values())
-    #map(lambda x: x.lowpass(4,10.)), reference_seismograms.values()[0].values())
-
-    #trace.snuffle(reference_seismograms.values()[0].values()[0])
 
     results = []
 
