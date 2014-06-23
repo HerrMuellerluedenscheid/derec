@@ -46,7 +46,8 @@ if __name__ ==  "__main__":
 
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
-    depths= range(400, 8000,200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    depths= range(400, 8000,2000) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    #depths= range(400, 8000,200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)
@@ -126,6 +127,7 @@ if __name__ ==  "__main__":
     ob.stack_plot()
     plt.figure()
     ob.plot_misfits()
+    ob.stack_plot(scaling=test_case.scaling, force_update=True)
     plot_misfit_dict(test_case.scaled_misfits)
      
     plt.show()

@@ -388,18 +388,20 @@ class TestCase(Object):
 
 
     @staticmethod
-    def lines_dict(traces_dict, reduction=None):
+    def lines_dict(traces_dict, reduction=None, scaling=None, force_update=False):
         """
         Create matplotlib.lines.Line2D objects from traces dicts.
         :param reduction: subtract time from each x-value:
         :return lines_dict: dict with lines
         """
+        scaling = {} if not scaling else scaling
+
         lines_dict = defaultdict(dict)
         for source, target, tr in TestCase.iter_dict(traces_dict):
             if isinstance(tr, seismosizer.SeismosizerTrace):
                 tr = tr.pyrocko_trace()
             
-            if reduction:
+            if reduction or force_update:
                 if isinstance(reduction, float):
                     reduction_value = reduction
                 elif isinstance(reduction, dict):
@@ -419,10 +421,15 @@ class TestCase(Object):
                         pass
             else:
                 reduction_value = 0.
+
+            try:
+                c = scaling[source]
+            except KeyError:
+                c = 1
             
             lines_dict[source][target] = pltlines.Line2D(
-                    tr.get_xdata()-reduction_value,
-                    tr.get_ydata())
+                                            tr.get_xdata()-reduction_value,
+                                            tr.get_ydata()*c)
 
         return lines_dict 
 
@@ -503,14 +510,14 @@ class TestCase(Object):
 
         du.calculate_misfit(self, verbose)
 
-        self.scaled_misfits = self.L2_misfit(verbose=verbose)
+        self.scaled_misfits, self.scaling = self.L2_misfit(verbose=verbose)
 
     def L2_misfit(self, verbose=False, scaling=None):
-        misfits = du.L2_norm(self.processed_candidates,
+        misfits, scaling = du.L2_norm(self.processed_candidates,
                              self.processed_references,
                              scaling=scaling, 
                              verbose=verbose)
-        return misfits
+        return misfits, scaling 
 
 
 

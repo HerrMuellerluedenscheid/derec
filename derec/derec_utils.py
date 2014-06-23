@@ -702,6 +702,8 @@ def L2_norm(u, v, scaling=None, verbose=False):
     :param c: scaling dict, keys are sources, for u
     '''
     M_final = defaultdict()
+    return_scaling = defaultdict()
+
     if not scaling:
         c = num.linspace(0.1,2.1, 21)
     else:
@@ -720,12 +722,12 @@ def L2_norm(u, v, scaling=None, verbose=False):
         min_M = min(M_tmp.keys())
 
         if verbose: 
-            print source.depth, M_tmp[min_M]
             if M_tmp[min_M]==c[0] or M_tmp[min_M]==c[len(c)-1]:
-                print 'warning: m2 norm found uppermost/lowermost scaling as best fit'
+                print 'warning: L2 norm found uppermost/lowermost scaling as best fit'
+        return_scaling[source] = M_tmp[min_M]
         M_final[source] = min_M
 
-    return M_final
+    return M_final, return_scaling
 
 
 def L2_norm_inner(u, v, c=1.):

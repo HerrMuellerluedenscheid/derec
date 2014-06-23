@@ -269,7 +269,6 @@ class OpticBase():
 
                     i+=1
 
-            # TODO: hier noch die source time abziehen....
             map(lambda x: x.set_xlim([min_xlim, max_xlim]), axs)
 
             fig.subplots_adjust(hspace=0)
@@ -277,11 +276,9 @@ class OpticBase():
             fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
             if len(sources)==1:
                 return fig
-        #else:
-        #    yield source, fig
 
     def stack_plot(self, sources=None, depths=None, fig=None, show_markers=False,
-            exclude_outliers=True, fix_size=True):
+            exclude_outliers=True, fix_size=True, scaling=None, force_update=False):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
         area of source, that you would like to look at.
@@ -308,11 +305,12 @@ class OpticBase():
                 self.data.outliers.keys()]
         except AttributeError:
             outlier_depths = []
-
+        
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.get_processed_candidates_lines(reduction=sources[0].time)):
-            #TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.reference_markers.values()[0])):
-            
+            TestCase.iter_dict(self.get_processed_candidates_lines(
+                                                       reduction=sources[0].time, 
+                                                       scaling=scaling, 
+                                                       force_update=force_update)):
             if not source.depth in depths:
                 continue
 
@@ -334,13 +332,10 @@ class OpticBase():
             x_ref = pr_ref.get_xdata() 
             try:
                 ref_m = self.reference_markers.values()[0][t]
-                #x_0 =ref_m.tmin
             except AttributeError:
                 print 'using first sample to reduce'
-                #x_0 = x_ref[0]
 
-            #x_ref = x_ref-x_0
-            x_ref -=sources[0].time
+            x_ref -= sources[0].time
             y_ref = pr_ref.get_ydata()
             
             if show_markers:
@@ -385,7 +380,7 @@ class OpticBase():
             cbar_ax = fig.add_axes([0.2, 0.02, 0.6, 0.03])
             fig.colorbar(sm, cmap=cmap, norm=norm, cax=cbar_ax,\
                 orientation='horizontal', boundaries=depths)
-
+        
         plt.gcf().suptitle('%s, %s'%(
             self.test_case_setup.test_parameter,
             self.test_case_setup.test_parameter_value))
@@ -444,7 +439,7 @@ class OpticBase():
         return out_dict
 
     def get_processed_candidates_lines(self, **kwargs):
-        if not self.processed_candidates_lines:
+        if not self.processed_candidates_lines or kwargs.get('force_update', False)==True:
             self.processed_candidates_lines =\
                             TestCase.lines_dict(self.processed_candidates,
                                     **kwargs)
