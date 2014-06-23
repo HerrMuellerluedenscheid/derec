@@ -134,6 +134,8 @@ class TestCase(Object):
         self.picked = None
         self.pre_highpass = None
         self.reduce_half_rise = False
+
+        self.scaling_factors = num.linspace(0.1, 2.1, 21)
         
     def request_data(self, verbose=False):
         if verbose:
@@ -509,13 +511,15 @@ class TestCase(Object):
                           markers=self.reference_markers.values()[0].values())
 
         du.calculate_misfit(self, verbose)
+        
+        self.scaled_misfits, self.scaling = self.L2_misfit(verbose=verbose,
+                                                          scaling_factors=\
+                                                           self.scaling_factors)
 
-        self.scaled_misfits, self.scaling = self.L2_misfit(verbose=verbose)
-
-    def L2_misfit(self, verbose=False, scaling=None):
+    def L2_misfit(self, verbose=False, scaling_factors=None):
         misfits, scaling = du.L2_norm(self.processed_candidates,
                              self.processed_references,
-                             scaling=scaling, 
+                             scaling=scaling_factors, 
                              verbose=verbose)
         return misfits, scaling 
 
