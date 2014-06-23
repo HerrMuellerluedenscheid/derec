@@ -704,13 +704,13 @@ def L2_norm(u, v, scaling=None, verbose=False):
     M_final = defaultdict()
     return_scaling = defaultdict()
 
-    if not scaling:
-        c = num.linspace(0.1,2.1, 21)
+    if scaling is None:
+        c = [1]
     else:
         c = scaling
 
     if verbose:
-        print 'scaling factors: ', c
+        print 'L2 norm using scaling factors: ', c
 
     for source in u.keys():
         M_tmp = defaultdict()
