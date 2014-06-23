@@ -520,8 +520,21 @@ class TestCase(Object):
         return misfits, scaling 
 
 
+    def best_source_misfit(self, use_scaled=True, verbose=False):
 
-    def best_source_misfit(self):
+        '''
+        Retrieve best misfit and associated source.
+
+        :param use_scaled: If True use misfits scaled by amplitudes.
+        '''
+        if verbose:
+            print 'use_scaled best source: ', use_scaled
+
+        if use_scaled:
+            misfits = self.scaled_misfits
+        else:
+            misfits = self.misfits
+
         minmf = min(self.misfits.values())
         for s, v in self.misfits.iteritems():
             if v==minmf:
