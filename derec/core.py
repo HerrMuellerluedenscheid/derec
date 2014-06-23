@@ -6,6 +6,7 @@ from scipy.signal import butter
 from pyrocko.guts import Object, load_string 
 from pyrocko.guts_array import Array
 
+import copy
 import matplotlib.pyplot as plt
 import time
 import matplotlib.lines as pltlines
@@ -387,18 +388,20 @@ class TestCase(Object):
 
 
     @staticmethod
-    def lines_dict(traces_dict, reduction=None):
+    def lines_dict(traces_dict, reduction=None, scaling=None, force_update=False):
         """
         Create matplotlib.lines.Line2D objects from traces dicts.
         :param reduction: subtract time from each x-value:
         :return lines_dict: dict with lines
         """
+        scaling = {} if not scaling else scaling
+
         lines_dict = defaultdict(dict)
         for source, target, tr in TestCase.iter_dict(traces_dict):
             if isinstance(tr, seismosizer.SeismosizerTrace):
                 tr = tr.pyrocko_trace()
             
-            if reduction:
+            if reduction or force_update:
                 if isinstance(reduction, float):
                     reduction_value = reduction
                 elif isinstance(reduction, dict):
@@ -418,10 +421,15 @@ class TestCase(Object):
                         pass
             else:
                 reduction_value = 0.
+
+            try:
+                c = scaling[source]
+            except KeyError:
+                c = 1
             
             lines_dict[source][target] = pltlines.Line2D(
-                    tr.get_xdata()-reduction_value,
-                    tr.get_ydata())
+                                            tr.get_xdata()-reduction_value,
+                                            tr.get_ydata()*c)
 
         return lines_dict 
 
@@ -438,12 +446,15 @@ class TestCase(Object):
     
     def process(self, verbose=False, debug=False):
         self.request_data(verbose)
-        
         if self.pre_highpass:
             for s,t,tr in TestCase.iter_dict(self.raw_candidates):
+                #tr = tr.copy()
                 tr.highpass(*self.pre_highpass)
+                #self.raw_candidates[s][t] = tr
             for s,t,tr in TestCase.iter_dict(self.raw_references):
+                #tr = tr.copy()
                 tr.highpass(*self.pre_highpass)
+                #self.raw_candidates[s][t] = tr
 
         setup = self.test_case_setup
 
@@ -459,7 +470,7 @@ class TestCase(Object):
                                                       setup.marker_shift_frac,
                                               use_cake=True)
 
-        if self.picked:
+        if self.picked or self.phase_cache:
             if verbose: print 'align phases with picked ones'
             if self.reduce_half_rise:
                 if verbose: print 'and reduce by t_rise'
@@ -467,10 +478,14 @@ class TestCase(Object):
             else:
                 static_shift = 0.
 
-            #alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
-            alignment = du.get_phase_alignment(self.phase_cache.as_dict, c_pc.as_dict)
+            if self.picked:
+                alignment = du.get_phase_alignment(self.picked, c_pc.as_dict)
+            elif self.phase_cache:
+                alignment = du.get_phase_alignment(self.phase_cache.as_dict,\
+                        c_pc.as_dict)
             du.align(alignment, extended_test_marker, static_shift=static_shift)
             du.align(alignment, self.raw_candidates, static_shift=static_shift)
+
         self.set_candidates_markers( extended_test_marker )
 
         if verbose: print('chopping ref....')
@@ -494,6 +509,17 @@ class TestCase(Object):
                           markers=self.reference_markers.values()[0].values())
 
         du.calculate_misfit(self, verbose)
+
+        self.scaled_misfits, self.scaling = self.L2_misfit(verbose=verbose)
+
+    def L2_misfit(self, verbose=False, scaling=None):
+        misfits, scaling = du.L2_norm(self.processed_candidates,
+                             self.processed_references,
+                             scaling=scaling, 
+                             verbose=verbose)
+        return misfits, scaling 
+
+
 
     def best_source_misfit(self):
         minmf = min(self.misfits.values())

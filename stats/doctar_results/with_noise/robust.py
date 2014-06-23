@@ -57,7 +57,9 @@ if __name__ ==  "__main__":
     engine = LocalEngine(store_superdirs=store_dirs)
     test_type = 'doctar'
     pb = None
-    add_noise = True 
+
+    print 'dont add noise'
+    add_noise = False
     verbose = True
     debug = False
     write_depth = True
@@ -95,9 +97,9 @@ if __name__ ==  "__main__":
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
     offset = 3000
 
-    depths = range(_ref_source.depth-offset, _ref_source.depth+offset, 200)
-    print depths
+    depths = du.drange(_ref_source.depth-offset, _ref_source.depth+offset, 1000)
     #depths=[_ref_source.depth]
+    print depths
 
     ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
     location_test_sources_lists = du.make_lots_of_test_events(_ref_source, depths, 
@@ -144,7 +146,7 @@ if __name__ ==  "__main__":
                                    marker_perc_length=50.0,
                                    marker_shift_frac=0.50,
                                    depths=depths) 
-
+    
     extended_ref_marker, phase_cache = du.chop_ranges(_ref_source, 
                                         targets, 
                                         engine.get_store(store_id),
@@ -185,6 +187,7 @@ if __name__ ==  "__main__":
 
         test_case = core.TestCase( test_case_setup )
         test_case.pre_highpass = (2.,0.4)
+        test_case.yaml_dump_setup('doctar_setup.yaml')
         test_case.phase_cache = phase_cache
         test_case.set_raw_references(reference_seismograms)
 

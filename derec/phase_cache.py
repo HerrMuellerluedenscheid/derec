@@ -54,6 +54,7 @@ class PhaseCache():
             else:
                 tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
 
+            tmin += source.time
             self.tmin_phase_cache[key] = tmin
 
         m = PhaseMarker(nslc_ids=[target.codes],
@@ -62,28 +63,40 @@ class PhaseCache():
                         kind=1,
                         event=None,
                         phasename='cached')
+
         self.as_dict[source][target] = m
 
         if self.tmax_phase_cache.get(key, False):
             tmax = self.tmax_phase_cache[key]
         else:
             if perc:
-                tmax = tmin + static_length + tmin * perc / 100.
+                tmax = tmin + static_length + (tmin-source.time) * perc / 100.
 
             elif use_cake:
                 print 'use cake'
-                tmax = cake_first_arrival(dist, source.depth, self.model,
-                        phases=self.phase_ids_end.split('|'))
+                tmax = cake_first_arrival(dist, 
+                                          source.depth, 
+                                          self.model,
+                                          phases=self.phase_ids_end)
 
             else:
                 print 'use fomosto'
                 tmax = store.t('first(%s)'%self.phase_ids_end, key)
+                tmax += source.time
+
             self.tmax_phase_cache[key] = tmax
 
-
-        tmin += source.time
-        tmax += source.time
-
         return tmin, tmax
+
+    def __str__(self):
+        st = 'phase_ids_start: '
+        for id in self.phase_ids_start:
+            st+= '%s| '%id
+        st+='\n'
+        
+        for k in self.tmin_phase_cache.keys()[0:9]:
+            st+= str(k)+str(self.tmin_phase_cache[k])
+
+        return st
 
 

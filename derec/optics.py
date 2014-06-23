@@ -24,7 +24,12 @@ matplotlib.rc('font', **font)
 
 matplotlib.rcParams['font.size'] = 7
 
-def plot_misfit_dict(mfdict, ax=None):
+def plot_misfit_dict(mfdict, ax=None, **kwargs):
+
+    if not kwargs.get('marker', False):
+        kwargs.update({'marker':'o',
+                       'lw':0})
+
     if not ax:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -33,7 +38,7 @@ def plot_misfit_dict(mfdict, ax=None):
     for s,v in mfdict.items():
         depths.append(s.depth); values.append(v) 
 
-    ax.plot(depths, values, 'o')
+    ax.plot(depths, values, **kwargs)
     ax.autoscale()
     plt.xlabel('Depth [km]')
     plt.ylabel('L2 Misfit m/n') 
@@ -147,6 +152,7 @@ class OpticBase():
         self.sources = self.test_case_setup.sources
         self.reference_source = self.test_case_setup.reference_source
         self.misfits = data_input.misfits
+        self.scaled_misfits = data_input.scaled_misfits
         try:
             self.phase_cache = data_input.phase_cache
         except AttributeError:
@@ -263,7 +269,6 @@ class OpticBase():
 
                     i+=1
 
-            # TODO: hier noch die source time abziehen....
             map(lambda x: x.set_xlim([min_xlim, max_xlim]), axs)
 
             fig.subplots_adjust(hspace=0)
@@ -271,11 +276,9 @@ class OpticBase():
             fig.suptitle('Vertical (z) Components at z=%s'%source.depth)
             if len(sources)==1:
                 return fig
-        #else:
-        #    yield source, fig
 
     def stack_plot(self, sources=None, depths=None, fig=None, show_markers=False,
-            exclude_outliers=True, fix_size=True):
+            exclude_outliers=True, fix_size=True, scaling=None, force_update=False):
         '''
         param_dict is something like {latitude:10, longitude:10}, defining the 
         area of source, that you would like to look at.
@@ -302,11 +305,12 @@ class OpticBase():
                 self.data.outliers.keys()]
         except AttributeError:
             outlier_depths = []
-
+        
         for source,t, pr_cand_line in\
-            TestCase.iter_dict(self.get_processed_candidates_lines()):
-            #TestCase.iter_dict(self.get_processed_candidates_lines(reduction=self.reference_markers.values()[0])):
-            
+            TestCase.iter_dict(self.get_processed_candidates_lines(
+                                                       reduction=sources[0].time, 
+                                                       scaling=scaling, 
+                                                       force_update=force_update)):
             if not source.depth in depths:
                 continue
 
@@ -328,12 +332,10 @@ class OpticBase():
             x_ref = pr_ref.get_xdata() 
             try:
                 ref_m = self.reference_markers.values()[0][t]
-                #x_0 =ref_m.tmin
             except AttributeError:
                 print 'using first sample to reduce'
-                #x_0 = x_ref[0]
 
-            #x_ref = x_ref-x_0
+            x_ref -= sources[0].time
             y_ref = pr_ref.get_ydata()
             
             if show_markers:
@@ -355,7 +357,7 @@ class OpticBase():
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.tick_params(axis='both', which='major', labelsize=11)
             ax.autoscale()
-            ax.set_xlim([min(x_ref), max(x_ref)])
+            #ax.set_xlim([min(x_ref), max(x_ref)])
             axes_dict[t] = ax
             plt.locator_params(nbins=4)
             if fig:
@@ -378,21 +380,33 @@ class OpticBase():
             cbar_ax = fig.add_axes([0.2, 0.02, 0.6, 0.03])
             fig.colorbar(sm, cmap=cmap, norm=norm, cax=cbar_ax,\
                 orientation='horizontal', boundaries=depths)
-
+        
         plt.gcf().suptitle('%s, %s'%(
             self.test_case_setup.test_parameter,
             self.test_case_setup.test_parameter_value))
 
         return axes_dict
 
-    def plot_misfits(self, ax=None):
+    def plot_misfits(self, ax=None, **kwargs):
         if not ax:
             fig = plt.figure()
-        plot_misfit_dict(self.misfits, ax=plt.gca())
+        plot_misfit_dict(self.misfits, ax=plt.gca(), **kwargs)
         try:
             return fig
         except UnboundLocalError:
             return 
+
+    def plot_scaled_misfits(self, ax=None, **kwargs):
+        if not ax:
+            fig = plt.figure()
+            ax = plt.add_subplot(111)
+        plot_misfit_dict(self.scaled_misfits, ax=plt.gca(), **kwargs)
+        try:
+            return fig
+        except UnboundLocalError:
+            return 
+
+
 
     def get_candidate_line(self, source, target):
         if not self.candidates_lines:
@@ -425,7 +439,7 @@ class OpticBase():
         return out_dict
 
     def get_processed_candidates_lines(self, **kwargs):
-        if not self.processed_candidates_lines:
+        if not self.processed_candidates_lines or kwargs.get('force_update', False)==True:
             self.processed_candidates_lines =\
                             TestCase.lines_dict(self.processed_candidates,
                                     **kwargs)
