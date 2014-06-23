@@ -10,6 +10,7 @@ import os
 import derec.derec_utils as du
 import numpy as num
 import glob
+import socket
 pjoin = os.path.join
 
 if __name__ ==  "__main__":
@@ -19,6 +20,8 @@ if __name__ ==  "__main__":
     
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [pjoin(derec_home, 'fomostos')]
+    if socket.gethostname()=='wadati':
+        store_dirs.append(pjoin('/scratch', 'local1', 'marius'))
 
     engine = LocalEngine(store_superdirs=store_dirs)
 
