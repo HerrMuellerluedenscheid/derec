@@ -24,7 +24,7 @@ matplotlib.rc('font', **font)
 
 matplotlib.rcParams['font.size'] = 7
 
-def plot_misfit_dict(mfdict, ax=None, **kwargs):
+def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
 
     if not kwargs.get('marker', False):
         kwargs.update({'marker':'o',
@@ -33,13 +33,31 @@ def plot_misfit_dict(mfdict, ax=None, **kwargs):
     if not ax:
         fig = plt.figure()
         ax = fig.add_subplot(111)
+
+    if scaling:
+        sc_depths = [s.depth for s in scaling.keys()]
+        sc_c = scaling.values()
+
     depths = []
     values = []
     for s,v in mfdict.items():
         depths.append(s.depth); values.append(v) 
 
     ax.plot(depths, values, **kwargs)
+    if mfdict2:
+        depths = []
+        values = []
+        for s,v in mfdict2.items():
+            depths.append(s.depth); values.append(v) 
+
+    ax.plot(depths, values, 'ro')
+
     ax.autoscale()
+
+    if scaling:
+        ax2 = ax.twinx()
+        ax2.plot(sc_depths, sc_c, '+')
+
     plt.xlabel('Depth [km]')
     plt.ylabel('L2 Misfit m/n') 
     return ax
@@ -305,12 +323,14 @@ class OpticBase():
                 self.data.outliers.keys()]
         except AttributeError:
             outlier_depths = []
-        
+
         for source,t, pr_cand_line in\
             TestCase.iter_dict(self.get_processed_candidates_lines(
                                                        reduction=sources[0].time, 
                                                        scaling=scaling, 
                                                        force_update=force_update)):
+
+            pr_cand_line.set_linewidth(1.5)
             if not source.depth in depths:
                 continue
 
@@ -357,18 +377,23 @@ class OpticBase():
             plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             plt.tick_params(axis='both', which='major', labelsize=11)
             ax.autoscale()
-            #ax.set_xlim([min(x_ref), max(x_ref)])
+            y_abs_max = max(abs(y_ref))
+            
+            ax.set_xlim([min(x_ref), max(x_ref)])
+            ax.set_ylim([-1*y_abs_max-0.05*y_abs_max,
+                         y_abs_max+0.05*y_abs_max])
             axes_dict[t] = ax
-            plt.locator_params(nbins=4)
+        
+            plt.locator_params(tight=True, nbins=4)
             if fig:
                 ax.set_figure(fig)
 
-        plt.subplots_adjust(left=None,
-                           bottom=None,
-                           right=None,
-                           top=None,
-                           wspace=0.3,
-                           hspace=0.3)
+        plt.subplots_adjust(left=0.04,
+                           bottom=0.1,
+                           right=0.99,
+                           top=0.99,
+                           wspace=0.15,
+                           hspace=0.15)
         
 
         if len(depths)>=2:
@@ -381,9 +406,11 @@ class OpticBase():
             fig.colorbar(sm, cmap=cmap, norm=norm, cax=cbar_ax,\
                 orientation='horizontal', boundaries=depths)
         
-        plt.gcf().suptitle('%s, %s'%(
-            self.test_case_setup.test_parameter,
-            self.test_case_setup.test_parameter_value))
+        if self.test_case_setup.test_parameter or \
+           self.test_case_setup.test_parameter_value:
+            plt.gcf().suptitle('%s, %s'%(
+                                self.test_case_setup.test_parameter,
+                                self.test_case_setup.test_parameter_value))
 
         return axes_dict
 
