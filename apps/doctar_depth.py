@@ -49,15 +49,16 @@ if __name__ ==  "__main__":
 
     model = du.get_earthmodel_from_engine(engine, store_id) 
 
-    depths= range(400, 8000,2000) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
-    #depths= range(400, 8000,200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    #depths= range(400, 8000,4000) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    depths= range(400, 8000,200) #num.linspace(ref_source.depth-1000, ref_source.depth+3000, 21)
+    #depths = [3000, 4800, 7000]
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)
 
     map(lambda x: x.regularize(), location_test_sources)
 
-    rise_time=0.2
+    rise_time=0.1
     
     stf = [[0.,rise_time],[0.,1.]]
     reference_seismograms = du.make_traces_dict(ref_source, targets, traces)
@@ -91,9 +92,9 @@ if __name__ ==  "__main__":
                                     store_id=store_id,
                                     misfit_setup=misfit_setup,
                                     source_time_function=stf,
-                                    number_of_time_shifts=21,
+                                    number_of_time_shifts=31,
                                     #percentage_of_shift=4.,
-                                    time_shift=0.2,
+                                    time_shift=0.15,
                                     phase_ids_start=phase_ids_start,
                                     static_length=3.,
                                     marker_perc_length=0.001,
@@ -102,9 +103,11 @@ if __name__ ==  "__main__":
 
     test_case = TestCase( test_case_setup )
     test_case.pre_highpass = (2,0.5)
+    test_case.scaling_factors = num.linspace(0.1,1.2,23)
     test_case.blacklist = (('Y7','L004','','HHN'),('Y7','L001','','HHN'),)
 
     test_case.set_raw_references(reference_seismograms)
+    test_case.reduce_half_rise = False
 
     markers_dict_cache = du.make_markers_dict(ref_source, targets, markers)
     markers_dict = du.make_markers_dict(ref_source, targets, markers, keytype='st')
@@ -129,9 +132,11 @@ if __name__ ==  "__main__":
     plt.figure()
     ob.stack_plot()
     plt.figure()
-    ob.plot_misfits()
+    #ob.plot_misfits()
     ob.stack_plot(scaling=test_case.scaling, force_update=True)
-    plot_misfit_dict(test_case.scaled_misfits)
+    plot_misfit_dict(test_case.scaled_misfits, 
+                     mfdict2=test_case.misfits, 
+                     scaling=test_case.scaling)
      
     plt.show()
     
