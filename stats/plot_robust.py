@@ -10,7 +10,7 @@ matplotlib.rc('font', **font)
 
 use_scatter = True
 scatter_type = 'angle_location'
-use_abs = True
+use_abs = False
 only_failed = False
 xlabel = ''
 ylabel = ''
@@ -36,7 +36,9 @@ i=1
 zmin = min(num.array(results).T[3])
 zmax = max(num.array(results).T[3])
 
-cnorm = matplotlib.colors.Normalize(vmin=zmin-0.1*zmin, vmax=zmax+0.1*zmax)
+
+cnorm = matplotlib.colors.Normalize(vmin=200, vmax=8000)
+#cnorm = matplotlib.colors.Normalize(vmin=zmin-0.1*zmin, vmax=zmax+0.1*zmax)
 scalarMap = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
 
 cb = None
@@ -72,6 +74,7 @@ print '%s percent got it '%(float(gotit)/float(i)*100)
 results = results[:max_data]
 
 if only_failed:
+    print 'only failed'
     results_gotit = []
     results_no = []
     for r in results:
@@ -81,8 +84,13 @@ if only_failed:
             results_no.append(r)
     results = num.array(results_no)
     results_gotit = num.array(results_gotit)
-    sc = ax.scatter(results_gotit.T[0], results_gotit.T[1],
+    if use_abs:
+        sc = ax.scatter(abs(results_gotit.T[0]), abs(results_gotit.T[1]),
             c='0.75', s=8, lw=0.5, alpha=0.5)
+    else:
+        sc = ax.scatter(results_gotit.T[0], results_gotit.T[1],
+            c='0.75', s=8, lw=0.5, alpha=0.5)
+
 else:
     results = num.array(results)
 
@@ -118,6 +126,7 @@ if use_scatter:
 
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
     plt.colorbar(sc, label=cb_label)
+    sc.autoscale()
     
 
 print 'total number of tests: ', i
@@ -140,7 +149,8 @@ if only_failed:
 else:
     concat = results
 depths = set(concat.T[3])
-print depths
+print 'depth: ', depths
+hax.hist(concat.T[3],15)
 
 plt.savefig('%s%s_his.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 

@@ -44,8 +44,8 @@ class TestCaseSetup(Object):
     misfit_setup = trace.MisfitSetup.T()
     source_time_function = List.T(List.T(Float.T()))
     number_of_time_shifts = Int.T(optional=True, default=0)
-    percentage_of_shift = Float.T(optional=True)
-    time_shift = Float.T(optional=True)
+    percentage_of_shift = Float.T(optional=True, default=0.)
+    time_shift = Float.T(optional=True, default=0.)
     phase_ids_start = List.T(String.T(optional=True, default=['p','P']))
     channel_map = Dict.T(String.T(), Int.T(), 
                          optional=True, 
