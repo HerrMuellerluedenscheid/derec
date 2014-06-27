@@ -19,6 +19,10 @@ import glob
 pjoin = os.path.join
 km = 1000.
 
+class InvalidArguments(Exception):
+    '''Is raised if an argument of the signature does not fulfull requirements. '''
+    pass
+
 
 def equal_attributes(o1, o2):
     '''
@@ -42,7 +46,7 @@ def make_reference_trace(source, targets, engine, source_time_function=None,
 
     return ref_seismos
     
-def noise_adder(noise, traces, tshift=120.):
+def noise_adder(noise, traces, t_cut=120.):
     noise = make_tripets(noise)
     noise_keys = noise.keys()
     noise_target_map = {}
@@ -71,7 +75,6 @@ def noise_adder(noise, traces, tshift=120.):
             if 'Z' in tr.nslc_id[3]:
                 noise_trace = filter(lambda x: 'Z' in x.nslc_id[3], \
                     noise_trace_triplet)
-            
             elif 'E' in tr.nslc_id[3]:
                 noise_trace = filter(lambda x: 'E' in x.nslc_id[3], \
                     noise_trace_triplet)
@@ -86,10 +89,13 @@ def noise_adder(noise, traces, tshift=120.):
                 tr.downsample_to(deltat_max)
                 noise_trace.downsample_to(deltat_max)
 
-            tmin_index = tshift*tr.deltat
-            tmax_index = tmin_index+len(tr.get_ydata())
+            tmin_index = t_cut*tr.deltat
+            tmax_index = len(noise_trace.ydata)-t_cut*noise_trace.deltat-len(tr.get_ydata())
 
-            noisey = noise_trace.get_ydata()[tmin_index:tmax_index]-\
+            random_first_index = num.random.randint(tmin_index, tmax_index)
+            last_index = random_first_index+len(tr.get_ydata())
+
+            noisey = noise_trace.get_ydata()[random_first_index:last_index]-\
                             noise_trace.get_ydata().mean()
 
             tr.set_ydata(tr.get_ydata()+noisey)
@@ -309,6 +315,10 @@ class TestCase(Object):
         :param perc: percentage of trace length to be shifted 
         :return: numpy array. 
         """
+        if not 0. in [perc, seconds]:
+            raise InvalidArguments('generating time shifted candidates requires'+\
+                    'that only one of perc and seconds is given.')
+
         if perc:
             t_shift_max = (trac.tmax - trac.tmin) / 100. * perc
         elif seconds:
@@ -446,17 +456,13 @@ class TestCase(Object):
     def store(self):
         return self.engine.get_store(self.store_id)
     
-    def process(self, verbose=False, debug=False):
+    def process(self, verbose=False, debug=False, use_cake=False):
         self.request_data(verbose)
         if self.pre_highpass:
             for s,t,tr in TestCase.iter_dict(self.raw_candidates):
-                #tr = tr.copy()
                 tr.highpass(*self.pre_highpass)
-                #self.raw_candidates[s][t] = tr
             for s,t,tr in TestCase.iter_dict(self.raw_references):
-                #tr = tr.copy()
                 tr.highpass(*self.pre_highpass)
-                #self.raw_candidates[s][t] = tr
 
         setup = self.test_case_setup
 
