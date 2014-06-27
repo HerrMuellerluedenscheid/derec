@@ -13,7 +13,14 @@ def cake_first_arrival(distance, depth, model, phase_ids=None):
                             zstart=depth,
                             zstop=depth)
 
-    tmin = min(arrivals, key=lambda x: x.t).t
+    try:
+        tmin = min(arrivals, key=lambda x: x.t).t
+    except ValueError:
+        print 'cake says: None of defined phases availble in that area. Try another phase'
+        import pdb
+        pdb.set_trace()
+        raise
+
     return tmin
 
 
@@ -48,11 +55,17 @@ class PhaseCache():
         try:
             tmin = self.get_cached_tmin(target, source)
         except KeyError:
-            if use_cake:
+            if not use_cake:
+                if isinstance(self.phase_ids_start, list):
+                    phase_ids_start_fomosto = '|'.join(self.phase_ids_start)
+                else:
+                    phase_ids_start_fomosto = self.phase_ids_start
+
+                tmin = self.store.t('first(%s)'% phase_ids_start_fomosto, key)
+
+            if use_cake or tmin==None:
                 tmin = cake_first_arrival(dist, source.depth, self.model,
                         phase_ids=self.phase_ids_start)
-            else:
-                tmin = self.store.t('first(%s)'% self.phase_ids_start, key)
 
             tmin += source.time
             self.tmin_phase_cache[key] = tmin
