@@ -261,13 +261,12 @@ if __name__ ==  "__main__":
                            lw=0)
             plt.show()
 
+            mfsum = num.sum(test_case.scaled_misfits.values())
 
-        mfsum = num.sum(test_case.scaled_misfits.values())
-        print test_case.scaled_misfits.values()
-        mfax.plot(i, mfsum, 'bo')
-        mfax.autoscale()
-        plt.draw()
-        time.sleep(0.05)
+            mfax.plot(i, mfsum, 'bo')
+            mfax.autoscale()
+            plt.draw()
+            time.sleep(0.05)
 
         pb = pbar(i, num_tests, pb)
 
