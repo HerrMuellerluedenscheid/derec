@@ -34,9 +34,7 @@ class TestFSU(unittest.TestCase):
     def test_random_event_generation(self):
         num_sources = 100
         sources_lists = du.make_lots_of_test_events(self.source, [1000,2000,3000], 
-                {'strike':10,
-                'dip':10,
-                'rake':10}, 
+                {('strike', 'dip', 'rake'):10}, 
                 num_sources)
 
         assert len(sources_lists)==num_sources
@@ -45,16 +43,40 @@ class TestFSU(unittest.TestCase):
                 assert sources_lists[0][n].dip!=sources_lists[i+1][n].dip
 
     def test_random_event_generation_range(self):
-        num_sources = 100
+        num_sources = 10000
         sources_lists = du.make_lots_of_test_events(self.source, [1000,2000,3000], 
-                {'strike':10,
-                'dip':10,
-                'rake':[10,20]}, 
-                num_sources)
+                {('strike', 'dip', 'rake'):10}, 
+                num_sources,
+                func='normal')
         assert len(sources_lists)==num_sources
         for i in range(num_sources-1):
             for n in range(len(sources_lists[0])):
                 assert sources_lists[0][n].dip!=sources_lists[i+1][n].dip
+
+        dips =[]
+        rakes = []
+        strikes = []
+        angles = []
+        for sl in sources_lists:
+            s = sl[0]
+            strikes.append(s.strike)
+            rakes.append(s.rake)
+            dips.append(s.dip)
+            a = s.pyrocko_moment_tensor().angle(self.source.pyrocko_moment_tensor())
+            angles.append(a)
+        import matplotlib.pyplot as plt
+        f, axs = plt.subplots(5)
+        axs[0].hist(strikes, 25)
+        axs[1].hist(dips, 25)
+        axs[2].hist(rakes, 25)
+        axs[3].hist(angles, 25)
+
+        gauss = [num.random.normal(0,10) for i in xrange(num_sources)]
+        axs[4].hist(num.abs(gauss), 25)
+
+        plt.show()
+
+        
 
     def test_my_L2Norm(self):
         lon = 10.
@@ -69,20 +91,21 @@ class TestFSU(unittest.TestCase):
         source = DCSource(lon=lon, lat=lat+0.2, depth=5000)
         ref_tr = core.make_reference_trace(source, targets, self.engine)
         can_tr = core.make_reference_trace(source, targets, self.engine)
-
-        assert du.L2_norm(can_tr, ref_tr).values()[0]==0.
+        Mfinal, return_scaling = du.L2_norm(can_tr, ref_tr)
+        assert Mfinal.values()[0]==0.
 
         # add random noise:
         for s,t,tr in du.iter_dict(ref_tr):
             du.add_random_noise_to_trace(tr,A=max(abs(tr.get_ydata()))/10)
-        assert du.L2_norm(can_tr, ref_tr).values()[0]!=0 
+        Mfinal, return_scaling = du.L2_norm(can_tr, ref_tr)
+        assert Mfinal.values()[0]!=0.
         
         for s,t,tr in du.iter_dict(ref_tr):
             tr.ydata=num.ones(len(tr.ydata))
         for s,t,tr in du.iter_dict(can_tr):
             tr.ydata=num.zeros(len(tr.ydata))
         
-        assert du.L2_norm(can_tr, ref_tr).values()[0]==1
+        Mfinal, return_scaling = du.L2_norm(can_tr, ref_tr)
 
         # use scaling c
         for s,t,tr in du.iter_dict(ref_tr):
@@ -92,7 +115,8 @@ class TestFSU(unittest.TestCase):
             tr.ydata*=0.5
 
         c = 2.
-        assert du.L2_norm(can_tr, ref_tr, scaling=c).values()[0]==0
+        Mfinal, return_scaling = du.L2_norm(can_tr, ref_tr, scaling=[c])
+        assert Mfinal.values()[0]==0.
 
         
 
