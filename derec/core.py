@@ -89,8 +89,8 @@ def noise_adder(noise, traces, t_cut=120.):
                 tr.downsample_to(deltat_max)
                 noise_trace.downsample_to(deltat_max)
 
-            tmin_index = t_cut*tr.deltat
-            tmax_index = len(noise_trace.ydata)-t_cut*noise_trace.deltat-len(tr.get_ydata())
+            tmin_index = int(t_cut/tr.deltat)
+            tmax_index = len(noise_trace.ydata)-int(t_cut/noise_trace.deltat)-len(tr.get_ydata())
 
             random_first_index = num.random.randint(tmin_index, tmax_index)
             last_index = random_first_index+len(tr.get_ydata())
