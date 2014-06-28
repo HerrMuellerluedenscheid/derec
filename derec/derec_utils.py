@@ -623,7 +623,11 @@ def make_lots_of_test_events(ref_source, depths, ranges, number, **kwargs):
 
         source_list_copy = map(clone, _sources)
 
-        set_randomized_values(source_list_copy, ranges, **kwargs)
+        if not isinstance(ranges.keys()[0], tuple):
+            set_randomized_values_depr(source_list_copy, ranges, **kwargs)
+        else:
+            set_randomized_values(source_list_copy, ranges, **kwargs)
+
         return_list.append(source_list_copy)
 
     return return_list
@@ -633,6 +637,30 @@ def set_randomized_values(source_list, ranges, func='uniform'):
     """
     :param func: A randomizing function like num.random.uniform (default)
     """
+    values = {}
+    for ks, v in ranges.items():
+        if func=='uniform':
+            randompm = num.random.choice([-1,1])
+            val = num.random.uniform(v)
+            val *= randompm
+        elif func=='normal':
+            val = num.random.normal(0., v)
+
+        fracs = num.random.random(len(ks))
+        fracs /= (num.sum(fracs)*0.6666)
+        
+        for i,k in enumerate(ks):
+            for source in source_list:
+                orig_val = getattr(source, k)
+                orig_val += val*fracs[i]
+                setattr(source, k, orig_val)
+
+
+def set_randomized_values_depr(source_list, ranges, func='uniform'):
+    """
+    :param func: A randomizing function like num.random.uniform (default)
+    """
+    print 'WARNING! Using deprecated source randomization....'
     values = {}
     for k,v in ranges.items():
         sourceval = getattr(source_list[0], k)
