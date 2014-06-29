@@ -10,15 +10,21 @@ matplotlib.rc('font', **font)
 
 use_scatter = True
 scatter_type = 'angle_location'
-use_abs = False
+use_abs = True
+use_depth_difference = True
 only_failed = False
-xlabel = ''
-ylabel = ''
+xlabel = 'Mislocalization [km]'
+ylabel = 'Misangle [deg]'
 suptitle = ''
-correct_depth = 5000
+correct_depth = 2000
+#correct_depth = 5000
+print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 cmap = matplotlib.cm.get_cmap('jet')
-
+vmin = -2000
+vmax = 3000
+#vmax = 5000
+print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
 
@@ -37,7 +43,7 @@ zmin = min(num.array(results).T[3])
 zmax = max(num.array(results).T[3])
 
 
-cnorm = matplotlib.colors.Normalize(vmin=200, vmax=8000)
+cnorm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
 #cnorm = matplotlib.colors.Normalize(vmin=zmin-0.1*zmin, vmax=zmax+0.1*zmax)
 scalarMap = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
 
@@ -105,10 +111,20 @@ if use_scatter:
         if use_abs:
             X = abs(X)
             Y = abs(Y) 
+        if use_depth_difference:
+            Z-=correct_depth
+            cb_label = 'depth difference [km]'
+        else:
+            cb_label = 'z [km]'
+        Z/=1000
+        Z*=-1
+        X/=1000
 
-        vmin = zmin
-        vmax = zmax
-        cb_label = 'z [km]'
+
+
+
+        #vmin = zmin
+        #vmax = zmax
 
 
     elif scatter_type=='depth_location':
@@ -122,6 +138,7 @@ if use_scatter:
         vmin = min(Z) 
         vmax = max(Z) 
         cb_label = 'angle [deg]'
+        
 
 
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
@@ -135,7 +152,8 @@ if use_scatter:
     typestr+='_zccode'
 if only_failed:
     typestr+= '_only_failed'
-
+plt.ylim([0, 50])
+plt.xlim([0, 15])
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
 
