@@ -545,8 +545,8 @@ class TestCase(Object):
         else:
             misfits = self.misfits
 
-        minmf = min(self.misfits.values())
-        for s, v in self.misfits.iteritems():
+        minmf = min(misfits.values())
+        for s, v in misfits.iteritems():
             if v==minmf:
                 return s, minmf
             
