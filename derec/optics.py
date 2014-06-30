@@ -17,15 +17,11 @@ except:
 from gmtpy import GMT
 from copy import copy
 
-font = {'family' : 'normal', 
-    'size'   : 11} 
+font = {'family' : 'normal'}
 matplotlib.rc('font', **font)
-
-
 matplotlib.rcParams['font.size'] = 7
 
 def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
-
     if not kwargs.get('marker', False):
         kwargs.update({'marker':'o',
                        'lw':0})
@@ -43,33 +39,61 @@ def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
     for s,v in mfdict.items():
         depths.append(s.depth); values.append(v) 
 
-    ax.plot(depths, values, **kwargs)
+    ax.plot(depths, values, label='unscaled', **kwargs)
     if mfdict2:
         depths = []
         values = []
         for s,v in mfdict2.items():
             depths.append(s.depth); values.append(v) 
 
-    ax.plot(depths, values, 'ro')
+    ax.plot(depths, values, 'ro', label='scaled')
 
     ax.autoscale()
 
     if scaling:
         ax2 = ax.twinx()
-        ax2.plot(sc_depths, sc_c, '+')
-
+        ax2.plot(sc_depths, sc_c, '+', label='scaling factor')
+        ax2.autoscale()
     plt.xlabel('Depth [km]')
     plt.ylabel('L2 Misfit m/n') 
+    plt.legend()
     return ax
+
+
+def set_my_ticks(ax):
+    xlims = ax.get_xlim()
+    ylims = ax.get_ylim()
+
+    ax.get_yaxis().set_ticks([])
+
+    xtick_lower = num.ceil(xlims[0]) 
+    xtick_upper = num.floor(xlims[1]) 
+    ax.get_xaxis().set_ticks(num.round(num.arange(xtick_lower, 
+                                                    xtick_upper,
+                                                    2)))
+    ax.get_xaxis().set_tick_params(which='both', 
+                                   direction='in', 
+                                   top='off', 
+                                   pad=0)
+
+    #labels = [item.get_text() for item in ax.get_xticklabels()]
+    #labels[1:-1] = ''
+    #ax.set_xticklabels(labels)
+
+    ax.text(xlims[0], ylims[1],
+            '%1.1e'%ylims[1],
+            size=9, 
+            ha='left',
+            va='top')
 
 
 def gca_label(label_string, ax=plt.gca(), **kwargs):
     """
     Add target codes to top right corner in axes object.
     """
-    plt.text(1, 1, label_string,
-                    horizontalalignment='right',
-                    verticalalignment='top',
+    plt.text(0.01, 0.05, label_string,
+                    horizontalalignment='left',
+                    verticalalignment='bottom',
                     transform=ax.transAxes,
                     **kwargs)
 
@@ -295,13 +319,9 @@ class OpticBase():
             if len(sources)==1:
                 return fig
 
-    def stack_plot(self, sources=None, depths=None, fig=None, show_markers=False,
-            exclude_outliers=True, fix_size=True, scaling=None, force_update=False):
+    def stack_plot(self, sources=None, depths=None, fig=None,
+            exclude_outliers=True, scaling=None, force_update=False):
         '''
-        param_dict is something like {latitude:10, longitude:10}, defining the 
-        area of source, that you would like to look at.
-
-        TODO: marker_dict unused?
         '''
         sources = sources if sources else self.sources
         depths = depths if depths else self.test_case_setup.depths
@@ -316,7 +336,7 @@ class OpticBase():
                 (x.distance_to(sources[0]), x.codes[3])), gs))
 
         axes_dict = defaultdict()
-        pc_lines = []
+        ax_xymaxs = defaultdict()
 
         try:
             outlier_depths = [outl.depth for outl in
@@ -326,9 +346,9 @@ class OpticBase():
 
         for source,t, pr_cand_line in\
             TestCase.iter_dict(self.get_processed_candidates_lines(
-                                                       reduction=sources[0].time, 
-                                                       scaling=scaling, 
-                                                       force_update=force_update)):
+                                                   reduction=sources[0].time, 
+                                                   scaling=scaling, 
+                                                   force_update=force_update)):
 
             pr_cand_line.set_linewidth(1.5)
             if not source.depth in depths:
@@ -345,55 +365,42 @@ class OpticBase():
                 continue
 
             pr_ref = self.processed_references[source][t]
-            
             if not isinstance(pr_ref, trace.Trace):
                 pr_ref = pr_ref.pyrocko_trace()
 
             x_ref = pr_ref.get_xdata() 
-            try:
-                ref_m = self.reference_markers.values()[0][t]
-            except AttributeError:
-                print 'using first sample to reduce'
-
             x_ref -= sources[0].time
             y_ref = pr_ref.get_ydata()
             
-            if show_markers:
-                try:
-                    t_marker = self.phase_cache.get_cached_arrivals(t, source)[0]
-                    t_marker -= x_0
-                    ax.axvline(x=t_marker)
-                except AttributeError: 
-                    pass
-                
-            gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=11)
+            if not ax.get_label():
+                gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=9)
 
             pr_cand_line.set_label("%s m"%float(source.depth))
             pr_cand_line.set_color(cmap(self.scalez255(source.depth)))
             ax.add_line(pr_cand_line)
-            pc_lines.append(pr_cand_line)
             p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=alpha)
 
-            plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            plt.tick_params(axis='both', which='major', labelsize=11)
-            ax.autoscale()
             y_abs_max = max(abs(y_ref))
-            
+            ymin_woffset = -1*y_abs_max-0.05*y_abs_max
+            ymax_woffset = y_abs_max+0.05*y_abs_max
+            ax.set_ylim([ymin_woffset, ymax_woffset ])
             ax.set_xlim([min(x_ref), max(x_ref)])
-            ax.set_ylim([-1*y_abs_max-0.05*y_abs_max,
-                         y_abs_max+0.05*y_abs_max])
-            axes_dict[t] = ax
-        
-            plt.locator_params(tight=True, nbins=4)
+            ax_xymaxs[t] = (min(x_ref), ymax_woffset)
+
             if fig:
                 ax.set_figure(fig)
+
+            axes_dict[t] = ax
+
+        for ax in axes_dict.values(): 
+            set_my_ticks(ax)
 
         plt.subplots_adjust(left=0.04,
                            bottom=0.1,
                            right=0.99,
                            top=0.99,
-                           wspace=0.15,
-                           hspace=0.15)
+                           wspace=0.05,
+                           hspace=0.3)
         
 
         if len(depths)>=2:
