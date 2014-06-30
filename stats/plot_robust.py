@@ -9,7 +9,7 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 use_scatter = True
-scatter_type = 'angle_location'
+scatter_type = 'depth_location'
 use_abs = True
 use_depth_difference = True
 only_failed = False
@@ -21,9 +21,17 @@ correct_depth = 2000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 cmap = matplotlib.cm.get_cmap('jet')
-vmin = -2000
-vmax = 3000
-#vmax = 5000
+
+if correct_depth==2000:
+    vmin = -3
+    vmax = 3
+if correct_depth==5000:
+    vmin = -5
+    vmax = 5
+if scatter_type=='depth_location':
+    vmin=None
+    vmax=None
+
 print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
@@ -36,7 +44,8 @@ for l in f.readlines():
 
 fig = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
 ax = fig.add_subplot(111)
-max_data = 2000
+max_data = 790 
+print 'max data: ', max_data
 i=1
 
 zmin = min(num.array(results).T[3])
@@ -120,13 +129,6 @@ if use_scatter:
         Z*=-1
         X/=1000
 
-
-
-
-        #vmin = zmin
-        #vmax = zmax
-
-
     elif scatter_type=='depth_location':
         X = results.T[0]
         Y = results.T[3]
@@ -139,11 +141,8 @@ if use_scatter:
         vmax = max(Z) 
         cb_label = 'angle [deg]'
         
-
-
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
-    plt.colorbar(sc, label=cb_label)
-    sc.autoscale()
+plt.colorbar(sc, label=cb_label)
     
 
 print 'total number of tests: ', i
@@ -152,13 +151,16 @@ if use_scatter:
     typestr+='_zccode'
 if only_failed:
     typestr+= '_only_failed'
-plt.ylim([0, 50])
-plt.xlim([0, 15])
+
+if scatter_type == 'depth_location':
+    plt.ylim([0, 50])
+    plt.xlim([0, 15])
+
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
 
 plt.suptitle(suptitle)
-plt.savefig('%s%s.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+plt.savefig('%s%s.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
 histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = histfig.add_subplot(111)
@@ -168,8 +170,8 @@ else:
     concat = results
 depths = set(concat.T[3])
 print 'depth: ', depths
-hax.hist(concat.T[3],15)
+hax.hist(concat.T[3],len(depths))
 
-plt.savefig('%s%s_his.pdf'%(file_name.split('.')[0], typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+plt.savefig('%s%s_his.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
 plt.show()
