@@ -595,18 +595,6 @@ if __name__ ==  "__main__":
 
     phase_ids_start =  ['p','P']
     
-    # load stations from file:
-    # Event==================================================
-    #event = filter(lambda x: isinstance(x, gui_util.EventMarker), markers)
-    #assert len(event) == 1
-    #event = event[0].get_event()
-    #event.moment_tensor = moment_tensor.MomentTensor(strike=37.3,
-    #                                                dip=30.,
-    #                                                rake=-3.,
-    #                                                scalar_moment=3.64e15)
-    #
-    #event.dump('castor_event_2013.dat')
-
     targets = du.stations2targets(stations, store_id, channels=channels)
 
     model = du.get_earthmodel_from_engine(engine, store_id) 
