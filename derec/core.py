@@ -140,6 +140,7 @@ class TestCase(Object):
         self.picked = None
         self.pre_highpass = None
         self.reduce_half_rise = False
+        self.individual_scaling = False
 
         self.scaling_factors = num.linspace(0.1, 2.1, 21)
         
@@ -458,6 +459,9 @@ class TestCase(Object):
     
     def process(self, verbose=False, debug=False, use_cake=False):
         self.request_data(verbose)
+
+        if verbose: print 'individual scaling c: ', self.individual_scaling
+
         if self.pre_highpass:
             for s,t,tr in TestCase.iter_dict(self.raw_candidates):
                 tr.highpass(*self.pre_highpass)
@@ -526,6 +530,7 @@ class TestCase(Object):
         misfits, scaling = du.L2_norm(self.processed_candidates,
                              self.processed_references,
                              scaling=scaling_factors, 
+                             individual_scaling=self.individual_scaling,
                              verbose=verbose)
         return misfits, scaling 
 

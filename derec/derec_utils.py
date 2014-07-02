@@ -236,9 +236,10 @@ def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=No
                              phase_ids_start=phase_ids_start,
                              phase_ids_end=phase_ids_end)
 
-    use_cake = False
     if kwargs.get('use_cake', False):
         use_cake = True
+    else:
+        use_cake = False
 
     model = store.config.earthmodel_1d
 
@@ -556,18 +557,12 @@ def response_to_dict(response_dict):
 def apply_stf(traces_dict, stf):
     """
     Apply a source time function, given in timedomain.
-
-    Rethink the time shift.......
     """
     for s, target_traces in traces_dict.items():
         for t, trac in target_traces.items():
             dt = trac.deltat
-            #assert(stf[0][1]-stf[0][0] >= 2* dt)
-
             x = trac.get_xdata()
-
             y = trac.get_ydata()
-
             x_stf_new = num.arange(stf[0][0], stf[0][-1], dt)
             finterp = interpolate.interp1d(stf[0], stf[1])
             y_stf_new = finterp(x_stf_new)
@@ -723,7 +718,7 @@ def iter_dict(traces_dict, only_values=False):
                 yield key1, key2, val
 
 
-def L2_norm(u, v, scaling=None, verbose=False):
+def L2_norm(u, v, scaling=None, individual_scaling=False, verbose=False):
     '''
     :param u: candidates
     :param v: references
@@ -744,21 +739,28 @@ def L2_norm(u, v, scaling=None, verbose=False):
         M_tmp = defaultdict()
         x_j = v[source]
         y_j = u[source]
-        for c_j in c:
-            M = L2_norm_inner(y_j, x_j, c_j)
-            M_tmp[M] = c_j
-        min_M = min(M_tmp.keys())
+        
+        if not individual_scaling:
+            for c_j in c:
+                M = L2_norm_inner(y_j, x_j, c_j)
+                M_tmp[M] = c_j
+            min_M = min(M_tmp.keys())
 
-        if verbose: 
+        else:
+            min_M = L2_norm_inner(y_j, x_j, c)
+
+
+        if verbose and not individual_scaling: 
             if M_tmp[min_M]==c[0] or M_tmp[min_M]==c[len(c)-1]:
                 print 'warning: L2 norm found uppermost/lowermost scaling as best fit'
-        return_scaling[source] = M_tmp[min_M]
+        if not individual_scaling:
+            return_scaling[source] = M_tmp[min_M]
         M_final[source] = min_M
 
     return M_final, return_scaling
 
 
-def L2_norm_inner(u, v, c=1.):
+def L2_norm_inner(u, v, c=1. ):
     '''
     calculate M and N for one dict of target/traces
     :param u: candidates
@@ -767,10 +769,23 @@ def L2_norm_inner(u, v, c=1.):
     '''
     m_i = num.float64()
     n_i = num.float64()
-    for target in u.keys():
-        x_i = v[target].get_ydata()
-        y_i = u[target].get_ydata()
-        m_i += num.sum((x_i-y_i*c)**2)
-        n_i += num.sum(x_i**2)
-    return num.sqrt(m_i)/num.sqrt(n_i)
+
+    if isinstance(c, float):
+        for target in u.keys():
+            x_i = v[target].get_ydata()
+            y_i = u[target].get_ydata()
+            m_i += num.sum((x_i-y_i*c)**2)
+            n_i += num.sum(x_i**2)
+        return num.sqrt(m_i)/num.sqrt(n_i)
+
+    else:
+        for target in u.keys():
+            x_i = v[target].get_ydata()
+            y_i = u[target].get_ydata()
+            m = []
+            for c_i in c:
+                m.append(num.sum((x_i-y_i*c_i)**2))
+            m_i += min(m)
+            n_i += num.sum(x_i**2)
+        return num.sqrt(m_i)/num.sqrt(n_i)
 
