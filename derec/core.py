@@ -23,6 +23,23 @@ class InvalidArguments(Exception):
     '''Is raised if an argument of the signature does not fulfull requirements. '''
     pass
 
+def make_t_shifts(trac, num_samples, perc=0., seconds=0.):
+    """
+    :param trac: pyrocko.trace.Trace
+    :param num_samples: number of time shifts
+    :param perc: percentage of trace length to be shifted 
+    :return: numpy array. 
+    """
+    if not 0. in [perc, seconds]:
+        raise InvalidArguments('generating time shifted candidates requires'+\
+                'that only one of perc and seconds is given.')
+
+    if perc:
+        t_shift_max = (trac.tmax - trac.tmin) / 100. * perc
+    elif seconds:
+        t_shift_max = seconds
+
+    return num.linspace(-t_shift_max/2., t_shift_max/2, num_samples)
 
 def equal_attributes(o1, o2):
     '''
@@ -125,10 +142,12 @@ class TestCase(Object):
 
         self.raw_references = None       #(unchopped, unfiltered)
         self.processed_references = defaultdict(dict)
+        self.pre_processed_references = defaultdict(dict)
         self.references = {} 
 
         self.raw_candidates = None       #(unchopped, unfiltered)
         self.processed_candidates = defaultdict(dict)
+        self.pre_processed_candidates = defaultdict(dict)
         self.candidates= {}
 
         self.phase_cache = None
@@ -309,43 +328,38 @@ class TestCase(Object):
 
         return dumped
 
-    def make_t_shifts(self, trac, num_samples, perc=0., seconds=0.):
-        """
-        :param trac: pyrocko.trace.Trace
-        :param num_samples: number of time shifts
-        :param perc: percentage of trace length to be shifted 
-        :return: numpy array. 
-        """
-        if not 0. in [perc, seconds]:
-            raise InvalidArguments('generating time shifted candidates requires'+\
-                    'that only one of perc and seconds is given.')
-
-        if perc:
-            t_shift_max = (trac.tmax - trac.tmin) / 100. * perc
-        elif seconds:
-            t_shift_max = seconds
-
-        return num.linspace(-t_shift_max/2., t_shift_max/2, num_samples)
-
     def make_shifted_candidates(self, source, target):
         """
         returns shifted candidates.
         """
         shifted_candidates = []
-        cand = self.candidates[source][target]
+        cand = self.pre_processed_candidates[source][target]
 
         if self.test_case_setup.number_of_time_shifts==0:
             return [cand.copy()]
 
-        t_shifts = self.make_t_shifts(cand,
-                self.test_case_setup.number_of_time_shifts, 
-                self.test_case_setup.percentage_of_shift,
-                self.test_case_setup.time_shift)
+        t_shifts = make_t_shifts(cand,
+                                self.test_case_setup.number_of_time_shifts, 
+                                self.test_case_setup.percentage_of_shift,
+                                self.test_case_setup.time_shift)
 
         shifted_candidates = [cand.copy() for i in range(len(t_shifts))]
         map(lambda t,s: t.shift(s), shifted_candidates, t_shifts)
         map(lambda t: t.snap(), shifted_candidates)
+        
+        i = 0
+        while i<len(shifted_candidates)-1:
+            if shifted_candidates[i].tmin==shifted_candidates[i+1].tmin and \
+                    shifted_candidates[i].tmax==shifted_candidates[i+1].tmax:
+                        shifted_candidates.remove(shifted_candidates[i+1])
+            else:
+                i+=1
+
         return shifted_candidates
+    
+    def aligned_processed_candidates(self):
+        
+        return aligned
 
     @staticmethod
     def yaml_read(fn):
@@ -483,7 +497,7 @@ class TestCase(Object):
                                               use_cake=True)
 
         if self.picked or self.phase_cache:
-            if verbose: print 'align phases with picked ones'
+            if verbose: print 'align by phases with picked ones'
             if self.reduce_half_rise:
                 if verbose: print 'and reduce by t_rise'
                 static_shift = -setup.source_time_function[0][1]
@@ -495,8 +509,8 @@ class TestCase(Object):
             elif self.phase_cache:
                 alignment = du.get_phase_alignment(self.phase_cache.as_dict,\
                         c_pc.as_dict)
-            du.align(alignment, extended_test_marker, static_shift=static_shift)
-            du.align(alignment, self.raw_candidates, static_shift=static_shift)
+            du.align_by_phase(alignment, extended_test_marker, static_shift=static_shift)
+            du.align_by_phase(alignment, self.raw_candidates, static_shift=static_shift)
 
         self.set_candidates_markers( extended_test_marker )
 
@@ -520,19 +534,15 @@ class TestCase(Object):
             trace.snuffle(self.raw_references.values()[0].values(),
                           markers=self.reference_markers.values()[0].values())
 
-        du.calculate_misfit(self, verbose)
+        du.pre_process(self, verbose)
+        du.align_traces(self)
         
-        self.scaled_misfits, self.scaling = self.L2_misfit(verbose=verbose,
-                                                          scaling_factors=\
-                                                           self.scaling_factors)
-
-    def L2_misfit(self, verbose=False, scaling_factors=None):
-        misfits, scaling = du.L2_norm(self.processed_candidates,
+        self.scaled_misfits, self.scaling = du.L2_norm(self.processed_candidates,
                              self.processed_references,
-                             scaling=scaling_factors, 
+                             scaling=self.scaling_factors, 
                              individual_scaling=self.individual_scaling,
                              verbose=verbose)
-        return misfits, scaling 
+
 
 
     def best_source_misfit(self, use_scaled=True, verbose=False):

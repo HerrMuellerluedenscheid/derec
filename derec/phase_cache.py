@@ -10,15 +10,13 @@ def cake_first_arrival(distance, depth, model, phase_ids=None):
     phases = [cake.PhaseDef(ph) for ph in phase_ids]
     arrivals = model.arrivals([distance*cake.m2d], 
                             phases,
-                            zstart=depth,
-                            zstop=depth)
+                            zstart=depth)
 
     try:
-        tmin = min(arrivals, key=lambda x: x.t).t
+        a_sorted = sorted(arrivals, key=lambda x: x.t)
+        tmin = a_sorted[0].t
     except ValueError:
         print 'cake says: None of defined phases availble in that area. Try another phase'
-        import pdb
-        pdb.set_trace()
         raise
 
     return tmin

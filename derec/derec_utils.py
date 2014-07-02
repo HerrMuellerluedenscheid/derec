@@ -111,7 +111,7 @@ def get_phase_alignment(ref, can):
     return alignment
 
 
-def align(alignment, unaligned, static_shift=0.):
+def align_by_phase(alignment, unaligned, static_shift=0.):
     for s,t,ali in iter_dict(alignment):
         ali += static_shift
         if isinstance(unaligned[s][t], trace.Trace):
@@ -391,20 +391,15 @@ def get_scaling(r, c):
 
     return scalings
 
-
-def calculate_misfit(test_case, verbose=False):
-    
+def pre_process(test_case, verbose=False):
     sources = test_case.sources
     targets = filter(lambda x: not util.match_nslcs('.'.join(x.codes),
                                     test_case.blacklist), test_case.targets)
     references = test_case.references
+    candidates = test_case.candidates
+
     assert len(references.items())==1
-    total_misfit = defaultdict()
-
     mfsetup = test_case.misfit_setup
-    norm = mfsetup.norm
-
-    outlier_threshold = test_case.test_case_setup.outlier_threshold
 
     if verbose:
         pbar = progressbar.ProgressBar(maxval=len(sources)).start()
@@ -412,63 +407,23 @@ def calculate_misfit(test_case, verbose=False):
     for si, source in enumerate(sources):
         if verbose:
             pbar.update(si)
-        ms = num.empty([len(targets)], dtype=float)
-        ns = num.empty([len(targets)], dtype=float)
-        c_data = []
-        r_data = []
         
         for ti, target in enumerate(targets):
             reft = references.values()[0][target]
-            M_tmp = 999.
-
-            shifted_candidates = test_case.make_shifted_candidates(source,
-                    target)
-
-            for cand_i in shifted_candidates:
-                if test_case.scale_minmax: 
-                    scale_minmax(reft, cand_i)
-                m,n,r_d,c_d = reft.misfit(candidate=cand_i, setup=mfsetup, 
-                        debug=True)
-
-                if m==None or n==None:
-                    print 'm,n =None'
-                    continue
-
-                if m/n>=M_tmp:
-                    continue
-
-                elif m/n<M_tmp:
-                    M_tmp = m/n
-                    M = m
-                    N = n
-                    best_candidate = c_d
-                    best_reference = r_d
+            m,n,r_d,c_d = reft.misfit(candidate=candidates[source][target], 
+                                      setup=mfsetup, 
+                                      debug=True)
 
             try:
-                test_case.processed_candidates[source][target] = best_candidate
-                test_case.processed_references[source][target] = best_reference 
+                test_case.pre_processed_candidates[source][target] = r_d 
+                test_case.pre_processed_references[source][target] = c_d 
             except UnboundLocalError:
                 print 'M > 999 in each iteration. Check data ranges!'
                 continue
 
-            ms[ti] = M
-            ns[ti] = N
-
-        M = num.power(num.sum(num.abs(num.power(ms, norm))), 1./norm)
-        N = num.power(num.sum(num.abs(num.power(ns, norm))), 1./norm)
-        
-        M_total = M/N
-
-        if M_total>=outlier_threshold:
-            test_case.outliers[source] = M_total
-        else:
-            total_misfit[source] = M_total
-
     if verbose:
         pbar.update(si+1)
         pbar.finish()
-
-    test_case.set_misfit(total_misfit)
 
 def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
         **kwargs):
@@ -716,6 +671,72 @@ def iter_dict(traces_dict, only_values=False):
                 yield val
             else:
                 yield key1, key2, val
+
+def same_length(r,c):
+    c = c.chop(r.tmin, r.tmax, include_last=True, inplace=False)
+    tmin = min(r.tmin, c.tmin)
+    tmax = max(r.tmax, c.tmax)
+    c = trace.do_extend(c, tmin, tmax)
+    if len(c.ydata)!=len(r.ydata):
+        ynew = num.zeros(len(c.ydata)+1)
+        if abs(c.tmin-r.tmin)>=0.01*r.deltat:
+            c.tmin-=c.deltat
+            ynew[1:] = c.ydata
+        else:
+            c.tmax=+c.deltat
+            ynew[0:-1] = c.ydata
+        c.set_ydata(ynew)
+
+    return r, c
+
+
+def align_traces(test_case):
+    misfits = defaultdict()
+    
+    for i_s, s in enumerate(test_case.sources):
+        _m = num.float64(0)
+        _n = num.float64(0)
+
+        for t in test_case.targets:
+            tmp_rs = [] 
+            tmp_ca = [] 
+            cs = test_case.make_shifted_candidates(s,t)
+            
+            ref = test_case.pre_processed_references[s][t]
+            ms = num.empty(len(cs))
+            ms[:] = num.NAN
+            
+            print 'NEWWWWW'
+            for i,can in enumerate(cs):
+                ref = ref.copy()
+                r, c = same_length(ref, can)
+                m,n = trace.Lx_norm(c.get_ydata(), 
+                                    r.get_ydata(),
+                                    norm=test_case.misfit_setup.norm)
+                tmp_rs.append(r)
+                tmp_ca.append(c)
+                ms[i] = m/n
+
+            minmf = num.min(ms)
+            _m+=minmf**2
+            _n+=n**2
+            
+            ind = num.where(ms==minmf)
+            ind = ind[0]
+            if len(ind)>=2:
+                print "warning: more than 2 best scaling factors found best fit"
+                print 'misfits: ',ms
+                print 'best misfits', ind 
+            ind = ind[0]
+        
+            test_case.processed_candidates[s][t] = tmp_ca[ind]
+            test_case.processed_references[s][t] = tmp_rs[ind]
+            if len(cs[ind].ydata)!=len(tmp_rs[ind].ydata):
+                print cs[ind]
+                print tmp_rs[ind]
+
+        misfits[s] = num.sqrt(_m)/num.sqrt(_n)
+    test_case.set_misfit(misfits)
 
 
 def L2_norm(u, v, scaling=None, individual_scaling=False, verbose=False):
