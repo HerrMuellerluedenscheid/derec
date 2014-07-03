@@ -21,6 +21,33 @@ font = {'family' : 'normal'}
 matplotlib.rc('font', **font)
 matplotlib.rcParams['font.size'] = 7
 
+
+def check_locations(ref_source, testsources):
+    eshi = [] 
+    nshi = [] 
+    for ts in testsources:
+        eshi.append(ts[0].north_shift)
+        nshi.append(ts[0].east_shift)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(eshi, nshi, 'bo')
+
+    laterals = []
+    angles = []
+    rmt = ref_source.pyrocko_moment_tensor()
+
+    for ts in testsources:
+        laterals.append(num.sqrt(ts[0].north_shift**2+ts[0].east_shift**2))
+        angles.append(rmt.angle(ts[0].pyrocko_moment_tensor()))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    #ax.hist(laterals)
+    ax.plot(laterals, angles, 'bo')
+    plt.show()
+    
+
 def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
     if not kwargs.get('marker', False):
         kwargs.update({'marker':'o',
