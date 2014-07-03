@@ -155,9 +155,7 @@ class TestCase(Object):
                                 sources=self.sources,
                                 targets=self.targets)
         except meta.OutOfBounds:
-            print 'requested depths: '
-            for s in self.sources:
-                print s.depth
+            print 'index out of bounds '
             raise
 
         if verbose: print 'finished'
@@ -345,6 +343,13 @@ class TestCase(Object):
         shifted_candidates = [cand.copy() for i in range(len(t_shifts))]
         map(lambda t,s: t.shift(s), shifted_candidates, t_shifts)
         map(lambda t: t.snap(), shifted_candidates)
+        i = 0
+        while i<len(shifted_candidates)-1:
+            if shifted_candidates[i].tmin==shifted_candidates[i+1].tmin and \
+                    shifted_candidates[i].tmax==shifted_candidates[i+1].tmax:
+                        shifted_candidates.remove(shifted_candidates[i+1])
+            else:
+                i+=1
         return shifted_candidates
 
     @staticmethod
