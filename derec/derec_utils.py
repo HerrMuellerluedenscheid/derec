@@ -635,19 +635,21 @@ def set_randomized_values(source_list, ranges, func='uniform'):
     values = {}
     for ks, v in ranges.items():
         if func=='uniform':
-            randompm = num.random.choice([-1,1])
             val = num.random.uniform(v)
-            val *= randompm
         elif func=='normal':
+            #if 'strike' in ks:
             val = num.random.normal(0., v)
+            #else:    
+            #    val = num.random.normal(0., v)
 
-        fracs = num.random.random(len(ks))
-        fracs /= (num.sum(fracs)*0.6666)
+        fracs = num.random.uniform(0,1, len(ks))
+        fracs /= (num.sum(fracs))
         
         for i,k in enumerate(ks):
+            pre = num.random.choice([-1,1])
             for source in source_list:
                 orig_val = getattr(source, k)
-                orig_val += val*fracs[i]
+                orig_val += val*fracs[i]*pre
                 setattr(source, k, orig_val)
 
 
