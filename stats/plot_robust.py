@@ -9,7 +9,7 @@ font = {'family' : 'normal',
 matplotlib.rc('font', **font)
 
 use_scatter = True
-scatter_type = 'depth_location'
+scatter_type = 'angle_location'
 use_abs = True
 use_depth_difference = True
 only_failed = False
@@ -20,7 +20,8 @@ correct_depth = 2000
 #correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
-cmap = matplotlib.cm.get_cmap('jet')
+#cmap = matplotlib.cm.get_cmap('jet')
+cmap = matplotlib.cm.get_cmap('brg')
 
 if correct_depth==2000:
     vmin = -3
@@ -31,7 +32,8 @@ if correct_depth==5000:
 if scatter_type=='depth_location':
     vmin=None
     vmax=None
-
+dz=0.2
+bounds = num.arange(vmin, vmax, dz)
 print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
@@ -44,7 +46,7 @@ for l in f.readlines():
 
 fig = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
 ax = fig.add_subplot(111)
-max_data = 790 
+max_data = 1000
 print 'max data: ', max_data
 i=1
 
@@ -59,29 +61,29 @@ scalarMap = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
 cb = None
 gotit = 0
 
-for a,b,mf,d in results[:max_data]:
-    if use_abs:
-        a = abs(a)
-        b = abs(b)
-
-    if not d in [0,1]:
-        if not use_scatter or not isinstance(d, float):
-            if abs(d-correct_depth)<=grace:
-                d=1
-            else:
-                d=0
-    
-    if d==1.:
-        gotit+=1
-        c = 'bo'
-        ax.plot(a,b, c, markersize=3.3)
-    elif d==0.:
-        c = 'ro'
-        ax.plot(a,b, c, markersize=3.3)
-    else:
-        use_scatter = True
-        break
-    i+=1
+#for a,b,mf,d in results[:max_data]:
+#   if use_abs:
+#       a = abs(a)
+#       b = abs(b)
+#
+#   if not d in [0,1]:
+#       if not use_scatter or not isinstance(d, float):
+#           if abs(d-correct_depth)<=grace:
+#               d=1
+#           else:
+#               d=0
+#   
+#   if d==1.:
+#       gotit+=1
+#       c = 'bo'
+#       ax.plot(a,b, c, markersize=3.3)
+#   elif d==0.:
+#       c = 'ro'
+#       ax.plot(a,b, c, markersize=3.3)
+#   else:
+#       use_scatter = True
+#       break
+#   i+=1
 
 print 'total got it: ', gotit
 print '%s percent got it '%(float(gotit)/float(i)*100)
@@ -117,6 +119,12 @@ if use_scatter:
         X = results.T[0]
         Y = results.T[1]
         Z = results.T[3]
+        #try except einbauen
+        try:
+            scaling = results.T[5]
+        except IndexError:
+            scaling = None
+
         if use_abs:
             X = abs(X)
             Y = abs(Y) 
@@ -142,8 +150,8 @@ if use_scatter:
         cb_label = 'angle [deg]'
         
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
-plt.colorbar(sc, label=cb_label)
-    
+plt.colorbar(sc, label=cb_label, boundaries=bounds)
+
 
 print 'total number of tests: ', i
 typestr = ''
@@ -152,15 +160,22 @@ if use_scatter:
 if only_failed:
     typestr+= '_only_failed'
 
-if scatter_type == 'depth_location':
-    plt.ylim([0, 50])
-    plt.xlim([0, 15])
+if scatter_type == 'angle_location':
+    plt.ylim([0, 80])
+    plt.xlim([0, 20])
+    print 'DEACTIVATED X/Y LIMS for TESTING!'
 
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
 
 plt.suptitle(suptitle)
 plt.savefig('%s%s.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+
+if scaling:
+    figscaling = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
+    axscaling = fig.add_subplot(111)
+    axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2)
+    
 
 histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = histfig.add_subplot(111)
