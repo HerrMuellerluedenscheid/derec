@@ -44,8 +44,12 @@ class TestFSU(unittest.TestCase):
 
     def test_random_event_generation_range(self):
         num_sources = 10000
-        sources_lists = du.make_lots_of_test_events(self.source, [1000,2000,3000], 
-                {('strike', 'dip', 'rake'):10}, 
+        source = du.clone(self.source)
+        source.strike = 130
+        source.dip = 88
+        source.rake = -119
+        sources_lists = du.make_lots_of_test_events(source, [1000,2000,3000], 
+                {('strike', 'dip', 'rake'):30}, 
                 num_sources,
                 func='normal')
         assert len(sources_lists)==num_sources
@@ -62,7 +66,7 @@ class TestFSU(unittest.TestCase):
             strikes.append(s.strike)
             rakes.append(s.rake)
             dips.append(s.dip)
-            a = s.pyrocko_moment_tensor().angle(self.source.pyrocko_moment_tensor())
+            a = s.pyrocko_moment_tensor().angle(source.pyrocko_moment_tensor())
             angles.append(a)
         import matplotlib.pyplot as plt
         f, axs = plt.subplots(5)
