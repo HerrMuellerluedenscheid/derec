@@ -10,8 +10,7 @@ def cake_first_arrival(distance, depth, model, phase_ids=None):
     phases = [cake.PhaseDef(ph) for ph in phase_ids]
     arrivals = model.arrivals([distance*cake.m2d], 
                             phases,
-                            zstart=depth,
-                            zstop=depth)
+                            zstart=depth)
 
     try:
         tmin = min(arrivals, key=lambda x: x.t).t
