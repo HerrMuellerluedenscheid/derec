@@ -36,15 +36,26 @@ def check_locations(ref_source, testsources):
     laterals = []
     angles = []
     rmt = ref_source.pyrocko_moment_tensor()
-
+     
+    strikes = []
+    dips= []
+    rakes = []
     for ts in testsources:
         laterals.append(num.sqrt(ts[0].north_shift**2+ts[0].east_shift**2))
         angles.append(rmt.angle(ts[0].pyrocko_moment_tensor()))
+        strikes.append(ts[0].strike)
+        dips.append(ts[0].dip)
+        rakes.append(ts[0].rake)
 
     fig = plt.figure()
-    ax = fig.add_subplot(111)
-    #ax.hist(laterals)
+    ax = fig.add_subplot(411)
     ax.plot(laterals, angles, 'bo')
+    ax = fig.add_subplot(412)
+    ax.hist(strikes)
+    ax = fig.add_subplot(413)
+    ax.hist(dips)
+    ax = fig.add_subplot(414)
+    ax.hist(rakes)
     plt.show()
     
 
