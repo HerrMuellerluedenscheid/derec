@@ -16,8 +16,8 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-correct_depth = 2000
-#correct_depth = 5000
+#correct_depth = 2000
+correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 #cmap = matplotlib.cm.get_cmap('jet')
@@ -119,9 +119,8 @@ if use_scatter:
         X = results.T[0]
         Y = results.T[1]
         Z = results.T[3]
-        #try except einbauen
         try:
-            scaling = results.T[5]
+            scaling = results.T[4]
         except IndexError:
             scaling = None
 
@@ -161,8 +160,8 @@ if only_failed:
     typestr+= '_only_failed'
 
 if scatter_type == 'angle_location':
-    plt.ylim([0, 80])
-    plt.xlim([0, 20])
+    #plt.ylim([0, 80])
+    #plt.xlim([0, 20])
     print 'DEACTIVATED X/Y LIMS for TESTING!'
 
 plt.xlabel(xlabel)
@@ -171,10 +170,14 @@ plt.ylabel(ylabel)
 plt.suptitle(suptitle)
 plt.savefig('%s%s.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
-if scaling:
+if scaling is not None:
     figscaling = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
-    axscaling = fig.add_subplot(111)
-    axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2)
+    axscaling = figscaling.add_subplot(111)
+    sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.colorbar(sc, label='scaling factor')
+    plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
     
 
 histfig = plt.figure(figsize=(4,3), dpi=100)
