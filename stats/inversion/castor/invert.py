@@ -135,6 +135,24 @@ if __name__ ==  "__main__":
         last_best.strike= 0.
         last_best.dip=90.
         last_best.rake=0.
+        last_best.depth = 2000
+        init_angle = _ref_source.pyrocko_moment_tensor().angle(last_best.pyrocko_moment_tensor())
+        try:
+            f = open(file_name, 'a+')
+            f.write('%s %s %s %s %s %s\n'%(999, _ref_source.strike,
+                                                      _ref_source.dip,
+                                                      _ref_source.rake,
+                                                      0.,
+                                                      _ref_source.depth))
+            f.write('%s %s %s %s %s %s\n'%(999, last_best.strike,
+                                                      last_best.dip,
+                                                      last_best.rake,
+                                                      init_angle,
+                                                      last_best.depth))
+        except:
+            raise
+        finally:
+            f.close()
         print 'ref source is  s %s, d %s, r %s,' %(_ref_source.strike,
                                     _ref_source.dip, _ref_source.rake) 
         print 'input last best source is  s %s, d %s, r %s,' %(last_best.strike,
@@ -147,7 +165,7 @@ if __name__ ==  "__main__":
         sdr_freeddom = num.linspace(5, max_sdr_freedom, num_inversions)[::-1]
         i=0
         skipped = 0
-        while i<=num_inversions:
+        while i<=num_inversions-1:
 
             if i==num_inversions-1:
                 depths = fine_gridded_depths
@@ -167,7 +185,6 @@ if __name__ ==  "__main__":
                     {('strike','dip', 'rake'):sdr_freeddom[i]}, 
                     num_tests,
                     func='uniform') 
-            i=0
 
             test_case_setup = TestCaseSetup(reference_source=ref_source,
                                             sources=location_test_sources_lists[0],
@@ -217,7 +234,6 @@ if __name__ ==  "__main__":
                                                                 targets, engine,
                                                                 stf,
                                                                 noise=noise)
-                i+=1
 
                 test_case_setup.sources = location_test_sources
 
