@@ -33,6 +33,32 @@ def pbar(i, num_tests, pb=None ):
         return pb
 
 
+
+def accept(bestmf, lastbestmf, i, num_inversions, T=None):
+    if bestmf<lastbestmf:
+        return 1 
+
+    if not T:
+        l = 1.5
+        T = num.linspace(0,1, num_inversions)
+        T = T*num.exp(-l*T)
+
+        e = 3.5
+        T_increase = num.linspace(0,1, num_inversions)
+        T_increase = T_increase*num.exp(-l*T_increase)
+
+    T_c = num.random.random(1)
+    if T_c > T[i]:
+        T_i= num.random.random(1)
+        if T_i<T_increase[i]:
+            # this means increase temperature on step
+            return 2
+        else:
+            return 0 
+    else:
+        return 1 
+    
+
 if __name__ ==  "__main__":
 
     num_random_events = 200
@@ -57,8 +83,8 @@ if __name__ ==  "__main__":
 
         note = 'noise_scaled'
         file_name = 'robust_check%s_%s.txt'%(time_string, note)
-        num_tests = 5
-        use_cake = True
+        num_tests = 21
+        use_cake = False
         
         engine = LocalEngine(store_superdirs=store_dirs)
         test_type = 'castor'
@@ -66,19 +92,24 @@ if __name__ ==  "__main__":
         add_noise = True
         verbose = False
         debug = False
+        debug_inversion = False
         write_depth = True
         false_store_id = None #'false_castor2'
         do_scale = True
+        do_individual_scaling = True
         false_magnitude = None#0.3
 
         
-        depths = du.drange(1000., 5000., 1000)
-        fine_gridded_depths = du.drange(600., 5000., 200)
+        #depths = du.drange(1000., 5000., 1000)
+        depths = [ 2000.]
+        #fine_gridded_depths = du.drange(600., 5000., 200)
+        fine_gridded_depths = du.drange(1000., 5000., 1000)
 
         num_inversions = 5
-        max_sdr_freedom = 120
+        max_sdr_freedom = 180
         skip_threshold = 0.9
         skip_threshold_num = 5
+        circles_before_break = 30
 
         if test_type=='doctar':
             stf = [[0.,0.1], [0.,1.]]
@@ -162,9 +193,14 @@ if __name__ ==  "__main__":
             last_best.magnitude = last_best.magnitude+false_magnitude
             print 'setting false magnitude to ', last_best.magnitude
         
-        sdr_freeddom = num.linspace(5, max_sdr_freedom, num_inversions)[::-1]
+        sdr_freeddom = num.linspace(1, max_sdr_freedom, num_inversions)[::-1]
         i=0
         skipped = 0
+        ref_source_moment_tensor = last_best.pyrocko_moment_tensor()
+        lastbestmf = 0.9
+
+        best_mf_of_step = defaultdict()
+        i_total = 0
         while i<=num_inversions-1:
 
             if i==num_inversions-1:
@@ -172,19 +208,27 @@ if __name__ ==  "__main__":
             print 'step %s of %s ' %(i, num_inversions)
             ref_source = du.clone(last_best)
 
-            ref_source_moment_tensor = ref_source.pyrocko_moment_tensor()
             print 'new freedom: ', sdr_freeddom[i]
-            #location_test_sources_lists = du.make_lots_of_test_events(ref_source,
-            #        depths, 
-            #        {('strike','dip', 'rake'):sdr_freeddom[i], 
-            #            ('north_shift', 'east_shift'): 0.}, 
-            #        num_tests,
-            #        func='normal') 
+            if i==0:
+                isfirst=True
+                num_tests_used = num_tests*2
+            else:
+                num_tests_used = num_tests
+                isfirst=False
+
             location_test_sources_lists = du.make_lots_of_test_events(ref_source,
                     depths, 
                     {('strike','dip', 'rake'):sdr_freeddom[i]}, 
-                    num_tests,
-                    func='uniform') 
+                    num_tests_used,
+                    func='uniform', 
+                    isfirst=isfirst) 
+
+            if isfirst:
+                print 'using the following sdr options:'
+                for loct in location_test_sources_lists:
+                    print loct[0].strike, loct[0].dip, loct[0].rake
+            if debug_inversion:
+                optics.check_locations(ref_source, location_test_sources_lists)
 
             test_case_setup = TestCaseSetup(reference_source=ref_source,
                                             sources=location_test_sources_lists[0],
@@ -246,6 +290,9 @@ if __name__ ==  "__main__":
                 else:
                     test_case.scaling_factors = num.linspace(0.1,2.1,40)
 
+                if do_individual_scaling:
+                    test_case.individual_scaling = True
+
                 try:
                     test_case.process(verbose=verbose, use_cake=use_cake)
                 except meta.OutOfBounds:
@@ -253,6 +300,8 @@ if __name__ ==  "__main__":
                     continue 
 
                 best_source, best_misfit = test_case.best_source_misfit()
+
+
                 best_sources[best_misfit] = best_source
                 angle_diff = best_source.pyrocko_moment_tensor().\
                             angle(ref_source_moment_tensor)
@@ -290,23 +339,35 @@ if __name__ ==  "__main__":
                 pb = pbar(i, num_tests, pb)
 
             bestmf = min(best_sources.keys())
-            if bestmf>=skip_threshold:
-                print 'best mf ', bestmf
-                skipped +=1
-                print 'too bad, I have to skip this one...'
-                last_best.strike+=45
-                last_best.dip += 90
 
-                if skipped>=skip_threshold_num:
-                    print 'had to skip six times. This ain t going to work.., return'
+            best_angle = best_source.pyrocko_moment_tensor().angle(ref_source_moment_tensor)
+            if debug_inversion:
+                print 'best source SDR: ', best_source.strike,\
+                                         best_source.dip,\
+                                        best_source.rake
 
-                break 
-
-            else:
+            do_accept = accept(bestmf, lastbestmf, i, num_inversions)
+            if do_accept == 1:
+                lastbestmf = bestmf
+                best_mf_of_step[i]=bestmf
                 i+=1
 
+                if debug_inversion: print 'accepted'
+            if do_accept==0: 
+
+                if debug_inversion: print 'not accepted'
+                continue
+            if do_accept==2: 
+                if debug_inversion: print 'not accepted, increase T'
+                if i>0:
+                    i-=1
+                else:
+                    i=0
+                bestmf = best_mf_of_step[i]
+                continue
+
+
             last_best = best_sources[bestmf]
-            best_angle = last_best.pyrocko_moment_tensor().angle(ref_source_moment_tensor)
             all_the_best.append([bestmf, last_best])
             print all_the_best
                 
@@ -321,6 +382,9 @@ if __name__ ==  "__main__":
                 raise
             finally:
                 f.close()
+
+            if i_total==circles_before_break:
+                break
 
 
 
