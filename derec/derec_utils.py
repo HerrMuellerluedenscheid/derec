@@ -9,6 +9,7 @@ import progressbar
 import copy
 from collections import defaultdict
 from pyrocko import pile, util, cake, gui_util, orthodrome, trace, model
+from pyrocko import moment_tensor
 from pyrocko.gf.seismosizer import *
 from pyrocko.gui_util import PhaseMarker
 from pyrocko.parimap import parimap
@@ -612,23 +613,51 @@ def seismosizerTrace2pyrockoTrace(seismosizer_trace):
     return t
 
 def make_lots_of_test_events(ref_source, depths, ranges, number, **kwargs):
-    _sources = test_event_generator(ref_source, depths)
     return_list = []
+    if kwargs.get('isfirst',False):
+        for i in xrange(number):
+            random_dc = moment_tensor.MomentTensor.random_dc()
+            idc = num.random.choice([0,1])
+            sdr = random_dc.both_strike_dip_rake()[idc]
+            tmpsource = clone(ref_source)
+            tmpsource.strike = sdr[0]
+            tmpsource.dip= sdr[1]
+            tmpsource.rake= sdr[2]
+            sources = test_event_generator(tmpsource, depths)
+            return_list.append(sources)
+
+        return return_list
+    else:
+        _sources = test_event_generator(ref_source, depths)
+
+
+        for i in xrange(number):
+            source_list_copy = map(clone, _sources)
+
+            if not isinstance(ranges.keys()[0], tuple):
+                set_randomized_values_depr(source_list_copy, ranges, **kwargs)
+            else:
+                set_randomized_values(source_list_copy, ranges, **kwargs)
+
+            return_list.append(source_list_copy)
+
+        return return_list
+
+def make_lots_of_random_dc(ref_source, depths, ranges, number, is_first=False, **kwargs):
+    sigma = kwargs.get('sigma')
     for i in xrange(number):
-
-        source_list_copy = map(clone, _sources)
-
-        if not isinstance(ranges.keys()[0], tuple):
-            set_randomized_values_depr(source_list_copy, ranges, **kwargs)
+        cloned_dc = clone(ref_source)
+        if is_first:
+            x = None
+        
         else:
-            set_randomized_values(source_list_copy, ranges, **kwargs)
+            sdr = cloned_dc.moment_tensor.both_strike_dip_rake()[0]
+            alpha, beta, gamma = moment_tensor.unique_euler(sdr)
+            alpha = num.random.uniform(0)
 
-        return_list.append(source_list_copy)
-
-    return return_list
 
         
-def set_randomized_values(source_list, ranges, func='uniform'):
+def set_randomized_values(source_list, ranges, func='uniform', isfirst=False):
     """
     :param func: A randomizing function like num.random.uniform (default)
     """
@@ -651,7 +680,19 @@ def set_randomized_values(source_list, ranges, func='uniform'):
                 orig_val = getattr(source, k)
                 orig_val += val*fracs[i]*pre
                 setattr(source, k, orig_val)
+                source_check(source)
 
+def source_check(s):
+    s.strike = s.strike%360.
+    if s.dip<-90 and s.dip>-180:
+        s.dip+=180
+        s.strike = (s.strike+180)%360
+
+    elif s.dip>90 and s.dip<180:
+        s.dip -+ 180
+        s.strike = (s.strike+180)%360
+    s.strike = s.strike%360.
+ 
 
 def set_randomized_values_depr(source_list, ranges, func='uniform'):
     """
