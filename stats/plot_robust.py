@@ -16,8 +16,8 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-#correct_depth = 2000
-correct_depth = 5000
+correct_depth = 2000
+#correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 #cmap = matplotlib.cm.get_cmap('jet')
@@ -160,9 +160,9 @@ if only_failed:
     typestr+= '_only_failed'
 
 if scatter_type == 'angle_location':
-    #plt.ylim([0, 80])
-    #plt.xlim([0, 20])
-    print 'DEACTIVATED X/Y LIMS for TESTING!'
+    plt.ylim([0, 100])
+    plt.xlim([0, 10])
+    #print 'DEACTIVATED X/Y LIMS for TESTING!'
 
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
@@ -179,6 +179,8 @@ if scaling is not None:
     plt.colorbar(sc, label='scaling factor')
     plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
     
+plt.ylim([0, 100])
+plt.xlim([0, 10])
 
 histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = histfig.add_subplot(111)
@@ -189,6 +191,8 @@ else:
 depths = set(concat.T[3])
 print 'depth: ', depths
 hax.hist(concat.T[3],len(depths))
+plt.xlabel('vertical mislocation [km]')
+plt.ylabel('number')
 
 plt.savefig('%s%s_his.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
