@@ -624,7 +624,13 @@ def make_lots_of_test_events(ref_source, depths, ranges, number, **kwargs):
             tmpsource.dip= sdr[1]
             tmpsource.rake= sdr[2]
             sources = test_event_generator(tmpsource, depths)
+
+            for r in ranges.keys():
+                if 'north_shift' in r or 'east_shift' in r:
+                    set_randomized_values(sources, {r:ranges[r]}, **kwargs)
+
             return_list.append(sources)
+
 
         return return_list
     else:
@@ -689,7 +695,7 @@ def source_check(s):
         s.strike = (s.strike+180)%360
 
     elif s.dip>90 and s.dip<180:
-        s.dip -+ 180
+        s.dip -= 180
         s.strike = (s.strike+180)%360
     s.strike = s.strike%360.
  

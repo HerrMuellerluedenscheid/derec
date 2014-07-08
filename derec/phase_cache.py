@@ -7,9 +7,9 @@ def cake_first_arrival(distance, depth, model, phase_ids=None):
     """
     Get very first arrival of *phases*. 
     """
-    phases = [cake.PhaseDef(ph) for ph in phase_ids]
-    arrivals = model.arrivals([distance*cake.m2d], 
-                            phases,
+    phases = map(cake.PhaseDef, phase_ids)
+    arrivals = model.arrivals(distances=[distance*cake.m2d], 
+                            phases=phases,
                             zstart=depth)
 
     try:
