@@ -72,29 +72,35 @@ def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
         sc_depths = [s.depth for s in scaling.keys()]
         sc_c = scaling.values()
 
+    lines = [] 
     depths = []
     values = []
     for s,v in mfdict.items():
         depths.append(s.depth); values.append(v) 
 
-    ax.plot(depths, values, label='unscaled', **kwargs)
+    lns1 = ax.plot(depths, values, label='unscaled', **kwargs)
+    lines += lns1
     if mfdict2:
         depths = []
         values = []
         for s,v in mfdict2.items():
             depths.append(s.depth); values.append(v) 
 
-    ax.plot(depths, values, 'ro', label='scaled')
-
+    lns2 = ax.plot(depths, values, 'ro', label='scaled')
+    lines += lns2
+    plt.xlabel('Depth [km]')
+    plt.ylabel('L2 Misfit m/n') 
     ax.autoscale()
 
     if scaling:
         ax2 = ax.twinx()
-        ax2.plot(sc_depths, sc_c, '+', label='scaling factor')
+        lns3 = ax2.plot(sc_depths, sc_c, '+', label='scaling factor')
         ax2.autoscale()
-    plt.xlabel('Depth [km]')
-    plt.ylabel('L2 Misfit m/n') 
-    plt.legend()
+        ax2.set_ylabel('scaling factor') 
+        lines += lns3
+
+    labs = [l.get_label() for l in lines]
+    plt.legend(lines, labs, loc=0)
     return ax
 
 
@@ -108,7 +114,7 @@ def set_my_ticks(ax):
     xtick_upper = num.floor(xlims[1]) 
     ax.get_xaxis().set_ticks(num.round(num.arange(xtick_lower, 
                                                     xtick_upper,
-                                                    2)))
+                                                    4)))
     ax.get_xaxis().set_tick_params(which='both', 
                                    direction='in', 
                                    top='off', 
@@ -125,13 +131,16 @@ def set_my_ticks(ax):
             va='top')
 
 
-def gca_label(label_string, ax=plt.gca(), **kwargs):
+def gca_label(x=0.01, y=0.05, label_string='', ax=plt.gca(), **kwargs):
     """
     Add target codes to top right corner in axes object.
     """
-    plt.text(0.01, 0.05, label_string,
-                    horizontalalignment='left',
-                    verticalalignment='bottom',
+    if not kwargs.get('verticalalignment', False):
+        kwargs.update({'verticalalignment':'bottom'})
+    if not kwargs.get('horizontalalignment', False):
+        kwargs.update({'horizontalalignment':'left'})
+
+    ax.text(x, y, label_string,
                     transform=ax.transAxes,
                     **kwargs)
 
@@ -357,7 +366,7 @@ class OpticBase():
             if len(sources)==1:
                 return fig
 
-    def stack_plot(self, sources=None, depths=None, fig=None,
+    def stack_plot(self, sources=None, targets=None, depths=None, fig=None,
             exclude_outliers=True, scaling=None, force_update=False):
         '''
         '''
@@ -368,9 +377,11 @@ class OpticBase():
             alpha=0.1
 
         cmap = plt.get_cmap('coolwarm')
+        if not targets:
+            targets=self.targets
 
-        gs = gridspec.GridSpec(len(self.targets)/3,3)
-        gs_dict = dict(zip(sorted(self.targets, key=lambda x: \
+        gs = gridspec.GridSpec(len(targets)/3,3)
+        gs_dict = dict(zip(sorted(targets, key=lambda x: \
                 (x.distance_to(sources[0]), x.codes[3])), gs))
 
         axes_dict = defaultdict()
