@@ -16,8 +16,8 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-correct_depth = 2000
-#correct_depth = 5000
+#correct_depth = 2000
+correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 #cmap = matplotlib.cm.get_cmap('jet')
@@ -176,7 +176,8 @@ if scaling is not None:
     sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.colorbar(sc, label='scaling factor')
+    #plt.colorbar(sc, label='scaling factor')
+    plt.colorbar(sc, label='misfit M')
     plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
     
 plt.ylim([0, 100])
