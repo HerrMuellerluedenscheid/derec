@@ -114,11 +114,11 @@ def set_my_ticks(ax):
     xtick_upper = num.floor(xlims[1]) 
     ax.get_xaxis().set_ticks(num.round(num.arange(xtick_lower, 
                                                     xtick_upper,
-                                                    4)))
+                                                    0.5)))
     ax.get_xaxis().set_tick_params(which='both', 
                                    direction='in', 
                                    top='off', 
-                                   pad=0)
+                                   pad=0.01)
 
     #labels = [item.get_text() for item in ax.get_xticklabels()]
     #labels[1:-1] = ''
