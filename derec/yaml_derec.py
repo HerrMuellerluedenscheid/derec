@@ -42,7 +42,7 @@ class TestCaseSetup(Object):
     # depths have to given as a list of floats!
     depths = List.T(Float.T())
     misfit_setup = trace.MisfitSetup.T()
-    source_time_function = List.T(List.T(Float.T()))
+    source_time_function = List.T(List.T(Float.T()), optional=True, default=None)
     number_of_time_shifts = Int.T(optional=True, default=0)
     percentage_of_shift = Float.T(optional=True, default=0.)
     time_shift = Float.T(optional=True, default=0.)
