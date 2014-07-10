@@ -2,11 +2,94 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as num
+from scipy.interpolate import griddata, Rbf
+import numpy as np
 
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
 
 font = {'family' : 'normal',
         'size'   : 9}
 matplotlib.rc('font', **font)
+
+def projected_2quad(points):
+    plen = len(points)
+    A = num.ones((plen*4, 2))
+    A[:][:] = num.NAN
+    # upper right
+    A[:plen] = points
+    # lower left
+    A[plen:plen*2] = -points
+    # bottom right 
+    points.T[0]*=-1
+    A[plen*2:plen*3] = points
+    # lower right 
+    points *=-1
+    A[plen*3:plen*4] = points
+
+    return A
+
+def plot_point_cov(points, nstd=2, ax=None, **kwargs):
+    """
+    Plots an `nstd` sigma ellipse based on the mean and covariance of a point
+    "cloud" (points, an Nx2 array).
+
+    Parameters
+    ----------
+        points : An Nx2 array of the data points.
+        nstd : The radius of the ellipse in numbers of standard deviations.
+            Defaults to 2 standard deviations.
+        ax : The axis that the ellipse will be plotted on. Defaults to the 
+            current axis.
+        Additional keyword arguments are pass on to the ellipse patch.
+
+    Returns
+    -------
+        A matplotlib ellipse artist
+    """
+    pos = points.mean(axis=0)
+    cov = np.cov(points, rowvar=False)
+    return plot_cov_ellipse(cov, pos, nstd, ax, **kwargs)
+
+def plot_cov_ellipse(cov, pos, nstd=2, ax=None, **kwargs):
+    """
+    Plots an `nstd` sigma error ellipse based on the specified covariance
+    matrix (`cov`). Additional keyword arguments are passed on to the 
+    ellipse patch artist.
+
+    Parameters
+    ----------
+        cov : The 2x2 covariance matrix to base the ellipse on
+        pos : The location of the center of the ellipse. Expects a 2-element
+            sequence of [x0, y0].
+        nstd : The radius of the ellipse in numbers of standard deviations.
+            Defaults to 2 standard deviations.
+        ax : The axis that the ellipse will be plotted on. Defaults to the 
+            current axis.
+        Additional keyword arguments are pass on to the ellipse patch.
+
+    Returns
+    -------
+        A matplotlib ellipse artist
+    """
+    def eigsorted(cov):
+        vals, vecs = np.linalg.eigh(cov)
+        order = vals.argsort()[::-1]
+        return vals[order], vecs[:,order]
+
+    if ax is None:
+        ax = plt.gca()
+
+    vals, vecs = eigsorted(cov)
+    theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+
+    # Width and height are "full" widths, not radius
+    width, height = 2 * nstd * np.sqrt(vals)
+    ellip = Ellipse(xy=pos, width=width, height=height, angle=theta, **kwargs)
+
+    ax.add_artist(ellip)
+    return ellip
+
 
 use_scatter = True
 scatter_type = 'angle_location'
@@ -16,12 +99,11 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-#correct_depth = 2000
-correct_depth = 5000
+correct_depth = 2000
+#correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
-#cmap = matplotlib.cm.get_cmap('jet')
-cmap = matplotlib.cm.get_cmap('brg')
+
 
 if correct_depth==2000:
     vmin = -3
@@ -34,6 +116,15 @@ if scatter_type=='depth_location':
     vmax=None
 dz=0.2
 bounds = num.arange(vmin, vmax, dz)
+#cmap = matplotlib.cm.get_cmap('jet')
+#cmap = matplotlib.cm.get_cmap('brg')
+#clrs = 'rgb'
+rgba01 = ((1,0,0), (0,1,0), (0,0,1))
+c_converter = matplotlib.colors.ColorConverter()
+clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
+cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
+                                                           name='my_cmap', 
+                                                           gamma=1.0)
 print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
@@ -119,6 +210,11 @@ if use_scatter:
         X = results.T[0]
         Y = results.T[1]
         Z = results.T[3]
+
+        #fine_points = num.where(num.abs(results.T[0]-correct_depth)<= grace)
+
+
+
         try:
             scaling = results.T[4]
         except IndexError:
@@ -129,7 +225,7 @@ if use_scatter:
             Y = abs(Y) 
         if use_depth_difference:
             Z-=correct_depth
-            cb_label = 'depth difference [km]'
+            cb_label = 'vertical upshift [km]'
         else:
             cb_label = 'z [km]'
         Z/=1000
@@ -149,6 +245,11 @@ if use_scatter:
         cb_label = 'angle [deg]'
         
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
+    projected = projected_2quad(num.array([X,Y]).T)
+    plot_point_cov(projected, nstd=1, alpha=0.2, facecolor='green', 
+                  edgecolor='black',
+                  zorder=0)
+
 plt.colorbar(sc, label=cb_label, boundaries=bounds)
 
 
@@ -173,12 +274,22 @@ plt.savefig('%s%s.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transpare
 if scaling is not None:
     figscaling = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
     axscaling = figscaling.add_subplot(111)
+    
+    # Grid data:
+    xg, yg = num.mgrid[X.min():X.max():500j, Y.min():Y.max():100j]
+    #vg = griddata((X,Y), Z, (xg,yg), method='cubic')
+    rbf = Rbf(X,Y,Z, epsilon=1)
+    vg = rbf(xg, yg)
+
+
     sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     #plt.colorbar(sc, label='scaling factor')
     plt.colorbar(sc, label='misfit M')
     plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+    plt.contour(xg,yg,vg)
+
     
 plt.ylim([0, 100])
 plt.xlim([0, 10])
