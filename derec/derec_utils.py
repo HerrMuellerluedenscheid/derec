@@ -25,7 +25,7 @@ logger = logging.getLogger('derec_utils')
 def drange(start, stop, step):
     out = []
     i = start
-    while i<stop:
+    while i<=stop:
         out.append(i)
         i += step
 
