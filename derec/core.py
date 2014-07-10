@@ -511,7 +511,8 @@ class TestCase(Object):
                                 self.reference_markers, 
                                 inplace=False)
 
-        self.apply_stf(setup.source_time_function)
+        if setup.source_time_function is not None:
+            self.apply_stf(setup.source_time_function)
 
         if verbose: print('chopping cand....')
         self.candidates = du.chop_using_markers(
