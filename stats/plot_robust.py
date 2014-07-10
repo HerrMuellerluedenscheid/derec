@@ -1,8 +1,10 @@
+#/usr/bin/python2.7
 import sys 
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as num
 from scipy.interpolate import griddata, Rbf
+from scipy import signal
 import numpy as np
 
 import matplotlib.pyplot as plt
@@ -28,6 +30,28 @@ def projected_2quad(points):
     A[plen*3:plen*4] = points
 
     return A
+
+
+def gauss_kern(size, sizey=None):
+    """ Returns a normalized 2D gauss kernel array for convolutions """
+    size = int(size)
+    if not sizey:
+        sizey = size
+    else:
+        sizey = int(sizey)
+    x, y = num.mgrid[-size:size+1, -sizey:sizey+1]
+    g = num.exp(-(x**2/float(size)+y**2/float(sizey)))
+    return g / g.sum()
+
+
+def blur_image(im, n, ny=None) :
+    """ blurs the image by convolving with a gaussian kernel of typical
+        size n. The optional keyword argument ny allows for a different
+        size in the y direction.
+    """
+    g = gauss_kern(n, sizey=ny)
+    improc = signal.convolve(im,g, mode='valid')
+    return(improc)
 
 def plot_point_cov(points, nstd=2, ax=None, **kwargs):
     """
@@ -99,8 +123,8 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-correct_depth = 2000
-#correct_depth = 5000
+#correct_depth = 2000
+correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 
@@ -115,7 +139,6 @@ if scatter_type=='depth_location':
     vmin=None
     vmax=None
 dz=0.2
-bounds = num.arange(vmin, vmax, dz)
 #cmap = matplotlib.cm.get_cmap('jet')
 #cmap = matplotlib.cm.get_cmap('brg')
 #clrs = 'rgb'
@@ -135,8 +158,8 @@ results = []
 for l in f.readlines():
     results.append(map(float, l.split()))
 
-fig = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
-ax = fig.add_subplot(111)
+fig = plt.figure(figsize=(7,3), dpi=100) #, frameon=False, tight_layout=True)
+ax = fig.add_subplot(121)
 max_data = 1000
 print 'max data: ', max_data
 i=1
@@ -221,8 +244,8 @@ if use_scatter:
             scaling = None
 
         if use_abs:
-            X = abs(X)
-            Y = abs(Y) 
+            X = num.abs(X)
+            Y = num.abs(Y) 
         if use_depth_difference:
             Z-=correct_depth
             cb_label = 'vertical upshift [km]'
@@ -237,11 +260,11 @@ if use_scatter:
         Y = results.T[3]
         Z = results.T[1]
         if use_abs:
-            X = abs(X)
-            Z = abs(Z) 
+            X = num.abs(X)
+            Z = num.abs(Z) 
 
-        vmin = min(Z) 
-        vmax = max(Z) 
+        vmin = Z.min()
+        vmax = Z.max()
         cb_label = 'angle [deg]'
         
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
@@ -250,6 +273,7 @@ if use_scatter:
                   edgecolor='black',
                   zorder=0)
 
+bounds = num.arange(vmin, vmax, dz)
 plt.colorbar(sc, label=cb_label, boundaries=bounds)
 
 
@@ -262,7 +286,7 @@ if only_failed:
 
 if scatter_type == 'angle_location':
     plt.ylim([0, 100])
-    plt.xlim([0, 10])
+    plt.xlim([0, X.max()])
     #print 'DEACTIVATED X/Y LIMS for TESTING!'
 
 plt.xlabel(xlabel)
@@ -276,33 +300,35 @@ if scaling is not None:
     axscaling = figscaling.add_subplot(111)
     
     # Grid data:
-    xg, yg = num.mgrid[X.min():X.max():500j, Y.min():Y.max():100j]
-    #vg = griddata((X,Y), Z, (xg,yg), method='cubic')
-    rbf = Rbf(X,Y,Z, epsilon=1)
-    vg = rbf(xg, yg)
+    xg, yg = num.mgrid[X.min():X.max():100j, Y.min():Y.max():100j]
+
+    vg = griddata((X,Y), scaling, (xg,yg), method='cubic')
+    #blur_image(vg,3)
+    #rbf = Rbf(X,Y,Z, epsilon=2)
+    #vg = rbf(xg, yg)
 
 
-    sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2)
+    sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2, zorder=1)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.colorbar(sc, label='scaling factor')
     #plt.colorbar(sc, label='misfit M')
     plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
-    plt.contour(xg,yg,vg)
+    plt.contourf(xg,yg,vg, zorder=0)
 
     
 plt.ylim([0, 100])
-plt.xlim([0, 10])
+plt.xlim([0, X.max()])
 
-histfig = plt.figure(figsize=(4,3), dpi=100)
-hax = histfig.add_subplot(111)
+#histfig = plt.figure(figsize=(4,3), dpi=100)
+hax = fig.add_subplot(122)
 if only_failed:
     concat = num.concatenate((results_gotit, results_no))
 else:
     concat = results
 depths = set(concat.T[3])
 print 'depth: ', depths
-hax.hist(concat.T[3],len(depths))
+hax.hist(concat.T[3],len(depths), orientation='horizontal')
 plt.xlabel('vertical mislocation [km]')
 plt.ylabel('number')
 
