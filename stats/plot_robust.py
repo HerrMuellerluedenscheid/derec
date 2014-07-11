@@ -9,10 +9,22 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
+from matplotlib.ticker import FuncFormatter
 
 font = {'family' : 'normal',
         'size'   : 9}
 matplotlib.rc('font', **font)
+
+def to_percent(y, position):
+    # Ignore the passed in position. This has the effect of scaling the default
+    # tick locations.
+    s = str(100 * y)
+
+    # The percent symbol needs escaping in latex
+    if matplotlib.rcParams['text.usetex'] == True:
+        return s + r'$\%$'
+    else:
+        return s + '%'
 
 def projected_2quad(points):
     plen = len(points)
@@ -123,8 +135,8 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-#correct_depth = 2000
-correct_depth = 5000
+correct_depth = 2000
+#correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 
@@ -328,7 +340,19 @@ else:
     concat = results
 depths = set(concat.T[3])
 print 'depth: ', depths
-hax.hist(concat.T[3],len(depths), orientation='horizontal')
+hax.hist(concat.T[3],
+         len(depths), 
+         orientation='horizontal',
+         #range=[bounds.min(), bounds.max()],
+         facecolor='gray', 
+         normed=1,
+         align='mid')
+
+formatter = FuncFormatter(to_percent)
+
+plt.gca().xaxis.set_major_formatter(formatter)
+plt.gcf().autofmt_xdate()
+
 plt.xlabel('vertical mislocation [km]')
 plt.ylabel('number')
 
