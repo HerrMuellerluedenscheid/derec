@@ -51,7 +51,7 @@ if __name__ ==  "__main__":
     num_stations = 10
     dz = 4.8*km
     num_depths = 5
-    num_tests = 1001
+    num_tests = 1
     
     engine = LocalEngine(store_superdirs=store_dirs)
     test_type = 'doctar'
@@ -59,10 +59,11 @@ if __name__ ==  "__main__":
     add_noise = False
     verbose = True
     debug = True
+    apply_stf = True
 
     if test_type=='doctar':
-        stf = [[0.,0.2], [0.,1.]]
-        store_id = 'false_doctar3_mainland_20Hz'
+        stf = [[0.,0.15], [0.,1.]]
+        store_id = 'doctar_mainland_20Hz_200m'
         data_base_dir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01')
         stations_file = 'stations.txt'
         event_file = 'doctar_2011-11-01_quakefile.dat'
@@ -83,8 +84,10 @@ if __name__ ==  "__main__":
     _ref_source = DCSource.from_pyrocko_event(event)
 
     if test_type=='doctar':
-        targets = filter(lambda x: x.distance_to(_ref_source)<14000., targets)
+        targets = filter(lambda x: x.distance_to(_ref_source)<60000., targets)
         print targets
+    for t in targets:
+        print t.distance_to(_ref_source), t.codes
 
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
     depths = [5000., 3000.]
@@ -106,7 +109,7 @@ if __name__ ==  "__main__":
     #taper = trace.CosFader(xfrac=0.333) 
     taper = trace.CosFader(xfade=1.0) 
     
-    z, p, k = butter(4, [0.7*num.pi*2, 6.0*num.pi*2.], 
+    z, p, k = butter(4, [0.5*num.pi*2, 5.0*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -122,7 +125,11 @@ if __name__ ==  "__main__":
                                      taper=taper,
                                      domain='time_domain',
                                      filter=fresponse)
+ 
 
+    if not apply_stf:
+        print 'do not apply stf'
+        stf = None
     #ok:
     test_case_setup = TestCaseSetup(reference_source=_ref_source,
                                    sources=location_test_sources_lists[0],
@@ -133,10 +140,10 @@ if __name__ ==  "__main__":
                                    source_time_function=stf,
                                    #number_of_time_shifts=1,
                                    #percentage_of_shift=0.0001,
-                                   number_of_time_shifts=41,
-                                   percentage_of_shift=30.,
+                                   number_of_time_shifts=0,
+                                   percentage_of_shift=10.,
                                    phase_ids_start=phase_ids_start,
-                                   static_length=2.8,
+                                   static_length=5., 
                                    marker_perc_length=5.0,
                                    marker_shift_frac=0.3,
                                    depths=depths) 

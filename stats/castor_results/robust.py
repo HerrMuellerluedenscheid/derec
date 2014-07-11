@@ -61,7 +61,7 @@ if __name__ ==  "__main__":
     pb = None
     add_noise = True
     verbose = False
-    debug = False
+    debug = True
     write_depth = True
     false_store_id = None #'false_castor2'
     do_scale = True

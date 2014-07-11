@@ -75,7 +75,7 @@ if __name__ ==  "__main__":
 
     add_noise = True
     verbose = False
-    debug = False
+    debug = True
     write_depth = True
 
     if test_type=='doctar':
