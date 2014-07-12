@@ -281,7 +281,7 @@ if use_scatter:
         
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
     projected = projected_2quad(num.array([X,Y]).T)
-    plot_point_cov(projected, nstd=1, alpha=0.2, facecolor='green', 
+    plot_point_cov(projected, nstd=2, alpha=0.4, facecolor='grey', 
                   edgecolor='black',
                   zorder=0)
 
@@ -297,8 +297,8 @@ if only_failed:
     typestr+= '_only_failed'
 
 if scatter_type == 'angle_location':
-    plt.ylim([0, 100])
-    plt.xlim([0, X.max()])
+    plt.ylim([0, 50])
+    plt.xlim([0, 14])
     #print 'DEACTIVATED X/Y LIMS for TESTING!'
 
 plt.xlabel(xlabel)
@@ -329,8 +329,8 @@ if scaling is not None:
     plt.contourf(xg,yg,vg, zorder=0)
 
     
-plt.ylim([0, 100])
-plt.xlim([0, X.max()])
+plt.ylim([0, 50])
+plt.xlim([0, 14])
 
 #histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = fig.add_subplot(122)
@@ -348,13 +348,13 @@ hax.hist(concat.T[3],
          normed=1,
          align='mid')
 
-formatter = FuncFormatter(to_percent)
+#formatter = FuncFormatter(to_percent)
 
-plt.gca().xaxis.set_major_formatter(formatter)
-plt.gcf().autofmt_xdate()
+#plt.gca().xaxis.set_major_formatter(formatter)
+#plt.gcf().autofmt_xdate()
 
-plt.xlabel('vertical mislocation [km]')
-plt.ylabel('number')
+#plt.xlabel('vertical mislocation [km]')
+plt.xlabel('number')
 
 plt.savefig('%s%s_his.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
