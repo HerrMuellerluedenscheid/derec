@@ -23,6 +23,7 @@ def no_dataless_traces_in_pile(p):
 
 
 class TestFSU(unittest.TestCase):
+     
     def __init__(self, *args, **kwargs):
         super(TestFSU, self).__init__(*args, **kwargs)
         self.store_id = 'doctar_mainland_20Hz'
@@ -43,7 +44,7 @@ class TestFSU(unittest.TestCase):
                 assert sources_lists[0][n].dip!=sources_lists[i+1][n].dip
 
     def test_random_event_generation_range(self):
-        num_sources = 10000
+        num_sources = 100
         source = du.clone(self.source)
         source.strike = 130
         source.dip = 88
@@ -78,9 +79,7 @@ class TestFSU(unittest.TestCase):
         gauss = [num.random.normal(0,10) for i in xrange(num_sources)]
         axs[4].hist(num.abs(gauss), 25)
 
-        plt.show()
-
-        
+        #plt.show()
 
     def test_my_L2Norm(self):
         lon = 10.
@@ -121,6 +120,33 @@ class TestFSU(unittest.TestCase):
         c = 2.
         Mfinal, return_scaling = du.L2_norm(can_tr, ref_tr, scaling=[c])
         assert Mfinal.values()[0]==0.
+
+    def test_snr_hisignal(self):
+        for i in range(10):
+            no = num.random.uniform(-1, 1, 100000)
+            si = num.random.uniform(-10, 10, 100000)
+            ts = trace.Trace(ydata=si)
+            tn = trace.Trace(ydata=no)
+            assert (core.snr(ts, tn)-20)<0.1
+
+    def test_snr_hinoise(self):
+        """ difference should be 50 db according to 
+        http://en.wikipedia.org/wiki/20_log_rule"""
+        for i in range(10):
+            no = num.random.normal(0, 1, 100000)
+            si = num.random.normal(0, 0.003162, 100000)
+            ts = trace.Trace(ydata=si)
+            tn = trace.Trace(ydata=no)
+            assert (core.snr(ts, tn)+50.)<0.1
+
+    def test_snr_same_level(self):
+        for i in range(10):
+            no = num.random.normal(0, 1, 100000)
+            si = num.random.normal(0, 1, 100000)
+            ts = trace.Trace(ydata=si)
+            tn = trace.Trace(ydata=no)
+            assert num.abs(core.snr(ts, tn))<0.1
+
 
         
 
