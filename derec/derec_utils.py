@@ -393,7 +393,7 @@ def get_scaling(r, c):
     return scalings
 
 
-def calculate_misfit(test_case, verbose=False):
+def calculate_misfit(test_case, verbose=False, nocache=False):
     
     sources = test_case.sources
     targets = filter(lambda x: not util.match_nslcs('.'.join(x.codes),
@@ -429,7 +429,7 @@ def calculate_misfit(test_case, verbose=False):
                 if test_case.scale_minmax: 
                     scale_minmax(reft, cand_i)
                 m,n,r_d,c_d = reft.misfit(candidate=cand_i, setup=mfsetup, 
-                        debug=True)
+                        debug=True, nocache=nocache)
 
                 if m==None or n==None:
                     print 'm,n =None'
