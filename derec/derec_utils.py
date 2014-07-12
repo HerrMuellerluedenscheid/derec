@@ -777,7 +777,7 @@ def L2_norm(u, v, scaling=None, individual_scaling=False, verbose=False):
     return_scaling = defaultdict()
 
     if scaling is None:
-        c = [1]
+        c = [1.]
     else:
         c = scaling
 
@@ -809,7 +809,7 @@ def L2_norm(u, v, scaling=None, individual_scaling=False, verbose=False):
     return M_final, return_scaling
 
 
-def L2_norm_inner(u, v, c=1. ):
+def L2_norm_inner(u, v, c=[1.] ):
     '''
     calculate M and N for one dict of target/traces
     :param u: candidates
