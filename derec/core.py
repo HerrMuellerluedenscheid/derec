@@ -23,15 +23,56 @@ class InvalidArguments(Exception):
     '''Is raised if an argument of the signature does not fulfull requirements. '''
     pass
 
-
 def equal_attributes(o1, o2):
     '''
     Return true if two objects are equal as for their attributes. 
     '''
     return o1.__dict__ == o2.__dict__
 
-def make_reference_trace(source, targets, engine, source_time_function=None, 
-        noise=None):
+def trace_energy(t):
+    return num.sum(t.get_ydata()**2)*t.deltat
+
+def get_gaussian_noise(nsamples, noise_scale=1.):
+    t = num.linspace(0,2*num.pi,nsamples)
+    n = num.cos(2*num.pi*num.random.uniform(-1,1, len(t)))*num.random.normal(
+            -noise_scale,noise_scale,len(t))
+
+    n-=n.mean()
+    return n
+
+def snr_processed(ts, tn, window, setup, pre_highpass):
+    ts = ts.copy()
+    tn = tn.copy()
+    if window:
+        tn.chop(tmin=window.tmin, tmax=window.tmax, inplace=True)
+        ts.chop(tmin=window.tmin, tmax=window.tmax, inplace=True)
+    ad, bd, sig_t, noi_t = ts.misfit(tn,setup, debug=True, nocache=True)
+    intgr_r = trace_energy(sig_t)
+    intgr_n = trace_energy(noi_t)
+
+    SNR = todb(intgr_r/intgr_n) 
+    return SNR
+
+def snr(ts, tn, window=None, taper=None):
+    ts = ts.copy()
+    tn = tn.copy()
+    if window:
+        tn.chop(tmin=window.tmin, tmax=window.tmax, inplace=True)
+        ts.chop(tmin=window.tmin, tmax=window.tmax, inplace=True)
+    if taper:
+        tn.taper(taper, inplace=True)
+        ts.taper(taper, inplace=True)
+    intgr_r = trace_energy(ts)
+    intgr_n = trace_energy(tn)
+
+    SNR = todb(intgr_r/intgr_n) 
+    return SNR
+
+def todb(val):
+    return 10*num.log10(val)
+
+def make_reference_trace(source, targets, engine, source_time_function=None,
+        return_snr=False, noise_type='natural', **kwargs):
     if not isinstance(source, list):
         source = [source]
 
@@ -41,16 +82,66 @@ def make_reference_trace(source, targets, engine, source_time_function=None,
     ref_seismos = du.response_to_dict(response)
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
-    if noise:
-        noise_adder(noise, ref_seismos)
 
-    return ref_seismos
+    if kwargs.get('noise', False) and 'noise_type'=='natural':
+        SNR, sigma, snr_processed, sigma_pr= natural_noise_adder(traces=ref_seismos, 
+                return_snr=return_snr, **kwargs)
+
+        return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
+
+    elif noise_type=='gaussian':
+        SNR, sigma, snr_processed, sigma_pr= gaussian_noise_adder(traces=ref_seismos, 
+                return_snr=return_snr, **kwargs)
+
+        return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
+
+    else:
+        return ref_seismos
+
     
-def noise_adder(noise, traces, t_cut=120.):
+def gaussian_noise_adder(traces=None, noise_scale=1., setup=None, chop_ranges=None, 
+        taper=None, return_snr=False, pre_highpass=None, **kwargs):
+    snrs = []
+    snrs_prcessed = []
+    for source, targets_tr in traces.items():
+        for target, tr in targets_tr.items():
+            nsamples = len(tr.get_ydata())
+            noise = get_gaussian_noise(nsamples, noise_scale)
+
+            if return_snr:
+                window = chop_ranges[source][target]
+                rtrace = tr.copy(data=True)
+                ntrace = tr.copy(data=False)
+                ntrace.set_ydata(noise)
+                db_ratio = snr(rtrace, ntrace, window, taper)
+                if setup and pre_highpass:
+                    db_ratio_processed = snr_processed(rtrace, ntrace, window, setup,
+                                        pre_highpass)
+                else:
+                    db_ratio_processed = 999 
+                snrs.append(db_ratio)
+                snrs_prcessed.append(db_ratio_processed)
+
+            tr.set_ydata(tr.get_ydata()+noise)
+
+    if return_snr:
+        N_av = num.array(snrs).mean()
+        sigma = num.std(snrs)
+        N_av_pr = num.array(snrs_prcessed).mean()
+        sigma_pr = num.std(snrs_prcessed)
+        return N_av, sigma, N_av_pr, sigma_pr
+    else:
+        return
+
+
+def natural_noise_adder(noise, traces, noise_scale=1., t_cut=120., chop_ranges=None, taper=None,
+        return_snr=False, setup=None, pre_highpass=None, **kwargs):
+
     noise = make_tripets(noise)
     noise_keys = noise.keys()
     noise_target_map = {}
-
+    snrs = []
+    snrs_prcessed = []
     for source, targets_tr in traces.items():
         for target, tr in targets_tr.items():
             try:
@@ -94,11 +185,32 @@ def noise_adder(noise, traces, t_cut=120.):
 
             random_first_index = num.random.randint(tmin_index, tmax_index)
             last_index = random_first_index+len(tr.get_ydata())
+           
+            noisey = noise_trace.get_ydata()[random_first_index:last_index]
+            noisey -= noisey.mean()
+            noisey *= noise_scale
 
-            noisey = noise_trace.get_ydata()[random_first_index:last_index]-\
-                            noise_trace.get_ydata().mean()
+            if return_snr:
+                window = chop_ranges[source][target]
+                rtrace = tr.copy(data=True)
+                ntrace = tr.copy(data=False)
+                ntrace.set_ydata(noisey)
+                db_ratio = snr(rtrace, ntrace, window, taper)
+                db_ratio_processed = snr_processed(rtrace, ntrace, window, setup,
+                        pre_highpass)
+                snrs.append(db_ratio)
+                snrs_prcessed.append(db_ratio_processed)
 
             tr.set_ydata(tr.get_ydata()+noisey)
+
+    if return_snr:
+        N_av = num.array(snrs).mean()
+        sigma = num.std(snrs)
+        N_av_pr = num.array(snrs_prcessed).mean()
+        sigma_pr = num.std(snrs_prcessed)
+        return N_av, sigma, N_av_pr, sigma_pr
+    else:
+        return
 
 
 def need_downsample(t1, t2):
