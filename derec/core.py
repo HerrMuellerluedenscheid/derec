@@ -82,19 +82,21 @@ def make_reference_trace(source, targets, engine, source_time_function=None,
     ref_seismos = du.response_to_dict(response)
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
+    if return_snr:
+        if kwargs.get('noise', False) and noise_type=='natural':
+            SNR, sigma, snr_processed, sigma_pr= natural_noise_adder(traces=ref_seismos, 
+                    return_snr=return_snr, **kwargs)
 
-    if kwargs.get('noise', False) and 'noise_type'=='natural':
-        SNR, sigma, snr_processed, sigma_pr= natural_noise_adder(traces=ref_seismos, 
-                return_snr=return_snr, **kwargs)
+            return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
 
-        return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
+        elif noise_type=='gaussian':
+            SNR, sigma, snr_processed, sigma_pr= gaussian_noise_adder(traces=ref_seismos, 
+                    return_snr=return_snr, **kwargs)
 
-    elif noise_type=='gaussian':
-        SNR, sigma, snr_processed, sigma_pr= gaussian_noise_adder(traces=ref_seismos, 
-                return_snr=return_snr, **kwargs)
+            return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
 
-        return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
-
+        else:
+            return ref_seismos, (None, None), (None, None)
     else:
         return ref_seismos
 
