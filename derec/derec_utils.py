@@ -252,7 +252,6 @@ def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=No
         p_event = source.pyrocko_event()
         
         for target in targets:
-
             tmin, tmax = phase_cache.get_cached_arrivals(target, source, **kwargs)
             
             ids = list(target.codes)
