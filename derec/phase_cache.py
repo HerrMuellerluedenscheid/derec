@@ -81,7 +81,7 @@ class PhaseCache():
         if self.tmax_phase_cache.get(key, False):
             tmax = self.tmax_phase_cache[key]
         else:
-            if perc:
+            if perc is not None:
                 tmax = tmin + static_length + (tmin-source.time) * perc / 100.
 
             elif use_cake:
