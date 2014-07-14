@@ -118,8 +118,8 @@ def align(alignment, unaligned, static_shift=0.):
         if isinstance(unaligned[s][t], trace.Trace):
             unaligned[s][t].shift(ali)
         else:
-            unaligned[s][t].tmin -= ali
-            unaligned[s][t].tmax -= ali
+            unaligned[s][t].tmin += ali
+            unaligned[s][t].tmax += ali
 
 
 def lat_lon_relative_shift(olat, olon, north_shift=0., east_shift=0.):
@@ -252,7 +252,6 @@ def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=No
         p_event = source.pyrocko_event()
         
         for target in targets:
-
             tmin, tmax = phase_cache.get_cached_arrivals(target, source, **kwargs)
             
             ids = list(target.codes)

@@ -22,6 +22,20 @@ matplotlib.rc('font', **font)
 matplotlib.rcParams['font.size'] = 7
 
 
+def update_xy_limits(ax, xmin, xmax, ymin, ymax):
+    if len(ax.get_lines())==1:
+        ax.set_xlim([xmin, xmax])
+        ax.set_ylim([ymin, ymax])
+        return 
+
+    else:
+        yminlim, ymaxlim = ax.get_ylim()
+        xminlim, xmaxlim = ax.get_xlim()
+        ax.set_xlim([min(xmin, xminlim), max(xmax, xmaxlim)])
+        if num.abs(ymin) > (num.abs(ymaxlim) or num.abs(yminlim)):
+                ax.set_ylim([ymin, ymax])
+
+
 def check_locations(ref_source, testsources):
     eshi = [] 
     nshi = [] 
@@ -385,7 +399,6 @@ class OpticBase():
                 (x.distance_to(sources[0]), x.codes[3])), gs))
 
         axes_dict = defaultdict()
-        ax_xymaxs = defaultdict()
 
         try:
             outlier_depths = [outl.depth for outl in
@@ -432,9 +445,14 @@ class OpticBase():
             y_abs_max = max(abs(y_ref))
             ymin_woffset = -1*y_abs_max-0.05*y_abs_max
             ymax_woffset = y_abs_max+0.05*y_abs_max
-            ax.set_ylim([ymin_woffset, ymax_woffset ])
-            ax.set_xlim([min(x_ref), max(x_ref)])
-            ax_xymaxs[t] = (min(x_ref), ymax_woffset)
+
+            update_xy_limits(ax,
+                            min(x_ref),
+                            max(x_ref),
+                            ymin_woffset,
+                            ymax_woffset)
+            #ax.set_ylim([ymin_woffset, ymax_woffset ])
+            #ax.set_xlim([min(x_ref), max(x_ref)])
 
             if fig:
                 ax.set_figure(fig)

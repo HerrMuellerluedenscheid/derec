@@ -72,27 +72,30 @@ def todb(val):
     return 10*num.log10(val)
 
 def make_reference_trace(source, targets, engine, source_time_function=None,
-        return_snr=False, noise_type='natural', **kwargs):
+        return_snr=False, noise_type=None, **kwargs):
     if not isinstance(source, list):
         source = [source]
 
+    SNR = None
+    sigma = None
+    snr_processed = None
+    sigma_pr = None
     response = engine.process(
             sources=source,
             targets=targets)
     ref_seismos = du.response_to_dict(response)
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
+    if noise_type is not None:
+        if kwargs.get('noise', False) and noise_type=='natural':
+            SNR, sigma, snr_processed, sigma_pr= natural_noise_adder(traces=ref_seismos, 
+                    return_snr=return_snr, **kwargs)
 
-    if kwargs.get('noise', False) and 'noise_type'=='natural':
-        SNR, sigma, snr_processed, sigma_pr= natural_noise_adder(traces=ref_seismos, 
-                return_snr=return_snr, **kwargs)
+        elif noise_type=='gaussian':
+            SNR, sigma, snr_processed, sigma_pr= gaussian_noise_adder(traces=ref_seismos, 
+                    return_snr=return_snr, **kwargs)
 
-        return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
-
-    elif noise_type=='gaussian':
-        SNR, sigma, snr_processed, sigma_pr= gaussian_noise_adder(traces=ref_seismos, 
-                return_snr=return_snr, **kwargs)
-
+    if return_snr:
         return ref_seismos, (SNR, sigma), (snr_processed, sigma_pr)
 
     else:
@@ -124,14 +127,11 @@ def gaussian_noise_adder(traces=None, noise_scale=1., setup=None, chop_ranges=No
 
             tr.set_ydata(tr.get_ydata()+noise)
 
-    if return_snr:
-        N_av = num.array(snrs).mean()
-        sigma = num.std(snrs)
-        N_av_pr = num.array(snrs_prcessed).mean()
-        sigma_pr = num.std(snrs_prcessed)
-        return N_av, sigma, N_av_pr, sigma_pr
-    else:
-        return
+    N_av = num.array(snrs).mean()
+    sigma = num.std(snrs)
+    N_av_pr = num.array(snrs_prcessed).mean()
+    sigma_pr = num.std(snrs_prcessed)
+    return N_av, sigma, N_av_pr, sigma_pr
 
 
 def natural_noise_adder(noise, traces, noise_scale=1., t_cut=120., chop_ranges=None, taper=None,
@@ -203,14 +203,11 @@ def natural_noise_adder(noise, traces, noise_scale=1., t_cut=120., chop_ranges=N
 
             tr.set_ydata(tr.get_ydata()+noisey)
 
-    if return_snr:
-        N_av = num.array(snrs).mean()
-        sigma = num.std(snrs)
-        N_av_pr = num.array(snrs_prcessed).mean()
-        sigma_pr = num.std(snrs_prcessed)
-        return N_av, sigma, N_av_pr, sigma_pr
-    else:
-        return
+    N_av = num.array(snrs).mean()
+    sigma = num.std(snrs)
+    N_av_pr = num.array(snrs_prcessed).mean()
+    sigma_pr = num.std(snrs_prcessed)
+    return N_av, sigma, N_av_pr, sigma_pr
 
 
 def need_downsample(t1, t2):
