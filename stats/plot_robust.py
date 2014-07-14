@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.ticker import FuncFormatter
+from matplotlib import gridspec
 
 font = {'family' : 'normal',
         'size'   : 9}
@@ -28,13 +29,15 @@ def to_percent(y, position):
 
 def projected_2quad(points):
     plen = len(points)
-    A = num.ones((plen*4, 2))
+    #A = num.ones((plen*4, 2))
+    A = num.ones((plen*2, 2))
     A[:][:] = num.NAN
     # upper right
     A[:plen] = points
     # lower left
     A[plen:plen*2] = -points
     # bottom right 
+    return A
     points.T[0]*=-1
     A[plen*2:plen*3] = points
     # lower right 
@@ -127,6 +130,55 @@ def plot_cov_ellipse(cov, pos, nstd=2, ax=None, **kwargs):
     return ellip
 
 
+def gridded_counter(ax, X,Y,Z,xstep=None, ystep=None, numx=None, numy=None, zgrace=0.2):
+    xmin, xmax = ax.get_xlim()
+    xmin=xmin if xmin>=0 else 0
+    ymin, ymax = ax.get_ylim()
+    ymin=ymin if ymin>=0 else 0
+    x_low = 0
+    X_centers = []
+    Y_centers = []
+    Z_centers = []
+    if numx and numy:
+        x_vals = num.linspace(xmin, xmax, numx)
+        y_vals = num.linspace(ymin, ymax, numy)
+        xstep = x_vals[1]
+        ystep = y_vals[1]
+
+    while x_low<xmax-xstep:
+        x_up = x_low+xstep
+        if x_low==xmin:
+            x_center = xmin
+        else:
+            x_center = x_low+(x_up-x_low)/2.
+        y_low = 0
+        while y_low<ymax-ystep:
+            y_up = y_low+ystep
+            if y_low==ymin:
+                y_center=ymin
+            else:
+                y_center = y_low+(y_up-y_low)/2.
+            loc_x = num.where(num.logical_and(X<=x_up, X>=x_low))
+            loc_y = num.where(num.logical_and(Y<=y_up, Y>=y_low))
+            loc = num.intersect1d(loc_x[0], loc_y[0])
+            if len(loc)<=2: 
+                gotit_perc=0.#num.NAN
+            else:
+                points = Z[loc]
+                gotit_perc = 1.*len(num.where(num.abs(points)<=zgrace)[0])/len(points)*100.
+            
+            X_centers.append(x_center)
+            Y_centers.append(y_center)
+            Z_centers.append(gotit_perc)
+            
+            y_low+=ystep
+        x_low+=xstep
+
+    XC = num.array(X_centers)
+    YC = num.array(Y_centers)
+    ZC = num.array(Z_centers)
+    return XC, YC, ZC
+
 use_scatter = True
 scatter_type = 'angle_location'
 use_abs = True
@@ -151,7 +203,7 @@ if scatter_type=='depth_location':
     vmin=None
     vmax=None
 dz=0.2
-#cmap = matplotlib.cm.get_cmap('jet')
+cmap_jet = matplotlib.cm.get_cmap('jet')
 #cmap = matplotlib.cm.get_cmap('brg')
 #clrs = 'rgb'
 rgba01 = ((1,0,0), (0,1,0), (0,0,1))
@@ -159,7 +211,7 @@ c_converter = matplotlib.colors.ColorConverter()
 clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
 cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
                                                            name='my_cmap', 
-                                                           gamma=1.0)
+                                                           gamma=1.)
 print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
@@ -170,8 +222,9 @@ results = []
 for l in f.readlines():
     results.append(map(float, l.split()))
 
-fig = plt.figure(figsize=(7,3), dpi=100) #, frameon=False, tight_layout=True)
-ax = fig.add_subplot(121)
+fig = plt.figure(figsize=(6,3), dpi=100, tight_layout=False) #, frameon=False, tight_layout=True)
+gs = gridspec.GridSpec(1,2, width_ratios=[2,1])
+ax = fig.add_subplot(gs[0])
 max_data = 1000
 print 'max data: ', max_data
 i=1
@@ -180,39 +233,9 @@ zmin = min(num.array(results).T[3])
 zmax = max(num.array(results).T[3])
 
 
+print vmin, vmax
 cnorm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-#cnorm = matplotlib.colors.Normalize(vmin=zmin-0.1*zmin, vmax=zmax+0.1*zmax)
 scalarMap = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
-
-cb = None
-gotit = 0
-
-#for a,b,mf,d in results[:max_data]:
-#   if use_abs:
-#       a = abs(a)
-#       b = abs(b)
-#
-#   if not d in [0,1]:
-#       if not use_scatter or not isinstance(d, float):
-#           if abs(d-correct_depth)<=grace:
-#               d=1
-#           else:
-#               d=0
-#   
-#   if d==1.:
-#       gotit+=1
-#       c = 'bo'
-#       ax.plot(a,b, c, markersize=3.3)
-#   elif d==0.:
-#       c = 'ro'
-#       ax.plot(a,b, c, markersize=3.3)
-#   else:
-#       use_scatter = True
-#       break
-#   i+=1
-
-print 'total got it: ', gotit
-print '%s percent got it '%(float(gotit)/float(i)*100)
 
 results = results[:max_data]
 
@@ -246,10 +269,6 @@ if use_scatter:
         Y = results.T[1]
         Z = results.T[3]
 
-        #fine_points = num.where(num.abs(results.T[0]-correct_depth)<= grace)
-
-
-
         try:
             scaling = results.T[4]
         except IndexError:
@@ -260,7 +279,7 @@ if use_scatter:
             Y = num.abs(Y) 
         if use_depth_difference:
             Z-=correct_depth
-            cb_label = 'vertical upshift [km]'
+            cb_label = 'upshift [km]'
         else:
             cb_label = 'z [km]'
         Z/=1000
@@ -279,17 +298,38 @@ if use_scatter:
         vmax = Z.max()
         cb_label = 'angle [deg]'
         
-    sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap)
-    projected = projected_2quad(num.array([X,Y]).T)
-    plot_point_cov(projected, nstd=2, alpha=0.4, facecolor='grey', 
-                  edgecolor='black',
-                  zorder=0)
+    sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap, zorder=2)
+    #projected = projected_2quad(num.array([X,Y]).T)
+    #plot_point_cov(projected, nstd=2, alpha=0.4, facecolor='grey', 
+    #              edgecolor='black',
+    #              zorder=0)
 
-bounds = num.arange(vmin, vmax, dz)
-plt.colorbar(sc, label=cb_label, boundaries=bounds)
+    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=1, ystep=4,  zgrace=grace/1000.)
 
+    xg, yg = num.mgrid[Xc.min():Xc.max():100j, Yc.min():Yc.max():100j]
+    vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
+    ax.contourf(xg,
+                yg,
+                vg,
+                linewidth=2,
+                zorder=0,
+                alpha=0.5, 
+                levels=[75,110],
+                colors=('grey' )) 
+    ax.contour(xg,yg,vg, levels=[75], linewidths=(2), colors=('grey'), 
+              zorder=1)
+    # ax.scatter(Xc, Yc, s=Zc, c='b', marker='o')
 
+bounds = num.arange(vmin, vmax+dz, dz)
+cticks = num.arange(vmin, vmax+dz, 1)
+cb = plt.colorbar(sc, label=cb_label, boundaries=bounds, pad=0.1,)
+cb.set_ticks(cticks)
+cb.set_label(cb_label, labelpad=-40)
 print 'total number of tests: ', i
+for t in cb.ax.get_yticklabels():
+    t.set_horizontalalignment('right')   
+    t.set_x(2.4)
+
 typestr = ''
 if use_scatter:
     typestr+='_zccode'
@@ -320,7 +360,7 @@ if scaling is not None:
     #vg = rbf(xg, yg)
 
 
-    sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2, zorder=1)
+    sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2, zorder=1,vmin=vmin, vmax=vmax)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.colorbar(sc, label='scaling factor')
@@ -333,28 +373,35 @@ plt.ylim([0, 50])
 plt.xlim([0, 14])
 
 #histfig = plt.figure(figsize=(4,3), dpi=100)
-hax = fig.add_subplot(122)
+hax = fig.add_subplot(gs[1])
 if only_failed:
     concat = num.concatenate((results_gotit, results_no))
 else:
     concat = results
 depths = set(concat.T[3])
 print 'depth: ', depths
-hax.hist(concat.T[3],
+his = hax.hist(concat.T[3],
          len(depths), 
          orientation='horizontal',
-         #range=[bounds.min(), bounds.max()],
          facecolor='gray', 
-         normed=1,
+         normed=0,
+         weights=num.zeros_like(concat.T[3])+1./concat.T[3].size,
          align='mid')
+         
+xmin, xmax = hax.get_xlim()
+hax.set_xticks(num.arange(0,xmax%1,0.1))
+hax.set_yticks(cticks)
+hax.set_yticklabels([])#cticks)
+hax.set_ylim(vmin, vmax)
+xticks = hax.get_xticklabels()
+plt.setp(xticks, rotation=45)
+hax.xaxis.grid(True, linestyle='-', which='major', color='grey', alpha=0.5)
+fig.subplots_adjust(wspace=0.)
 
-#formatter = FuncFormatter(to_percent)
+formatter = FuncFormatter(to_percent)
 
-#plt.gca().xaxis.set_major_formatter(formatter)
-#plt.gcf().autofmt_xdate()
-
-#plt.xlabel('vertical mislocation [km]')
-plt.xlabel('number')
+plt.gca().xaxis.set_major_formatter(formatter)
+plt.xlabel('')
 
 plt.savefig('%s%s_his.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
