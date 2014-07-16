@@ -16,11 +16,27 @@ from pyrocko.parimap import parimap
 from scipy import interpolate
 from derec import phase_cache as pc
 
+import matplotlib
 from multiprocessing import Pool, Pipe, Process, Manager
 from itertools import izip
 
 logger = logging.getLogger('derec_utils')
 
+rgba01 = ((1,0,0), (0,1,0), (0,0,1))
+c_converter = matplotlib.colors.ColorConverter()
+clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
+cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
+                                                           name='my_cmap', 
+                                                           gamma=1.0)
+
+def randomize_DCSource(refsource, inplace=False):
+    if not inplace:
+        refsource = clone(refsource)
+    rand_mt = moment_tensor.MomentTensor.random_dc()
+    sdr = rand_mt.both_strike_dip_rake()[0]
+    refsource.strike, refsource.dip, refsource.rake = sdr
+    if not inplace:
+        return refsource
 
 def drange(start, stop, step):
     out = []
@@ -685,15 +701,19 @@ def set_randomized_values(source_list, ranges, func='uniform', isfirst=False):
                 orig_val = getattr(source, k)
                 orig_val += val*fracs[i]*pre
                 setattr(source, k, orig_val)
-                source_check(source)
+                #source_check(source)
 
 def source_check(s):
     s.strike = s.strike%360.
     if s.dip<-90 and s.dip>-180:
         s.dip+=180
         s.strike = (s.strike+180)%360
-
-    elif s.dip>90 and s.dip<180:
+        
+    if s.dip<0:
+        s.dip = num.abs(s.dip)
+        s.rake+=180
+        s.strike+=180
+    if s.dip>90 and s.dip<180:
         s.dip -= 180
         s.strike = (s.strike+180)%360
     s.strike = s.strike%360.
