@@ -22,12 +22,17 @@ from itertools import izip
 
 logger = logging.getLogger('derec_utils')
 
-rgba01 = ((1,0,0), (0,1,0), (0,0,1))
-c_converter = matplotlib.colors.ColorConverter()
-clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
-cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
-                                                           name='my_cmap', 
-                                                           gamma=1.0)
+
+
+def get_cmap(N=255):
+    rgba01 = ((1,0,0), (0,1,0), (0,0,1))
+    c_converter = matplotlib.colors.ColorConverter()
+    clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
+                                                               name='my_cmap',
+                                                               N=N,
+                                                               gamma=1.0)
+    return cmap
 
 def randomize_DCSource(refsource, inplace=False):
     if not inplace:

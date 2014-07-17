@@ -84,6 +84,7 @@ def make_reference_trace(source, targets, engine, source_time_function=None,
             sources=source,
             targets=targets)
     ref_seismos = du.response_to_dict(response)
+    
     if source_time_function:
         ref_seismos = du.apply_stf(ref_seismos, source_time_function)
     if noise_type is not None:

@@ -138,11 +138,12 @@ def set_my_ticks(ax):
     #labels[1:-1] = ''
     #ax.set_xticklabels(labels)
 
-    ax.text(xlims[0], ylims[1],
+    ax.text(0.02, 0.98, 
             '%1.1e'%ylims[1],
-            size=9, 
+            size=8, 
             ha='left',
-            va='top')
+            va='top',
+            transform=ax.transAxes)
 
 
 def gca_label(x=0.01, y=0.05, label_string='', ax=plt.gca(), **kwargs):
@@ -348,7 +349,8 @@ class OpticBase():
 
         for source in sources:
             i = 0
-            fig, axs = plt.subplots(len(targets)/3, sharex=True)
+            fig, axs = plt.subplots(len(targets)/3, sharex=True,
+                    tight_layout=True)
 
             for target in [t for t in self.distance_sort_targets(source,targets=targets)\
                         if t.codes[3]==channel]:
@@ -386,14 +388,14 @@ class OpticBase():
         '''
         sources = sources if sources else self.sources
         depths = depths if depths else self.test_case_setup.depths
+        depths = num.array(depths)
         alpha = 0.5/len(depths)
         if alpha<=0.1:
             alpha=0.1
 
-        cmap = plt.get_cmap('coolwarm')
         if not targets:
             targets=self.targets
-
+        cmap = du.get_cmap(N=len(depths))
         gs = gridspec.GridSpec(len(targets)/3,3)
         gs_dict = dict(zip(sorted(targets, key=lambda x: \
                 (x.distance_to(sources[0]), x.codes[3])), gs))
@@ -411,6 +413,7 @@ class OpticBase():
                                                    reduction=sources[0].time, 
                                                    scaling=scaling, 
                                                    force_update=force_update)):
+
 
             pr_cand_line.set_linewidth(1.5)
             if not source.depth in depths:
@@ -435,24 +438,24 @@ class OpticBase():
             y_ref = pr_ref.get_ydata()
             
             if not ax.get_label():
-                gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=9)
+                gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=8)
+            
+            pr_cand_line.set_label("%s m"%float(source.depth/1000.))
+            c_scale = self.scalez2N(source.depth, len(depths))#1024)
 
-            pr_cand_line.set_label("%s m"%float(source.depth))
-            pr_cand_line.set_color(cmap(self.scalez255(source.depth)))
+            pr_cand_line.set_color(cmap(c_scale))
             ax.add_line(pr_cand_line)
             p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=alpha)
 
             y_abs_max = max(abs(y_ref))
-            ymin_woffset = -1*y_abs_max-0.05*y_abs_max
-            ymax_woffset = y_abs_max+0.05*y_abs_max
+            ymin_woffset = -1*y_abs_max-0.1*y_abs_max
+            ymax_woffset = y_abs_max+0.1*y_abs_max
 
             update_xy_limits(ax,
                             min(x_ref),
                             max(x_ref),
                             ymin_woffset,
                             ymax_woffset)
-            #ax.set_ylim([ymin_woffset, ymax_woffset ])
-            #ax.set_xlim([min(x_ref), max(x_ref)])
 
             if fig:
                 ax.set_figure(fig)
@@ -462,29 +465,41 @@ class OpticBase():
         for ax in axes_dict.values(): 
             set_my_ticks(ax)
 
-        plt.subplots_adjust(left=0.04,
+        if len(depths)>=2:
+            dz = abs(depths[1]-depths[0])/1000.
+            
+            sm = plt.cm.ScalarMappable(cmap=cmap)
+            sm.set_array([depths])
+            sm.set_clim((min(depths)/1000.-0.5*dz, max(depths)/1000.+0.5*dz))
+            fig = plt.gcf()
+            fig.subplots_adjust(right=0.90)
+            cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])
+            cb = fig.colorbar(sm, 
+                            cmap=cmap, 
+                         cax=cbar_ax,
+                         orientation='horizontal')
+            cb.ax.tick_params(labelsize=8)
+            cb.set_ticks(depths/1000.)
+            cb.set_label('Source depth [km]', labelpad=0.1, y=2, x=0, 
+                    verticalalignment='bottom',
+                    horizontalalignment='right',
+                    fontsize=9)
+            
+        plt.subplots_adjust(left=0.01,
                            bottom=0.1,
                            right=0.99,
                            top=0.99,
                            wspace=0.05,
                            hspace=0.3)
         
-
-        if len(depths)>=2:
-            norm = matplotlib.colors.Normalize(vmin=min(depths), vmax=max(depths))
-            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-            sm._A = []
-            fig = plt.gcf()
-            fig.subplots_adjust(right=0.90)
-            cbar_ax = fig.add_axes([0.2, 0.02, 0.6, 0.03])
-            fig.colorbar(sm, cmap=cmap, norm=norm, cax=cbar_ax,\
-                orientation='horizontal', boundaries=depths)
-        
         if self.test_case_setup.test_parameter or \
            self.test_case_setup.test_parameter_value:
             plt.gcf().suptitle('%s, %s'%(
                                 self.test_case_setup.test_parameter,
                                 self.test_case_setup.test_parameter_value))
+
+        fig = plt.gcf()
+        fig.set_figwidth(5.)
 
         return axes_dict
 
@@ -632,14 +647,14 @@ class OpticBase():
     def get_sources_where(self, param_dict):
         return TestCase.get_sources_where(param_dict, self.sources)
 
-    def scalez255(self, z): 
+    def scalez2N(self, z, N=255): 
         if len(self.test_case_setup.depths)==1:
             return 147
         else:
             minz = min(self.test_case_setup.depths)
             maxz = max(self.test_case_setup.depths)
         try:
-            return int((z-minz)*255/(maxz-minz))
+            return int((float(z)-minz)*N/(float(maxz)-minz))
         except ZeroDivisionError:
             return 147
 
