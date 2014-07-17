@@ -441,7 +441,8 @@ class OpticBase():
                 gca_label(label_string='.'.join(t.codes), ax=ax, fontsize=8)
             
             pr_cand_line.set_label("%s m"%float(source.depth/1000.))
-            c_scale = self.scalez2N(source.depth, len(depths))#1024)
+            c_scale = self.scalez2N(source.depth, len(depths))
+            
 
             pr_cand_line.set_color(cmap(c_scale))
             ax.add_line(pr_cand_line)
@@ -451,11 +452,18 @@ class OpticBase():
             ymin_woffset = -1*y_abs_max-0.1*y_abs_max
             ymax_woffset = y_abs_max+0.1*y_abs_max
 
+
             update_xy_limits(ax,
                             min(x_ref),
                             max(x_ref),
                             ymin_woffset,
                             ymax_woffset)
+            
+            self.add_taper_plot(ax, 
+                                x_ref,
+                                pr_ref.deltat, 
+                                y_abs_max,
+                                self.misfit_setup.taper)
 
             if fig:
                 ax.set_figure(fig)
@@ -502,6 +510,13 @@ class OpticBase():
         fig.set_figwidth(5.)
 
         return axes_dict
+
+    def add_taper_plot(self, ax, x, dx, ymax, taper):
+        x0 = x[0]
+        ndata = len(x)
+        y = num.ones(ndata)*ymax
+        taper(y=y, x0=x0, dx=dx)
+        ax.plot(x, y, '--', lw=0.5, c='grey')
 
     def plot_misfits(self, ax=None, **kwargs):
         if not ax:
