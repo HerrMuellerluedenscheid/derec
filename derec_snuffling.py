@@ -231,6 +231,9 @@ class Derec(Snuffling):
             self.reference_source = DCSource.from_pyrocko_event(self.active_event)
         
         selected_markers = self.get_viewer().selected_markers()
+        selected_markers = du.make_markers_dict(self.reference_source, 
+                                                self.targets,
+                                                selected_markers)
 
         self.ref_markers_dict = du.chop_ranges(self.reference_source,
                        self.targets,
