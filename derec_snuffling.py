@@ -27,6 +27,17 @@ k = 1000.
 misfit = None
 
 
+def set_channel_if_needed(stations, traces):
+    """Set channels if a station doesn't have one set. 
+    Channel names are deduced from trace nslc ids"""
+    for s in stations:
+        if s.get_channels()==[]:
+            trs = filter(lambda x:\
+                    '%s.%s.%s'%(x.nslc_id[:3])==s.nsl_string(), traces)
+            c_names = [t.nslc_id[3] for t in trs]
+            cs = [model.Channel(name=cn) for cn in c_names]
+            s.set_channels(cs)
+
 class Derec(Snuffling):
     '''
     *pre-filter: use high/low pass filter to filter traces before processing
@@ -93,10 +104,7 @@ class Derec(Snuffling):
             self.active_event, self.stations = self.get_active_event_and_stations()
             self.reference_source = DCSource.from_pyrocko_event(self.active_event)
 
-        if not self.targets:
-            self.targets = du.stations2targets(self.stations, \
-                    self.store_id_choice,
-                    measureq='HH')
+
 
 
         reference_source = du.clone(self.reference_source)
@@ -107,7 +115,12 @@ class Derec(Snuffling):
         traces = self.chopper_selected_traces(fallback=True)
         traces = list(traces)
         traces = du.flatten_list(traces)
+        if not self.targets:
+            self.targets = du.stations2targets(self.stations, \
+                    self.store_id_choice)
+                    #measureq='HH')
         #self.get_pile().all()
+        set_channel_if_needed(self.stations, traces)
 
         if self.pre_filter:
             traces = map(lambda x: x.copy(), traces)
@@ -224,8 +237,11 @@ class Derec(Snuffling):
 
         if not self.targets:
             self.targets = du.stations2targets(self.stations, \
-                    self.store_id_choice,
-                    measureq='HH')
+                    self.store_id_choice)
+                    #measureq='HH')
+
+        traces = list(self.get_pile().iter_traces())
+        set_channel_if_needed(self.stations, traces)
 
         if not self.reference_source:
             self.reference_source = DCSource.from_pyrocko_event(self.active_event)
@@ -244,8 +260,8 @@ class Derec(Snuffling):
                        perc=self.marker_perc_length,
                        static_length=self.static_length,
                        t_shift_frac=self.marker_shift_frac,
-                       use_cake=True,
-                       channel_prefix='*')
+                       use_cake=True)
+                       #channel_prefix='*')
 
         self._ma = self.ref_markers_dict.values()[0].values()
         
