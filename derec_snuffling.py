@@ -142,7 +142,6 @@ class Derec(Snuffling):
                                          taper=taper, 
                                          domain='time_domain',
                                          filter=fresponse)
-        print misfit_setup
     
         test_case_setup = TestCaseSetup(reference_source=self.reference_source,
                                         sources=sources,

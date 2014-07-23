@@ -187,12 +187,12 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-correct_depth = 2000
-#correct_depth = 5000
+#correct_depth = 2000
+correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 
-
+isolevel = 66
 if correct_depth==2000:
     vmin = -3
     vmax = 3
@@ -225,7 +225,7 @@ for l in f.readlines():
 fig = plt.figure(figsize=(6,3), dpi=100, tight_layout=False) #, frameon=False, tight_layout=True)
 gs = gridspec.GridSpec(1,2, width_ratios=[2,1])
 ax = fig.add_subplot(gs[0])
-max_data = 1000
+max_data = 2000
 print 'max data: ', max_data
 i=1
 
@@ -304,19 +304,19 @@ if use_scatter:
     #              edgecolor='black',
     #              zorder=0)
 
-    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=1, ystep=4,  zgrace=grace/1000.)
-
-    xg, yg = num.mgrid[Xc.min():Xc.max():100j, Yc.min():Yc.max():100j]
+    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=0.5, ystep=4,  zgrace=grace/1000.)
+    xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
     vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
+
     ax.contourf(xg,
                 yg,
                 vg,
                 linewidth=2,
                 zorder=0,
                 alpha=0.5, 
-                levels=[75,110],
+                levels=[isolevel,110],
                 colors=('grey' )) 
-    ax.contour(xg,yg,vg, levels=[75], linewidths=(2), colors=('grey'), 
+    ax.contour(xg,yg,vg, levels=[isolevel], linewidths=(2), colors=('grey'), 
               zorder=1)
     # ax.scatter(Xc, Yc, s=Zc, c='b', marker='o')
 
@@ -337,9 +337,9 @@ if only_failed:
     typestr+= '_only_failed'
 
 if scatter_type == 'angle_location':
-    plt.ylim([0, 50])
-    plt.xlim([0, 14])
-    #print 'DEACTIVATED X/Y LIMS for TESTING!'
+    #plt.ylim([0, 40])
+    #plt.xlim([0, 10])
+    print 'DEACTIVATED X/Y LIMS for TESTING!'
 
 plt.xlabel(xlabel)
 plt.ylabel(ylabel)
@@ -369,8 +369,8 @@ if scaling is not None:
     plt.contourf(xg,yg,vg, zorder=0)
 
     
-plt.ylim([0, 50])
-plt.xlim([0, 14])
+#plt.ylim([0, 40])
+#plt.xlim([0, 10])
 
 #histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = fig.add_subplot(gs[1])

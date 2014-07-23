@@ -229,6 +229,8 @@ if __name__ ==  "__main__":
         if debug:
             op = optics.OpticBase(test_case)
             op.stack_plot()
+            f = plt.gcf()
+            f.savefig('wf_noiseless_ml.pdf')
             plt.show()
 
 
