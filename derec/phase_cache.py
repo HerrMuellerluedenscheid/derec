@@ -94,6 +94,12 @@ class PhaseCache():
 
         return tmin, tmax
 
+    def fill_cache(self, sources, targets, **kwargs):
+        for s in sources:
+            for t in targets:
+                self.get_cached_arrivals(target=t,source=s, **kwargs)
+
+
     def __str__(self):
         st = 'phase_ids_start: '
         for id in self.phase_ids_start:

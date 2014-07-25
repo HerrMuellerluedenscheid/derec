@@ -3,7 +3,11 @@ import sys
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as num
-from scipy.interpolate import griddata, Rbf
+try:
+    from scipy.interpolate import griddata, Rbf
+except:
+    print 'no gridding available'
+    nogrid = True
 from scipy import signal
 import numpy as np
 
@@ -232,11 +236,6 @@ i=1
 zmin = min(num.array(results).T[3])
 zmax = max(num.array(results).T[3])
 
-
-print vmin, vmax
-cnorm = matplotlib.colors.Normalize(vmin=vmin, vmax=vmax)
-scalarMap = matplotlib.cm.ScalarMappable(norm=cnorm, cmap=cmap)
-
 results = results[:max_data]
 
 if only_failed:
@@ -354,7 +353,8 @@ if scaling is not None:
     # Grid data:
     xg, yg = num.mgrid[X.min():X.max():100j, Y.min():Y.max():100j]
 
-    vg = griddata((X,Y), scaling, (xg,yg), method='cubic')
+    if not nogrid:
+        vg = griddata((X,Y), scaling, (xg,yg), method='cubic')
     #blur_image(vg,3)
     #rbf = Rbf(X,Y,Z, epsilon=2)
     #vg = rbf(xg, yg)
@@ -366,7 +366,8 @@ if scaling is not None:
     plt.colorbar(sc, label='scaling factor')
     #plt.colorbar(sc, label='misfit M')
     plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
-    plt.contourf(xg,yg,vg, zorder=0)
+    if not nogrid:
+        plt.contourf(xg,yg,vg, zorder=0)
 
     
 #plt.ylim([0, 40])

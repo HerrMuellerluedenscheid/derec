@@ -44,13 +44,13 @@ class TestFSU(unittest.TestCase):
                 assert sources_lists[0][n].dip!=sources_lists[i+1][n].dip
 
     def test_random_event_generation_range(self):
-        num_sources = 100
+        num_sources =5000
         source = du.clone(self.source)
         source.strike = 130
         source.dip = 88
         source.rake = -119
         sources_lists = du.make_lots_of_test_events(source, [1000,2000,3000], 
-                {('strike', 'dip', 'rake'):30}, 
+                {('strike', 'dip', 'rake'):25}, 
                 num_sources,
                 func='normal')
         assert len(sources_lists)==num_sources
@@ -78,8 +78,10 @@ class TestFSU(unittest.TestCase):
 
         gauss = [num.random.normal(0,10) for i in xrange(num_sources)]
         axs[4].hist(num.abs(gauss), 25)
+        axs[4].set_xlim((0,70))
+        axs[3].set_xlim((0,70))
 
-        #plt.show()
+        plt.show()
 
     def test_my_L2Norm(self):
         lon = 10.

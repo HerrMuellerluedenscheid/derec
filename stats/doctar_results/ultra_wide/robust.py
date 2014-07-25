@@ -58,11 +58,11 @@ if __name__ ==  "__main__":
     noisedir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_noise',
             'displacement')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
-    note = 'test'
-    false_store_id = None#'false_doctar_mainland_20Hz'
+    note = 'indi_scaling_falsed3'
+    false_store_id = 'false_doctar3_mainland_20Hz'
     false_magnitude = None#-0.2
     do_scale = True
-    individual_scaling = False
+    individual_scaling = True
 
     file_name = 'robust_%s_%s.txt'%(time_string, note)
     num_stations = 10
@@ -74,9 +74,10 @@ if __name__ ==  "__main__":
     test_type = 'doctar'
     pb = None
 
-    add_noise = True
+    randomize_mt = True
+    add_noise = True 
     verbose = False
-    debug = True
+    debug = False
     write_depth = True
     write_misfit = True
     check_locations = False 
@@ -123,8 +124,8 @@ if __name__ ==  "__main__":
 
     ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
     location_test_sources_lists = du.make_lots_of_test_events(smaller_magnitude_source, depths, 
-            {('strike', 'dip', 'rake'):120., ('north_shift', 'east_shift'): 10000}, 
-            num_tests,
+            {('strike', 'dip', 'rake'):90., ('north_shift', 'east_shift'): 5000.}, 
+            1,
             func='uniform') 
     i=0
 
@@ -133,10 +134,10 @@ if __name__ ==  "__main__":
 
     # setup the misfit setup:
     norm = 2
-    #taper = trace.CosFader(xfrac=0.333) 
-    taper = trace.CosFader(xfade=1.) 
+    taper = trace.CosFader(xfrac=0.333) 
+    #taper = trace.CosFader(xfade=1.) 
     
-    z, p, k = butter(2, [0.55*num.pi*2, 4.2*num.pi*2.], 
+    z, p, k = butter(2, [0.5*num.pi*2, 4.*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -161,13 +162,13 @@ if __name__ ==  "__main__":
                                    store_id=store_id,
                                    misfit_setup=misfit_setup,
                                    source_time_function=stf,
-                                   number_of_time_shifts=31,
-                                   time_shift=0.1,
+                                   number_of_time_shifts=0,
+                                   time_shift=0.0001,
                                    #percentage_of_shift=15.,
                                    phase_ids_start=phase_ids_start,
-                                   static_length=2.8,
+                                   static_length=4.,
                                    marker_perc_length=5.0,
-                                   marker_shift_frac=0.40,
+                                   marker_shift_frac=0.33,
                                    depths=depths) 
     
     extended_ref_marker, phase_cache = du.chop_ranges(_ref_source, 
@@ -190,30 +191,42 @@ if __name__ ==  "__main__":
     else:
         noise = None
 
-
-
     results = []
-
-        
-    if false_store_id:
-        test_case_setup.store_id = false_store_id
-        test_case_setup.engine.store_id = false_store_id
-        for t in test_case_setup.targets:
-            t.store_id = false_store_id
      
     print 'Checked: avoiding immutable seismograms problem...'
-    for location_test_sources in location_test_sources_lists:
+    for i in range(num_tests):
+        # set right data:
+        if false_store_id:
+            test_case_setup.store_id = store_id
+            test_case_setup.engine.store_id = store_id
+            for t in test_case_setup.targets:
+                t.store_id = store_id
+        if randomize_mt:
+            du.randomize_DCSource(_ref_source, inplace=True)
+
         reference_seismograms = core.make_reference_trace(_ref_source,
-                                                        targets, engine,
-                                                        stf,
+                                                        targets, 
+                                                        engine,
+                                                        source_time_function=stf,
+                                                        noise_type='natural',
                                                         noise=noise)
 
-        i+=1
+        location_test_sources= du.make_lots_of_test_events(_ref_source, depths, 
+                {('strike', 'dip', 'rake'):90., ('north_shift', 'east_shift'):
+                    5000}, 
+                1,
+                func='uniform')[0]
+        # set false data:
+        if false_store_id:
+            test_case_setup.store_id = false_store_id
+            test_case_setup.engine.store_id = false_store_id
+            for t in test_case_setup.targets:
+                t.store_id = false_store_id
 
         test_case_setup.sources = location_test_sources
 
         test_case = core.TestCase( test_case_setup )
-        test_case.pre_highpass = (2.,0.2)
+        test_case.pre_highpass = (2.,0.4)
         test_case.phase_cache = phase_cache
         
         if do_scale:
@@ -235,7 +248,7 @@ if __name__ ==  "__main__":
 
         best_source, best_misfit = test_case.best_source_misfit(verbose=verbose)
         angle_diff = best_source.pyrocko_moment_tensor().\
-                    angle(ref_source_moment_tensor)
+                    angle(_ref_source.pyrocko_moment_tensor())
 
         angle_sign = 1.
         if best_source.strike<=_ref_source.strike:
@@ -297,7 +310,7 @@ if __name__ ==  "__main__":
 
         results.append(data2write)
         
-        if len(results)==1:
+        if len(results)==3:
             try:
                 f = open(file_name, 'a+')
                 for line in results:

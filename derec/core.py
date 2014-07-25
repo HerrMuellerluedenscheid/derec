@@ -13,6 +13,7 @@ import matplotlib.lines as pltlines
 import progressbar
 import os
 import derec_utils as du
+import phase_cache
 import numpy as num
 import glob
 
@@ -277,6 +278,10 @@ class TestCase(Object):
         self.reference_source = self.test_case_setup.reference_source
         self.targets = self.test_case_setup.targets
         self.sources = self.test_case_setup.sources
+        if self.sources==None:
+            self.sources = du.test_event_generator(self.reference_source,
+                                                   self.test_case_setup.depths)
+
         self.engine = self.test_case_setup.engine
         self.store_id = self.test_case_setup.store_id
         self.misfit_setup = self.test_case_setup.misfit_setup
@@ -595,7 +600,19 @@ class TestCase(Object):
                                               static_length=setup.static_length,
                                               t_shift_frac=\
                                                       setup.marker_shift_frac,
-                                              use_cake=True)
+                                              use_cake=use_cake)
+
+
+
+        if not self.phase_cache and not self.picked:
+            self.phase_cache = phase_cache.PhaseCache(store=self.store,
+                    phase_ids_start=setup.phase_ids_start)
+
+            self.phase_cache.fill_cache([self.reference_source],
+                                        self.targets, 
+                                        static_length=setup.static_length,
+                                        perc=setup.marker_perc_length,
+                                        use_cake=use_cake)
 
         if self.picked or self.phase_cache:
             if verbose: print 'align phases with picked ones'

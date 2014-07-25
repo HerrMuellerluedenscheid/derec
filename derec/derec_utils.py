@@ -40,6 +40,7 @@ def randomize_DCSource(refsource, inplace=False):
     rand_mt = moment_tensor.MomentTensor.random_dc()
     sdr = rand_mt.both_strike_dip_rake()[0]
     refsource.strike, refsource.dip, refsource.rake = sdr
+    refsource.regularize()
     if not inplace:
         return refsource
 
@@ -276,7 +277,6 @@ def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=No
             tmin, tmax = phase_cache.get_cached_arrivals(target, source, **kwargs)
             
             ids = list(target.codes)
-            ids[3] = channel_prefix+ids[3]
 
             m = PhaseMarker(nslc_ids=[tuple(ids)],
                             tmin=tmin,
@@ -545,19 +545,22 @@ def event2source(event, source_type='MT', rel_north_shift=0., rel_east_shift=0.,
     return source_event
 
 
-def stations2targets(stations, store_id=None, channels=[], measureq=''):
+def stations2targets(stations, store_id=None, channels='NEZ'):
     '''
     Convert pyrockos original stations into seismosizer targets.
 
     :param measureq: measuring quantity type like HH, BH or *
     '''
+    got_channels = channels
     targets = []
     for s in stations:
-        if not channels:
+        if got_channels==None:
             channels = s.get_channels()
-        if not channels:
-            channels = 'NEZ'
-        target = [Target(codes=(s.network,s.station,s.location, measureq+component),
+            channels = [c.name for c in channels]
+        else:
+            channels = got_channels
+
+        target = [Target(codes=(s.network,s.station,s.location, component),
                                  lat=s.lat,
                                  lon=s.lon,
                                  store_id=store_id,

@@ -43,7 +43,8 @@ if __name__ ==  "__main__":
     
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [pjoin(derec_home, 'fomostos')]
-    if not socket.gethostname()==('love' or 'Mariuss-MacBook.local'):
+    if not socket.gethostname() in ('love', 'Mariuss-MacBook.local', 'thunder8'):
+        print 'no'
         store_dirs.append(pjoin('/',
                                 'scratch', 
                                 'local1', 
@@ -56,18 +57,27 @@ if __name__ ==  "__main__":
                                 'local1', 
                                 'marius'))
 
+    if socket.gethostname()=='thunder8':
+        store_dirs.append(pjoin('/',
+                                'data',
+                                'share',
+                                'u253',
+                                'doctar',
+                                'gfdb_stores'))
+
+
     noisedir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_noise',
             'displacement')
     time_string = '%s-%s-%s'%time.gmtime()[3:6]
     note = 'gaussnoise_scaled'
-    false_store_id =None# 'false_crust1_20Hz_200m'
+    false_store_id = None#'false_crust1_20Hz_200m'
     false_magnitude =None# 0.2
     do_scale = True
 
     num_stations = 10
     dz = 2*km
     #num_depths = 11
-    num_tests = 1001
+    num_tests = 500
     randomize_mt = False
     print 'NOT randomizing mt'
     
@@ -132,10 +142,16 @@ if __name__ ==  "__main__":
 
         ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
         location_test_sources_lists = du.make_lots_of_test_events(smaller_magnitude_source, depths, 
-                {():0.0001}, #{('strike', 'dip', 'rake'):15., ('north_shift', 'east_shift'): 4000}, 
+                {('strike', 'dip', 'rake'):10.}, 
+                #{('strike', 'dip', 'rake'):10., ('north_shift', 'east_shift'):
+                #    1000}, 
                 num_tests,
-                func='uniform') 
+                func='normal') 
         i=0
+
+        #optics.check_locations(_ref_source, location_test_sources_lists)
+
+
 
         # setup the misfit setup:
         norm = 2
@@ -197,13 +213,13 @@ if __name__ ==  "__main__":
 
         results = []
             
-        if false_store_id:
-            test_case_setup.store_id = false_store_id
-            test_case_setup.engine.store_id = false_store_id
-            for t in test_case_setup.targets:
-                t.store_id = false_store_id
 
         for location_test_sources in location_test_sources_lists:
+            if false_store_id:
+                test_case_setup.store_id = store_id 
+                test_case_setup.engine.store_id =  store_id
+                for t in test_case_setup.targets:
+                    t.store_id = store_id 
 
             i+=1
 
@@ -224,6 +240,11 @@ if __name__ ==  "__main__":
                                                     pre_highpass=test_case.pre_highpass,
                                                     setup=misfit_setup,
                                                     chop_ranges=extended_ref_marker)
+            if false_store_id:
+                test_case_setup.store_id = false_store_id
+                test_case_setup.engine.store_id = false_store_id
+                for t in test_case_setup.targets:
+                    t.store_id = false_store_id
 
             snr, sig = snr_sig
             snrp, sigp = snr_sig_p
@@ -296,8 +317,9 @@ if __name__ ==  "__main__":
                     f.close()
                     results = []
 
-    test_nl = num.linspace(0.1, 10, 11)
-    forkmap.map(do_run, test_nl)
+    test_nl = num.logspace(-1.5, 2.5, 40)
+    test_nl *= 1e-8
+    forkmap.map(do_run, test_nl, n=20)
 
 
 

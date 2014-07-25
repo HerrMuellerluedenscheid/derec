@@ -69,7 +69,7 @@ if __name__ ==  "__main__":
     num_stations = 10
     dz = 2*km
     #num_depths = 11
-    num_tests = 1
+    num_tests = 2000
     
     engine = LocalEngine(store_superdirs=store_dirs)
     test_type = 'doctar'
@@ -77,7 +77,7 @@ if __name__ ==  "__main__":
 
     add_noise = True
     verbose = False
-    debug = True
+    debug = False
     write_depth = True
     write_misfit = True
     write_scaling = True
@@ -143,7 +143,7 @@ if __name__ ==  "__main__":
     #taper = trace.CosFader(xfrac=0.333) 
     taper = trace.CosFader(xfade=1.) 
     
-    z, p, k = butter(4, [0.5*num.pi*2, 4.2*num.pi*2.], 
+    z, p, k = butter(4, [0.5*num.pi*2, 4.0*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -172,7 +172,7 @@ if __name__ ==  "__main__":
                                    time_shift=0.1,
                                    #percentage_of_shift=15.,
                                    phase_ids_start=phase_ids_start,
-                                   static_length=3.5,
+                                   static_length=4.,
                                    marker_perc_length=5.0,
                                    marker_shift_frac=0.40,
                                    depths=depths) 
@@ -213,6 +213,7 @@ if __name__ ==  "__main__":
         reference_seismograms = core.make_reference_trace(_ref_source,
                                                         targets, engine,
                                                         stf,
+                                                        noise_type='natural',
                                                         noise=noise)
 
         i+=1
@@ -305,7 +306,7 @@ if __name__ ==  "__main__":
 
         results.append(data2write)
         
-        if len(results)==1:
+        if len(results)==10:
             try:
                 f = open(file_name, 'a+')
                 for line in results:
