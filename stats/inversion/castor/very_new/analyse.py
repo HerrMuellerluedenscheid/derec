@@ -20,7 +20,7 @@ def get_angles(mts):
         out.append(a)
     return out
 
-
+max_runs = 15
 fns = sys.argv[1:]
 numsteps = 0
 fsize= 8
@@ -43,7 +43,11 @@ elapsed = defaultdict()
 mfs = defaultdict()
 fnouts = []
 angles = defaultdict()
+irun=0
 for fn,result in results.items():
+    if irun==max_runs:
+        break
+    print 'ASDFASDF', irun
     localdirname = fn.split('.')[0]
     if not os.path.exists(localdirname):
         os.mkdir(localdirname)
@@ -84,6 +88,7 @@ for fn,result in results.items():
         mfs[localdirname] = mf
         elapsed[localdirname] = float(result[0][2])
         fnouts.append(localdirname)
+    irun+=1
 
 f, axs = plt.subplots(numsteps, len(fnouts)+1 , dpi=400)
 figwith = 6.
@@ -92,7 +97,7 @@ f.set_figwidth(figwith)
 f.set_figheight(figheight)
 boxprops = dict(boxstyle='round', facecolor='white', alpha=0.5, linewidth=0.)
 
-for fni, fn in enumerate(fnouts):
+for fni, fn in enumerate(fnouts[:max_runs:]):
     ela = elapsed[fn]
     imgfns = glob.glob(fn+'/*')
     imgs = defaultdict()
