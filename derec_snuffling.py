@@ -74,9 +74,9 @@ class Derec(Snuffling):
         self.add_parameter(Param('Lowpass [Hz]', 'lowpass',\
                 6., 1., 100.))
         self.add_parameter(Switch('Pre-filter with Main filter', 'pre_filter', False))
-        self.add_trigger('Load Default Setup', self.load_setup) 
-        self.add_trigger('Generate Markers', self.generate_markers) 
-        self.add_trigger('Add Store Directory', self.add_store_dir)
+        self.add_trigger('Load \n Setup', self.load_setup) 
+        self.add_trigger('Generate \n Markers', self.generate_markers) 
+        self.add_trigger('Add \nStore', self.add_store_dir)
         self.set_live_update(False)
 
         self.test_case_setup = None
