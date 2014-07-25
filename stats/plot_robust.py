@@ -196,7 +196,7 @@ correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 
-
+isolevel = 66
 if correct_depth==2000:
     vmin = -3
     vmax = 3
@@ -304,22 +304,20 @@ if use_scatter:
     #              zorder=0)
 
     Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=0.5, ystep=4,  zgrace=grace/1000.)
+    xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
+    vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
 
-    xg, yg = num.mgrid[Xc.min():Xc.max():100j, Yc.min():Yc.max():100j]
-    if not nogrid:
-        vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
-        ax.contourf(xg,
-                    yg,
-                    vg,
-                    linewidth=2,
-                    zorder=0,
-                    alpha=0.5, 
-                    levels=[75,110],
-                    colors=('grey' )) 
-        ax.contour(xg,yg,vg, levels=[75], linewidths=(2), colors=('grey'), 
-                  zorder=1)
-    else:
-        ax.scatter(Xc, Yc, s=Zc, c='b', marker='o')
+    ax.contourf(xg,
+                yg,
+                vg,
+                linewidth=2,
+                zorder=0,
+                alpha=0.5, 
+                levels=[isolevel,110],
+                colors=('grey' )) 
+    ax.contour(xg,yg,vg, levels=[isolevel], linewidths=(2), colors=('grey'), 
+              zorder=1)
+    # ax.scatter(Xc, Yc, s=Zc, c='b', marker='o')
 
 bounds = num.arange(vmin, vmax+dz, dz)
 cticks = num.arange(vmin, vmax+dz, 1)
@@ -338,8 +336,8 @@ if only_failed:
     typestr+= '_only_failed'
 
 if scatter_type == 'angle_location':
-    #plt.ylim([0, 50])
-    #plt.xlim([0, 14])
+    #plt.ylim([0, 40])
+    #plt.xlim([0, 10])
     print 'DEACTIVATED X/Y LIMS for TESTING!'
 
 plt.xlabel(xlabel)
@@ -372,8 +370,8 @@ if scaling is not None:
         plt.contourf(xg,yg,vg, zorder=0)
 
     
-plt.ylim([0, 50])
-plt.xlim([0, 14])
+#plt.ylim([0, 40])
+#plt.xlim([0, 10])
 
 #histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = fig.add_subplot(gs[1])
