@@ -90,7 +90,8 @@ if __name__ ==  "__main__":
         print t.distance_to(_ref_source), t.codes
 
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
-    depths = [5000., 3000.]
+    depths = du.drange(1000, 8000, 1000)
+    #depths = [8000., 5000., 1000.]
     print depths
     #depths=[_ref_source.depth]
 
@@ -141,9 +142,9 @@ if __name__ ==  "__main__":
                                    #number_of_time_shifts=1,
                                    #percentage_of_shift=0.0001,
                                    number_of_time_shifts=0,
-                                   percentage_of_shift=10.,
+                                   percentage_of_shift=0.,
                                    phase_ids_start=phase_ids_start,
-                                   static_length=5., 
+                                   static_length=3., 
                                    marker_perc_length=5.0,
                                    marker_shift_frac=0.3,
                                    depths=depths) 
@@ -173,8 +174,6 @@ if __name__ ==  "__main__":
                                                     stf,
                                                     noise=noise)
 
-    #map(lambda x: x.highpass(4, 0.5), reference_seismograms.values()[0].values())
-    #map(lambda x: x.lowpass(4, 8.), reference_seismograms.values()[0].values())
 
     results = []
 
@@ -229,6 +228,9 @@ if __name__ ==  "__main__":
         if debug:
             op = optics.OpticBase(test_case)
             op.stack_plot()
+            f = plt.gcf()
+            f.savefig('teststack.pdf', pad_inches=0.1, dpi=160,
+                    bbox_inches='tight')
             plt.show()
 
 
