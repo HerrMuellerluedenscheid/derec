@@ -104,22 +104,18 @@ class Derec(Snuffling):
             self.active_event, self.stations = self.get_active_event_and_stations()
             self.reference_source = DCSource.from_pyrocko_event(self.active_event)
 
-
-
-
         reference_source = du.clone(self.reference_source)
 
         depths = num.linspace(self.z_min, self.z_max, self.num_depths)
 
         sources = du.test_event_generator(self.reference_source, depths)
-        traces = self.chopper_selected_traces(fallback=True)
+        traces = self.chopper_selected_traces(fallback=False)
         traces = list(traces)
         traces = du.flatten_list(traces)
         if not self.targets:
             self.targets = du.stations2targets(self.stations, \
                     self.store_id_choice)
-                    #measureq='HH')
-        #self.get_pile().all()
+        
         set_channel_if_needed(self.stations, traces)
 
         if self.pre_filter:
@@ -128,7 +124,7 @@ class Derec(Snuffling):
                 map(lambda x: x.lowpass(4, viewer.lowpass), traces)
             if viewer.highpass:
                 map(lambda x: x.highpass(4, viewer.highpass), traces)
-        
+
         self.traces_dict = du.make_traces_dict(self.reference_source, \
                 self.targets,
                 traces)
@@ -155,7 +151,6 @@ class Derec(Snuffling):
                                          taper=taper, 
                                          domain='time_domain',
                                          filter=fresponse)
-        print misfit_setup
     
         test_case_setup = TestCaseSetup(reference_source=self.reference_source,
                                         sources=sources,
@@ -178,6 +173,7 @@ class Derec(Snuffling):
 
         test_case.set_raw_references(self.traces_dict)
         test_case.set_reference_markers(self.ref_markers_dict)
+        test_case.phase_cache = self.phase_cache
         
         test_case.process(verbose=False)
         test_case.validate()
@@ -235,13 +231,11 @@ class Derec(Snuffling):
         self.cleanup()
         self.active_event, self.stations = self.get_active_event_and_stations()
 
+        traces = list(self.get_pile().iter_traces())
+        set_channel_if_needed(self.stations, traces)
         if not self.targets:
             self.targets = du.stations2targets(self.stations, \
                     self.store_id_choice)
-                    #measureq='HH')
-
-        traces = list(self.get_pile().iter_traces())
-        set_channel_if_needed(self.stations, traces)
 
         if not self.reference_source:
             self.reference_source = DCSource.from_pyrocko_event(self.active_event)
@@ -251,21 +245,21 @@ class Derec(Snuffling):
                                                 self.targets,
                                                 selected_markers)
 
-        self.ref_markers_dict = du.chop_ranges(self.reference_source,
+        self.ref_markers_dict, self.phase_cache = du.chop_ranges(self.reference_source,
                        self.targets,
                        self.engine.get_store(self.store_id_choice),
                        self.phase_ids_start,
-                       return_cache=False,
+                       return_cache=True,
                        picked_phases=selected_markers,
                        perc=self.marker_perc_length,
                        static_length=self.static_length,
                        t_shift_frac=self.marker_shift_frac,
                        use_cake=True)
-                       #channel_prefix='*')
-
-        self._ma = self.ref_markers_dict.values()[0].values()
         
+        self._ma = self.ref_markers_dict.values()[0].values()
+        map(lambda x: x.set_selected(True), self._ma)
         self.add_markers(self._ma)
+        self.get_viewer().update()
     
 def __snufflings__():
     '''Returns a list of snufflings to be exported by this module.'''
