@@ -36,7 +36,7 @@ def update_xy_limits(ax, xmin, xmax, ymin, ymax):
                 ax.set_ylim([ymin, ymax])
 
 
-def check_locations(testsources, ref_source=None):
+def check_locations(testsources, ref_source=None, saveas=None):
     eshi = [] 
     nshi = [] 
     for ts in testsources:
@@ -57,22 +57,49 @@ def check_locations(testsources, ref_source=None):
     rakes = []
     for ts in testsources:
         laterals.append(num.sqrt(ts[0].north_shift**2+ts[0].east_shift**2))
+        if all(map(lambda x: x==0., laterals)):
+            num_subplots=3
+        else:
+            num_subplots=4
+
         if ref_source:
             angles.append(rmt.angle(ts[0].pyrocko_moment_tensor()))
         strikes.append(ts[0].strike)
         dips.append(ts[0].dip)
         rakes.append(ts[0].rake)
-
-    fig = plt.figure()
-    ax = fig.add_subplot(411)
+    fig = plt.figure(figsize=(2.3,4.), tight_layout=False)
+    nbins = 20
+    ax = fig.add_subplot(num_subplots, 1, 1)
+    ax.hist(strikes, nbins, normed=1)
+    plt.locator_params(nbins=5)
+    ax.set_xlabel('Strike [deg]', fontsize=8)
+    ax.set_ylabel('norm. PSD', fontsize=8)
     if ref_source:
+        line_props = {'c':'r', 'lw':3, 'ls':'--'}
+        ax.axvline(ref_source.strike, **line_props)
+    ax = fig.add_subplot(num_subplots, 1, 2)
+    ax.hist(dips, nbins, normed=1)
+    plt.locator_params(nbins=5)
+    ax.set_xlabel('Dip[deg]', fontsize=8)
+    ax.set_ylabel('norm. PSD', fontsize=8)
+    if ref_source:
+        ax.axvline(ref_source.dip, **line_props)
+    ax = fig.add_subplot(num_subplots, 1, 3)
+    ax.hist(rakes, nbins, normed=1)
+    plt.locator_params(nbins=5)
+    ax.set_xlabel('Rake [deg]', fontsize=8)
+    ax.set_ylabel('norm. PSD', fontsize=8)
+    if ref_source:
+        ax.axvline(ref_source.rake, **line_props)
+    if num_subplots==4 and ref_source:
+        ax = fig.add_subplot(num_subplots, 1, 4)
         ax.plot(laterals, angles, 'bo')
-    ax = fig.add_subplot(412)
-    ax.hist(strikes)
-    ax = fig.add_subplot(413)
-    ax.hist(dips)
-    ax = fig.add_subplot(414)
-    ax.hist(rakes)
+    plt.subplots_adjust(hspace=0.5)
+    plt.locator_params(nbins=5)
+
+    if saveas!=None:
+        fig.savefig(saveas, dpi=300, bbox_inches='tight', pad_inches=0.01)
+
     plt.show()
     
 

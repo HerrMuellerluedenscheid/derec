@@ -1,6 +1,7 @@
 from collections import defaultdict
 from pyrocko import cake
 from pyrocko.gui_util import PhaseMarker
+from pyrocko import gf
 
 
 def cake_first_arrival(distance, depth, model, phase_ids=None):
@@ -54,7 +55,11 @@ class PhaseCache():
                 else:
                     phase_ids_start_fomosto = self.phase_ids_start
 
-                tmin = self.store.t('first(%s)'% phase_ids_start_fomosto, key)
+                try:
+                    tmin = self.store.t('first(%s)'% phase_ids_start_fomosto, key)
+                except gf.store.NoSuchPhase as e:
+                    print str(e), ' using cake instead'
+                    tmin = None
 
             if use_cake or tmin==None:
                 tmin = cake_first_arrival(dist, source.depth, self.model,
