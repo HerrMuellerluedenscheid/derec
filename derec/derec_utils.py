@@ -22,6 +22,35 @@ from itertools import izip
 
 logger = logging.getLogger('derec_utils')
 
+store_id_mapping = dict(zip(['doctar_mainland_20Hz',
+                 'doctar_crust_20Hz_200m',
+                 'false_crust1_20Hz_200m',
+                 'false_doctar_mainland_20Hz',
+                 'false_doctar2_mainland_20Hz',
+                 'false_doctar3_mainland_20Hz',
+                 'false_doctar4_mainland_20Hz',
+                 'false_doctar5_mainland_20Hz', 
+                 'castor',
+                 'false_castor',
+                 'false_castor2',
+                 'false_castor3',
+                 'false_castor4',
+                 'false_castor5'],
+                 ['IPMA',
+                    'crust',
+                    'mod. crust',
+                    'IPMA 1',
+                    'IPMA 2',
+                    'IPMA 3',
+                    'IPMA 4',
+                    'IPMA 5',
+                    'castor',
+                    'castor 1',
+                    'castor 2',
+                    'castor 3',
+                    'castor 4',
+                    'castor 5']))
+
 
 
 def get_cmap(N=255):
