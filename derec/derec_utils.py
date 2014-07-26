@@ -260,7 +260,7 @@ def chop_ranges(sources, targets, store, phase_ids_start=None,  phase_ids_end=No
                              phase_ids_end=phase_ids_end)
 
     if kwargs.get('use_cake', False):
-        use_cake = True
+        use_cake = kwargs['use_cake']
     else:
         use_cake = False
 
