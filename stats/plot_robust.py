@@ -1,10 +1,12 @@
 #/usr/bin/python2.7
+import derec.derec_utils as du
 import sys 
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as num
 try:
     from scipy.interpolate import griddata, Rbf
+    nogrid = False
 except:
     print 'no gridding available'
     nogrid = True
@@ -195,14 +197,15 @@ suptitle = ''
 correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
-
+x_max = 5
+y_max = 90
 isolevel = 66
 if correct_depth==2000:
     vmin = -3
     vmax = 3
 if correct_depth==5000:
-    vmin = -5
-    vmax = 5
+    vmin = -3
+    vmax = 4
 if scatter_type=='depth_location':
     vmin=None
     vmax=None
@@ -213,9 +216,10 @@ cmap_jet = matplotlib.cm.get_cmap('jet')
 rgba01 = ((1,0,0), (0,1,0), (0,0,1))
 c_converter = matplotlib.colors.ColorConverter()
 clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
-cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
-                                                           name='my_cmap', 
-                                                           gamma=1.)
+#cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
+#                                                           name='my_cmap', 
+#                                                           gamma=1.)
+
 print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
@@ -232,9 +236,9 @@ ax = fig.add_subplot(gs[0])
 max_data = 2000
 print 'max data: ', max_data
 i=1
-
 zmin = min(num.array(results).T[3])
 zmax = max(num.array(results).T[3])
+cmap = du.get_cmap(N=len(num.array(results).T[0]))
 
 results = results[:max_data]
 
@@ -298,6 +302,8 @@ if use_scatter:
         cb_label = 'angle [deg]'
         
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap, zorder=2)
+    plt.ylim([0, y_max])
+    plt.xlim([0, x_max])
     #projected = projected_2quad(num.array([X,Y]).T)
     #plot_point_cov(projected, nstd=2, alpha=0.4, facecolor='grey', 
     #              edgecolor='black',
@@ -370,8 +376,8 @@ if scaling is not None:
         plt.contourf(xg,yg,vg, zorder=0)
 
     
-#plt.ylim([0, 40])
-#plt.xlim([0, 10])
+plt.ylim([0, y_max])
+plt.xlim([0, x_max])
 
 #histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = fig.add_subplot(gs[1])
@@ -392,7 +398,7 @@ his = hax.hist(concat.T[3],
 xmin, xmax = hax.get_xlim()
 hax.set_xticks(num.arange(0,xmax%1,0.1))
 hax.set_yticks(cticks)
-hax.set_yticklabels([])#cticks)
+hax.set_yticklabels([])
 hax.set_ylim(vmin, vmax)
 xticks = hax.get_xticklabels()
 plt.setp(xticks, rotation=45)
