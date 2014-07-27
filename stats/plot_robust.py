@@ -17,40 +17,11 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.ticker import FuncFormatter
 from matplotlib import gridspec
+from plot_utils import to_percent
 
 font = {'family' : 'normal',
         'size'   : 9}
 matplotlib.rc('font', **font)
-
-def to_percent(y, position):
-    # Ignore the passed in position. This has the effect of scaling the default
-    # tick locations.
-    s = str(100 * y)
-
-    # The percent symbol needs escaping in latex
-    if matplotlib.rcParams['text.usetex'] == True:
-        return s + r'$\%$'
-    else:
-        return s + '%'
-
-def projected_2quad(points):
-    plen = len(points)
-    #A = num.ones((plen*4, 2))
-    A = num.ones((plen*2, 2))
-    A[:][:] = num.NAN
-    # upper right
-    A[:plen] = points
-    # lower left
-    A[plen:plen*2] = -points
-    # bottom right 
-    return A
-    points.T[0]*=-1
-    A[plen*2:plen*3] = points
-    # lower right 
-    points *=-1
-    A[plen*3:plen*4] = points
-
-    return A
 
 
 def gauss_kern(size, sizey=None):
@@ -308,10 +279,13 @@ if use_scatter:
     sc = ax.scatter(X, Y, c=Z, s=8, lw=0.1, vmin=vmin, vmax=vmax, cmap=cmap, zorder=2)
     plt.ylim([0, y_max])
     plt.xlim([0, x_max])
-    #projected = projected_2quad(num.array([X,Y]).T)
-    #plot_point_cov(projected, nstd=2, alpha=0.4, facecolor='grey', 
-    #              edgecolor='black',
-    #              zorder=0)
+    Xc, Yc, Zc = gridded_counter(ax, 
+                                 X, 
+                                 Y, 
+                                 Z, 
+                                 xstep=0.5, 
+                                 ystep=4,  
+                                 zgrace=grace/1000.)
 
     Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=0.5, ystep=10,  zgrace=grace/1000.)
     xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
