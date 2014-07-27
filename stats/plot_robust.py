@@ -199,7 +199,7 @@ print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
 x_max = 5
 y_max = 90
-isolevel = 66
+isolevel = 66.6
 if correct_depth==2000:
     vmin = -3
     vmax = 3
@@ -255,10 +255,10 @@ if only_failed:
     results_gotit = num.array(results_gotit)
     if use_abs:
         sc = ax.scatter(abs(results_gotit.T[0]), abs(results_gotit.T[1]),
-            c='0.75', s=8, lw=0.5, alpha=0.5)
+            c='0.75', s=8, lw=0.1, alpha=0.5)
     else:
         sc = ax.scatter(results_gotit.T[0], results_gotit.T[1],
-            c='0.75', s=8, lw=0.5, alpha=0.5)
+            c='0.75', s=8, lw=0.1, alpha=0.5)
 
 else:
     results = num.array(results)
@@ -272,6 +272,10 @@ if use_scatter:
         Y = results.T[1]
         Z = results.T[3]
 
+        try:
+            misfit = results.T[2]
+        except IndexError:
+            misfit = None
         try:
             scaling = results.T[4]
         except IndexError:
@@ -301,7 +305,7 @@ if use_scatter:
         vmax = Z.max()
         cb_label = 'angle [deg]'
         
-    sc = ax.scatter(X, Y, c=Z, s=8, lw=0.2, vmin=vmin, vmax=vmax, cmap=cmap, zorder=2)
+    sc = ax.scatter(X, Y, c=Z, s=8, lw=0.1, vmin=vmin, vmax=vmax, cmap=cmap, zorder=2)
     plt.ylim([0, y_max])
     plt.xlim([0, x_max])
     #projected = projected_2quad(num.array([X,Y]).T)
@@ -309,7 +313,7 @@ if use_scatter:
     #              edgecolor='black',
     #              zorder=0)
 
-    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=0.5, ystep=4,  zgrace=grace/1000.)
+    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=0.5, ystep=10,  zgrace=grace/1000.)
     xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
     vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
 
@@ -350,36 +354,9 @@ plt.xlabel(xlabel)
 plt.ylabel(ylabel)
 
 plt.suptitle(suptitle)
-plt.savefig('%s%s.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
-
-if scaling is not None:
-    figscaling = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
-    axscaling = figscaling.add_subplot(111)
-    
-    # Grid data:
-    xg, yg = num.mgrid[X.min():X.max():100j, Y.min():Y.max():100j]
-
-    if not nogrid:
-        vg = griddata((X,Y), scaling, (xg,yg), method='cubic')
-    #blur_image(vg,3)
-    #rbf = Rbf(X,Y,Z, epsilon=2)
-    #vg = rbf(xg, yg)
-
-
-    sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.2, zorder=1,vmin=vmin, vmax=vmax)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.colorbar(sc, label='scaling factor')
-    #plt.colorbar(sc, label='misfit M')
-    plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
-    if not nogrid:
-        plt.contourf(xg,yg,vg, zorder=0)
+#plt.savefig('%s%s.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
 
     
-plt.ylim([0, y_max])
-plt.xlim([0, x_max])
-
-#histfig = plt.figure(figsize=(4,3), dpi=100)
 hax = fig.add_subplot(gs[1])
 if only_failed:
     concat = num.concatenate((results_gotit, results_no))
@@ -410,6 +387,47 @@ formatter = FuncFormatter(to_percent)
 plt.gca().xaxis.set_major_formatter(formatter)
 plt.xlabel('')
 
-plt.savefig('%s%s_his.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+plt.savefig('%s%s.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+
+if misfit is not None:
+    figmisfit = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
+    axmisfit= figmisfit.add_subplot(111)
+    
+    # Grid data:
+    xg, yg = num.mgrid[X.min():X.max():100j, Y.min():Y.max():100j]
+
+    if not nogrid:
+        vg = griddata((X,Y), misfit, (xg,yg), method='cubic')
+
+    sc = axmisfit.scatter(X,Y, c=misfit, s=8, lw=0.1, zorder=1)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.colorbar(sc, label='misfit M')
+    plt.ylim([0, y_max])
+    plt.xlim([0, x_max])
+    plt.savefig('%s%s_misfit.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+    #if not nogrid:
+    #    plt.contourf(xg,yg,vg, zorder=0)
+
+
+if scaling is not None:
+    figscaling = plt.figure(figsize=(4,3), dpi=100) #, frameon=False, tight_layout=True)
+    axscaling = figscaling.add_subplot(111)
+    
+    # Grid data:
+    xg, yg = num.mgrid[X.min():X.max():100j, Y.min():Y.max():100j]
+
+    if not nogrid:
+        vg = griddata((X,Y), scaling, (xg,yg), method='cubic')
+
+    sc = axscaling.scatter(X,Y, c=scaling, s=8, lw=0.1, zorder=1)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.colorbar(sc, label='scaling factor')
+    plt.ylim([0, y_max])
+    plt.xlim([0, x_max])
+    plt.savefig('%s%s_scaling.pdf'%('.'.join(file_name.split('.')[:-1]), typestr), transparent=True, pad_inches=0.01, bbox_inches='tight')
+    #if not nogrid:
+    #    plt.contourf(xg,yg,vg, zorder=0)
 
 plt.show()
