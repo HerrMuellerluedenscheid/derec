@@ -1,4 +1,5 @@
 import re
+import matplotlib
 
 def to_percent(y, position):
     # Ignore the passed in position. This has the effect of scaling the default
