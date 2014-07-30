@@ -1,5 +1,6 @@
 #/usr/bin/python2.7
 import derec.derec_utils as du
+import os
 import sys 
 import matplotlib.pyplot as plt
 import matplotlib
@@ -17,7 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
 from matplotlib.ticker import FuncFormatter
 from matplotlib import gridspec
-from plot_utils import to_percent
+from plot_utils import to_percent, iscastor_dir, isdoctar_dir
 
 font = {'family' : 'normal',
         'size'   : 9}
@@ -156,6 +157,7 @@ def gridded_counter(ax, X,Y,Z,xstep=None, ystep=None, numx=None, numy=None, zgra
     ZC = num.array(Z_centers)
     return XC, YC, ZC
 
+cwd = os.getcwd()
 use_scatter = True
 scatter_type = 'angle_location'
 use_abs = True
@@ -164,16 +166,18 @@ only_failed = False
 xlabel = 'Mislocalization [km]'
 ylabel = 'Misangle [deg]'
 suptitle = ''
-#correct_depth = 2000
-correct_depth = 5000
+if iscastor_dir(cwd):
+    correct_depth = 2000
+if isdoctar_dir(cwd):
+    correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
-x_max = 5
+x_max = 10
 y_max = 90
 isolevel = 66.6
 if correct_depth==2000:
-    vmin = -3
-    vmax = 3
+    vmin = -1
+    vmax = 2
 if correct_depth==5000:
     vmin = -3
     vmax = 4
@@ -289,18 +293,19 @@ if use_scatter:
 
     Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=0.5, ystep=10,  zgrace=grace/1000.)
     xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
-    vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
+    if not nogrid:
+        vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
 
-    ax.contourf(xg,
-                yg,
-                vg,
-                linewidth=2,
-                zorder=0,
-                alpha=0.5, 
-                levels=[isolevel,110],
-                colors=('grey' )) 
-    ax.contour(xg,yg,vg, levels=[isolevel], linewidths=(2), colors=('grey'), 
-              zorder=1)
+        ax.contourf(xg,
+                    yg,
+                    vg,
+                    linewidth=2,
+                    zorder=0,
+                    alpha=0.5, 
+                    levels=[isolevel,110],
+                    colors=('grey' )) 
+        ax.contour(xg,yg,vg, levels=[isolevel], linewidths=(2), colors=('grey'), 
+                  zorder=1)
     # ax.scatter(Xc, Yc, s=Zc, c='b', marker='o')
 
 bounds = num.arange(vmin, vmax+dz, dz)
