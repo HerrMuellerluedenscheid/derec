@@ -52,15 +52,21 @@ store_id_mapping = dict(zip(['doctar_mainland_20Hz',
                     'castor 5']))
 
 
+def check_data_length(tdict):
+    for s,tt in tdict.iteritems():
+        for t, tr in tt.iteritems():
+            if len(tr.ydata)<=64:
+                print 'WARNING: data length of following trace <65 samples %s'%tr
+                return 
 
-def get_cmap(N=255):
+def get_cmap(N=255, gamma=1):
     rgba01 = ((1,0,0), (0,1,0), (0,0,1))
     c_converter = matplotlib.colors.ColorConverter()
     clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
                                                                name='my_cmap',
                                                                N=N,
-                                                               gamma=1.0)
+                                                               gamma=gamma)
     return cmap
 
 def randomize_DCSource(refsource, inplace=False):
