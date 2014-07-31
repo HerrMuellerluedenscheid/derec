@@ -36,7 +36,7 @@ if __name__ ==  "__main__":
 
     selfdir = pjoin(os.getcwd(), __file__.rsplit('/', 1)[0])
     selfdir = selfdir.rsplit('/')[0]
-    
+    num_tests = 1 
     derec_home = os.environ["DEREC_HOME"]
     store_dirs = [pjoin(derec_home, 'fomostos')]
     store_dirs.append(pjoin('/','scratch', 'local1', 'marius', 'doctar_inversion', 'gfdb'))
@@ -51,7 +51,6 @@ if __name__ ==  "__main__":
     num_stations = 10
     dz = 4.8*km
     num_depths = 5
-    num_tests = 1
     
     engine = LocalEngine(store_superdirs=store_dirs)
     test_type = 'doctar'
@@ -88,10 +87,10 @@ if __name__ ==  "__main__":
         targets = filter(lambda x: x.distance_to(_ref_source)<60000., targets)
     
     use_targets = ['L005', 'L007', 'L008', 'L009', 'L003']
-    targets = filter(lambda t: t.codes[1] in use_targets, targets)
+    #targets = filter(lambda t: t.codes[1] in use_targets, targets)
 
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
-    depths = du.drange(1000, 8000, 2000)
+    depths = du.drange(600, 8000, 200)
     #depths = [8000., 5000., 1000.]
     #depths=[_ref_source.depth]
 
@@ -237,20 +236,26 @@ if __name__ ==  "__main__":
             plt.figure()
             op.stack_plot(scaling=test_case.scaling, force_update=True)
             misfit_fig = plt.figure()
-            misfit_ax1 = misfit_fig.add_subplot(212)
+            misfit_ax1 = misfit_fig.add_subplot(111)
             misfit_ax1.set_title('scaled')
-            op.plot_scaled_misfits(ax=misfit_ax1, 
-                                   marker='o', 
-                                   color='b', 
-                                   lw=0)
+            #op.plot_scaled_misfits(ax=misfit_ax1, 
+            #                      marker='o', 
+            #                      color='b', 
+            #                      lw=0)
 
-            misfit_ax2 = misfit_fig.add_subplot(211)
-            misfit_ax2.set_title('un-scaled')
-            op.plot_misfits(ax=misfit_ax2, 
-                            marker='o', 
-                            color='r',
-                           lw=0)
-            plt.show()
+            #misfit_ax2 = misfit_fig.add_subplot(211)
+            #misfit_ax2.set_title('un-scaled')
+            optics.plot_misfit_dict(test_case.misfits, 
+                             mfdict2=test_case.scaled_misfits, 
+                             scaling=test_case.scaling)
+                               #ax=misfit_ax1)
+            fig = plt.gcf()
+            fig.savefig('plain_doctar_misfit.pdf', dpi=300)
+            #op.plot_misfits(ax=misfit_ax2, 
+            #               marker='o', 
+            #              color='r',
+            #              lw=0)
+            #plt.show()
 
 
         pb = pbar(i, num_tests, pb)

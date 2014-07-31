@@ -19,7 +19,7 @@ from copy import copy
 
 font = {'family' : 'normal'}
 matplotlib.rc('font', **font)
-matplotlib.rcParams['font.size'] = 7
+matplotlib.rcParams['font.size'] = 8
 
 
 def update_xy_limits(ax, xmin, xmax, ymin, ymax):
@@ -109,18 +109,18 @@ def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
                        'lw':0})
 
     if not ax:
-        fig = plt.figure()
+        fig = plt.figure(figsize=(4,3))
         ax = fig.add_subplot(111)
 
     if scaling:
-        sc_depths = [s.depth for s in scaling.keys()]
+        sc_depths = [s.depth/1000. for s in scaling.keys()]
         sc_c = scaling.values()
 
     lines = [] 
     depths = []
     values = []
     for s,v in mfdict.items():
-        depths.append(s.depth); values.append(v) 
+        depths.append(s.depth/1000.); values.append(v) 
 
     lns1 = ax.plot(depths, values, label='unscaled', **kwargs)
     lines += lns1
@@ -128,7 +128,7 @@ def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
         depths = []
         values = []
         for s,v in mfdict2.items():
-            depths.append(s.depth); values.append(v) 
+            depths.append(s.depth/1000.); values.append(v) 
 
     lns2 = ax.plot(depths, values, 'ro', label='scaled')
     lines += lns2
@@ -138,13 +138,27 @@ def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
 
     if scaling:
         ax2 = ax.twinx()
-        lns3 = ax2.plot(sc_depths, sc_c, '+', label='scaling factor')
+        lns3 = ax2.plot(sc_depths, sc_c, '+', label='scaling factor', c='g')
         ax2.autoscale()
         ax2.set_ylabel('scaling factor') 
+        ax2.spines['right'].set_color('g')
+        ax2.tick_params(axis='y', colors='g')
         lines += lns3
 
     labs = [l.get_label() for l in lines]
-    plt.legend(lines, labs, loc=0)
+    fig = plt.gcf()
+    #legax = fig.add_axes([0.1,1.,0.8,0.1])
+    plt.legend(lines,
+               labs, 
+               bbox_to_anchor=(0., 1.02, 1., 0.102),
+               loc=3,
+               ncol=3,
+               numpoints=1,
+               fontsize='8',
+               mode='expand',
+               borderaxespad=0.)
+    plt.subplots_adjust(bottom=0.11, 
+                        top=0.82)
     return ax
 
 
