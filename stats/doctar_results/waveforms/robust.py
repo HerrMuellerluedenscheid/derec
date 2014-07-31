@@ -63,14 +63,15 @@ if __name__ ==  "__main__":
 
     if test_type=='doctar':
         stf = [[0.,0.15], [0.,1.]]
-        store_id = 'doctar_mainland_20Hz_200m'
+        #store_id = 'doctar_mainland_20Hz_200m'
+        store_id = 'doctar_crust_20Hz_200m'
         data_base_dir = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01')
         stations_file = 'stations.txt'
         event_file = 'doctar_2011-11-01_quakefile.dat'
 
     elif test_type=='castor':
         stf = [[0.,1.], [0.,1.]]
-        store_id = 'castor'
+        store_id = 'castor_20Hz'
         data_base_dir = pjoin(derec_home, 'mseeds', 'castor')
         stations_file = 'stations.txt'
         event_file = 'castor_event_2013-10-01.dat'
@@ -85,32 +86,31 @@ if __name__ ==  "__main__":
 
     if test_type=='doctar':
         targets = filter(lambda x: x.distance_to(_ref_source)<60000., targets)
-        print targets
-    for t in targets:
-        print t.distance_to(_ref_source), t.codes
+    
+    use_targets = ['L005', 'L007', 'L008', 'L009', 'L003']
+    targets = filter(lambda t: t.codes[1] in use_targets, targets)
 
     #depths = num.linspace(_ref_source.depth-dz, _ref_source.depth+dz, num_depths)
-    depths = du.drange(1000, 8000, 1000)
+    depths = du.drange(1000, 8000, 2000)
     #depths = [8000., 5000., 1000.]
-    print depths
     #depths=[_ref_source.depth]
 
     ref_source_moment_tensor = _ref_source.pyrocko_moment_tensor()
     location_test_sources_lists = du.make_lots_of_test_events(_ref_source, depths, 
             #{'strike':10., 'dip':10., 'rake':10., 'north_shift':3000,
                 #'east_shift': 3000.}, 
-            {'strike':0.001, 'dip':0.001, 'rake':0.001, 'north_shift':1,
-                'east_shift': 1.}, 
+            {('strike', 'dip', 'rake'):0.00001, 
+             ('north_shift', 'east_shift'): 0.00001}, 
             num_tests,
             func='normal') 
     i=0
 
     # setup the misfit setup:
     norm = 2
-    #taper = trace.CosFader(xfrac=0.333) 
-    taper = trace.CosFader(xfade=1.0) 
+    taper = trace.CosFader(xfrac=0.2) 
+    #taper = trace.CosFader(xfade=1.0) 
     
-    z, p, k = butter(4, [0.5*num.pi*2, 5.0*num.pi*2.], 
+    z, p, k = butter(4, [0.5*num.pi*2, 4.0*num.pi*2.], 
                        'band', 
                        analog=True, 
                        output='zpk')
@@ -141,12 +141,13 @@ if __name__ ==  "__main__":
                                    source_time_function=stf,
                                    #number_of_time_shifts=1,
                                    #percentage_of_shift=0.0001,
-                                   number_of_time_shifts=0,
+                                   number_of_time_shifts=31,
                                    percentage_of_shift=0.,
+                                   time_shift=0.3,
                                    phase_ids_start=phase_ids_start,
                                    static_length=3., 
-                                   marker_perc_length=5.0,
-                                   marker_shift_frac=0.3,
+                                   marker_perc_length=0.0,
+                                   marker_shift_frac=0.2,
                                    depths=depths) 
 
     extended_ref_marker, phase_cache = du.chop_ranges(_ref_source, 
@@ -189,15 +190,16 @@ if __name__ ==  "__main__":
         test_case_setup.sources = location_test_sources
 
         test_case = core.TestCase( test_case_setup )
+        test_case.pre_highpass = (4,0.5)
         test_case.phase_cache = phase_cache
         test_case.set_raw_references(reference_seismograms)
 
         test_case.set_reference_markers(extended_ref_marker)
 
-        test_case.process()
+        test_case.process(verbose=verbose)
 
         from pyrocko import io
-        io.save(test_case.candidates.values()[0].values(), 'z2000_cand.mseed')
+        #io.save(test_case.candidates.values()[0].values(), 'z2000_cand.mseed')
 
         best_source, best_misfit = test_case.best_source_misfit()
         angle_diff = best_source.pyrocko_moment_tensor().\
@@ -226,11 +228,28 @@ if __name__ ==  "__main__":
             got_it = 0
 
         if debug:
+            print 'best depth: ', best_source.depth
             op = optics.OpticBase(test_case)
             op.stack_plot()
-            f = plt.gcf()
-            f.savefig('teststack.pdf', pad_inches=0.1, dpi=160,
-                    bbox_inches='tight')
+            fig = plt.gcf()
+            fig.set_size_inches((5, 0.7*len(targets)/3))
+            fig.savefig('plain_doctar.pdf', dpi=300)
+            plt.figure()
+            op.stack_plot(scaling=test_case.scaling, force_update=True)
+            misfit_fig = plt.figure()
+            misfit_ax1 = misfit_fig.add_subplot(212)
+            misfit_ax1.set_title('scaled')
+            op.plot_scaled_misfits(ax=misfit_ax1, 
+                                   marker='o', 
+                                   color='b', 
+                                   lw=0)
+
+            misfit_ax2 = misfit_fig.add_subplot(211)
+            misfit_ax2.set_title('un-scaled')
+            op.plot_misfits(ax=misfit_ax2, 
+                            marker='o', 
+                            color='r',
+                           lw=0)
             plt.show()
 
 
