@@ -413,7 +413,8 @@ class OpticBase():
                 return fig
 
     def stack_plot(self, sources=None, targets=None, depths=None, fig=None,
-            exclude_outliers=True, scaling=None, force_update=False):
+            exclude_outliers=True, scaling=None, force_update=False,
+                   only_candidates=False):
         '''
         '''
         sources = sources if sources else self.sources
@@ -435,6 +436,7 @@ class OpticBase():
         try:
             outlier_depths = [outl.depth for outl in
                 self.data.outliers.keys()]
+
         except AttributeError:
             outlier_depths = []
 
@@ -445,7 +447,7 @@ class OpticBase():
                                                    force_update=force_update)):
 
 
-            pr_cand_line.set_linewidth(1.5)
+            pr_cand_line.set_linewidth(1.)
             if not source.depth in depths:
                 continue
 
@@ -472,59 +474,68 @@ class OpticBase():
             
             pr_cand_line.set_label("%s m"%float(source.depth/1000.))
             c_scale = self.scalez2N(source.depth, len(depths))
-            
 
             pr_cand_line.set_color(cmap(c_scale))
             ax.add_line(pr_cand_line)
-            p = ax.fill_between(x_ref, 0, y_ref, facecolor='grey', alpha=alpha)
+            if not only_candidates:
+                p = ax.fill_between(x_ref, 
+                                    0, 
+                                    y_ref, 
+                                    facecolor='grey', 
+                                    alpha=alpha)
 
-            y_abs_max = max(abs(y_ref))
-            ymin_woffset = -1*y_abs_max-0.1*y_abs_max
-            ymax_woffset = y_abs_max+0.1*y_abs_max
+                y_abs_max = max(abs(y_ref))
 
+                ymin_woffset = -1*y_abs_max-0.1*y_abs_max
+                ymax_woffset = y_abs_max+0.1*y_abs_max
 
-            update_xy_limits(ax,
-                            min(x_ref),
-                            max(x_ref),
-                            ymin_woffset,
-                            ymax_woffset)
+                update_xy_limits(ax,
+                                 min(x_ref),
+                                 max(x_ref),
+                                 ymin_woffset,
+                                 ymax_woffset)
             
-            self.add_taper_plot(ax, 
-                                x_ref,
-                                pr_ref.deltat, 
-                                y_abs_max,
-                                self.misfit_setup.taper)
+                self.add_taper_plot(ax, 
+                                    x_ref,
+                                    pr_ref.deltat, 
+                                    y_abs_max,
+                                    self.misfit_setup.taper)
 
             if fig:
                 ax.set_figure(fig)
 
             axes_dict[t] = ax
 
-        for ax in axes_dict.values(): 
-            set_my_ticks(ax)
+        fig = plt.gcf()
+        fig.set_size_inches((5,0.65*len(targets)/3))
 
+        for ax in axes_dict.values(): 
+            if only_candidates:
+                ax.autoscale()
+            else:
+                set_my_ticks(ax)
+            
         if len(depths)>=2:
             dz = abs(depths[1]-depths[0])/1000.
-            
             sm = plt.cm.ScalarMappable(cmap=cmap)
             sm.set_array([depths])
             sm.set_clim((min(depths)/1000.-0.5*dz, max(depths)/1000.+0.5*dz))
-            fig = plt.gcf()
             fig.subplots_adjust(right=0.90)
-            cbar_ax = fig.add_axes([0.15, 0.05, 0.7, 0.02])
+            cbar_ax = fig.add_axes([0.15, 0.08, 0.7, 0.02])
             cb = fig.colorbar(sm, 
                             cmap=cmap, 
                          cax=cbar_ax,
                          orientation='horizontal')
+
             cb.ax.tick_params(labelsize=8)
             cb.set_ticks(depths/1000.)
-            cb.set_label('Source depth [km]', labelpad=0.1, y=2, x=0, 
-                    verticalalignment='bottom',
-                    horizontalalignment='right',
-                    fontsize=9)
+            cb.set_label('Source depth [km]', labelpad=0.1, 
+                    verticalalignment='top',
+                    horizontalalignment='center',
+                    fontsize=8)
             
         plt.subplots_adjust(left=0.01,
-                           bottom=0.1,
+                           bottom=0.15,
                            right=0.99,
                            top=0.99,
                            wspace=0.05,
@@ -542,11 +553,16 @@ class OpticBase():
         return axes_dict
 
     def add_taper_plot(self, ax, x, dx, ymax, taper):
-        x0 = x[0]
-        ndata = len(x)
-        y = num.ones(ndata)*ymax
-        taper(y=y, x0=x0, dx=dx)
-        ax.plot(x, y, '--', lw=0.5, c='grey')
+        try:
+            if ax.has_taper_plot:
+                return
+        except AttributeError:
+            x0 = x[0]
+            ndata = len(x)
+            y = num.ones(ndata)*ymax
+            taper(y=y, x0=x0, dx=dx)
+            ax.has_taper_plot = True
+            ax.plot(x, y, '--', lw=0.5, c='black')
 
     def plot_misfits(self, ax=None, **kwargs):
         if not ax:
