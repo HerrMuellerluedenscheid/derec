@@ -53,10 +53,13 @@ store_id_mapping = dict(zip(['doctar_mainland_20Hz',
 
 
 
-def get_cmap(N=255):
+def get_cmap(N=255, reverse=False):
     rgba01 = ((1,0,0), (0,1,0), (0,0,1))
     c_converter = matplotlib.colors.ColorConverter()
     clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
+    if reverse:
+        clrs = clrs[::-1]
+
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list(colors=clrs, 
                                                                name='my_cmap',
                                                                N=N,
