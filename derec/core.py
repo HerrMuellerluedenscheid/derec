@@ -647,6 +647,10 @@ class TestCase(Object):
                                 extended_test_marker, 
                                 inplace=False)
 
+        if verbose:
+            du.check_data_length(self.candidates)
+            du.check_data_length(self.references)
+
         if verbose: print('calculating misfits...')
 
         if debug:
