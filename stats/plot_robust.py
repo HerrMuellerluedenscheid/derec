@@ -172,18 +172,22 @@ if isdoctar_dir(cwd):
     correct_depth = 5000
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
-x_max = 10
+x_max = 8
 y_max = 90
 isolevel = 66.6
 if correct_depth==2000:
-    vmin = -1
-    vmax = 2
+    vmin = -3.0
+    vmax = 1.4
+    #vmin = -1
+    #vmax = 1
 if correct_depth==5000:
     vmin = -3
     vmax = 4
 if scatter_type=='depth_location':
     vmin=None
     vmax=None
+
+gamma = num.abs(vmin/vmax)
 dz=0.2
 cmap_jet = matplotlib.cm.get_cmap('jet')
 #cmap = matplotlib.cm.get_cmap('brg')
@@ -213,7 +217,7 @@ print 'max data: ', max_data
 i=1
 zmin = min(num.array(results).T[3])
 zmax = max(num.array(results).T[3])
-cmap = du.get_cmap(N=len(num.array(results).T[0]))
+cmap = du.get_cmap(N=len(num.array(results).T[0])+1, gamma=gamma)
 
 results = results[:max_data]
 
@@ -310,7 +314,10 @@ if use_scatter:
 
 bounds = num.arange(vmin, vmax+dz, dz)
 cticks = num.arange(vmin, vmax+dz, 1)
-cb = plt.colorbar(sc, label=cb_label, boundaries=bounds, pad=0.1,)
+cb = plt.colorbar(sc, 
+                  label=cb_label, 
+                  boundaries=bounds, 
+                  pad=0.1)
 cb.set_ticks(cticks)
 cb.set_label(cb_label, labelpad=-40)
 print 'total number of tests: ', i
