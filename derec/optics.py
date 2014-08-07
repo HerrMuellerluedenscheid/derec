@@ -499,21 +499,24 @@ class OpticBase():
                                     alpha=alpha)
 
                 y_abs_max = max(abs(y_ref))
+            else:
+                y_cand = self.processed_candidates[source][t]
+                y_abs_max = max(abs(y_cand))
 
-                ymin_woffset = -1*y_abs_max-0.1*y_abs_max
-                ymax_woffset = y_abs_max+0.1*y_abs_max
+            ymin_woffset = -1*y_abs_max-0.1*y_abs_max
+            ymax_woffset = y_abs_max+0.1*y_abs_max
 
-                update_xy_limits(ax,
-                                 min(x_ref),
-                                 max(x_ref),
-                                 ymin_woffset,
-                                 ymax_woffset)
+            update_xy_limits(ax,
+                             min(x_ref),
+                             max(x_ref),
+                             ymin_woffset,
+                             ymax_woffset)
             
-                self.add_taper_plot(ax, 
-                                    x_ref,
-                                    pr_ref.deltat, 
-                                    y_abs_max,
-                                    self.misfit_setup.taper)
+            self.add_taper_plot(ax, 
+                                x_ref,
+                                pr_ref.deltat, 
+                                y_abs_max,
+                                self.misfit_setup.taper)
 
             if fig:
                 ax.set_figure(fig)
@@ -524,10 +527,7 @@ class OpticBase():
         fig.set_size_inches((5,0.65*len(targets)/3))
 
         for ax in axes_dict.values(): 
-            if only_candidates:
-                ax.autoscale()
-            else:
-                set_my_ticks(ax)
+            set_my_ticks(ax)
             
         if len(depths)>=2:
             dz = abs(depths[1]-depths[0])/1000.
@@ -562,7 +562,7 @@ class OpticBase():
                                 self.test_case_setup.test_parameter_value))
 
         fig = plt.gcf()
-        fig.set_figwidth(5.)
+        #fig.set_figwidth(5.)
 
         return axes_dict
 
