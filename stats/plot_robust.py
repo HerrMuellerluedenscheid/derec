@@ -176,6 +176,8 @@ if isdoctar_dir(cwd):
     correct_depth = 5000
     counterx = 0.5
     countery = 10
+    x_max = 4
+    y_max = 90
 
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
