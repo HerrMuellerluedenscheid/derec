@@ -109,7 +109,7 @@ def plot_misfit_dict(mfdict, mfdict2=None, scaling=None, ax=None, **kwargs):
                        'lw':0})
 
     if not ax:
-        fig = plt.figure(figsize=(4,3))
+        fig = plt.figure(figsize=(3.5,2.8))
         ax = fig.add_subplot(111)
 
     if scaling:
@@ -440,7 +440,7 @@ class OpticBase():
 
         if not targets:
             targets=self.targets
-        cmap = du.get_cmap(N=len(depths))
+        cmap = du.get_cmap(N=len(depths), reverse=True)
         gs = gridspec.GridSpec(len(targets)/3,3)
         gs_dict = dict(zip(sorted(targets, key=lambda x: \
                 (x.distance_to(sources[0]), x.codes[3])), gs))
