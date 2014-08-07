@@ -595,6 +595,8 @@ def stations2targets(stations, store_id=None, channels=None):
         if got_channels==None:
             channels = s.get_channels()
             channels = [c.name for c in channels]
+            if channels == []:
+                channels = 'NEZ'
         else:
             channels = got_channels
 
