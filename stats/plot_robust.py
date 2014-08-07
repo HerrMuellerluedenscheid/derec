@@ -168,12 +168,17 @@ ylabel = 'Misangle [deg]'
 suptitle = ''
 if iscastor_dir(cwd):
     correct_depth = 2000
+    counterx = 0.8
+    countery = 10
+    x_max = 6
+    y_max = 90
 if isdoctar_dir(cwd):
     correct_depth = 5000
+    counterx = 0.5
+    countery = 10
+
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
-x_max = 8
-y_max = 90
 isolevel = 66.6
 if correct_depth==2000:
     vmin = -3.0
@@ -295,7 +300,7 @@ if use_scatter:
                                  ystep=4,  
                                  zgrace=grace/1000.)
 
-    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=0.5, ystep=10,  zgrace=grace/1000.)
+    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=counterx, ystep=countery,  zgrace=grace/1000.)
     xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
     if not nogrid:
         vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
