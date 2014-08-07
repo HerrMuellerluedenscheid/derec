@@ -56,8 +56,7 @@ def check_data_length(tdict):
     for s,tt in tdict.iteritems():
         for t, tr in tt.iteritems():
             if len(tr.ydata)<=64:
-                print 'WARNING: found data length with N<65 samples'
-                return 
+                print 'WARNING: found data length with N<65 samples in trace %s'%tr
 
 
 def get_cmap(N=255, gamma=1, reverse=False):
@@ -748,7 +747,7 @@ def set_randomized_values(source_list, ranges, func='uniform', isfirst=False):
                 orig_val = getattr(source, k)
                 orig_val += val*fracs[i]*pre
                 setattr(source, k, orig_val)
-                #source_check(source)
+                source_check(source)
 
 def source_check(s):
     s.strike = s.strike%360.
