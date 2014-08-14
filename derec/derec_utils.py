@@ -51,6 +51,19 @@ store_id_mapping = dict(zip(['doctar_mainland_20Hz',
                     'castor 4',
                     'castor 5']))
 
+def invert_DC(dc_source, inplace=False):
+    mt = dc_source.pyrocko_moment_tensor()
+    mtm = mt.m()
+    print mtm
+    mtm *= num.matrix([[-1.,0.,0.],[0.,-1.,0.],[0.,0.,-1.]], num.float)
+    print mtm
+    mt = moment_tensor.MomentTensor(mtm)
+    print mt
+    mt_sdr = mt.both_strike_dip_rake()[0]
+    if inplace:
+        dc_source.strike, dc_source.dip, dc_source.rake = mt_sdr
+    else:
+        return DCSource(**mt_sdr)
 
 def check_data_length(tdict):
     for s,tt in tdict.iteritems():
