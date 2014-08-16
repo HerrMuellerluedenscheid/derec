@@ -74,6 +74,7 @@ class Derec(Snuffling):
         self.add_parameter(Param('Lowpass [Hz]', 'lowpass',\
                 6., 1., 100.))
         self.add_parameter(Switch('Pre-filter with Main filter', 'pre_filter', False))
+        self.add_parameter(Switch('Verbose mode', 'verbose', False))
         self.add_trigger('Load \n Setup', self.load_setup) 
         self.add_trigger('Generate \n Markers', self.generate_markers) 
         self.add_trigger('Add \nStore', self.add_store_dir)
@@ -175,7 +176,7 @@ class Derec(Snuffling):
         test_case.set_reference_markers(self.ref_markers_dict)
         test_case.phase_cache = self.phase_cache
         
-        test_case.process(verbose=False)
+        test_case.process(verbose=self.verbose)
         test_case.validate()
         ob = optics.OpticBase(test_case)
         fig = plt.figure()
