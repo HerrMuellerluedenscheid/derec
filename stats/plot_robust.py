@@ -181,6 +181,7 @@ if isdoctar_dir(cwd):
 
 print 'CORRECT DEPTH_________________ ', correct_depth
 grace = 200
+graces = [0.2, 0.4]
 isolevel = 66.6
 if correct_depth==2000:
     vmin = -3.0
@@ -302,21 +303,23 @@ if use_scatter:
                                  ystep=4,  
                                  zgrace=grace/1000.)
 
-    Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=counterx, ystep=countery,  zgrace=grace/1000.)
-    xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
-    if not nogrid:
-        vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
+    for zgrace in graces:
+        Xc, Yc, Zc = gridded_counter(ax, X, Y, Z, xstep=counterx, ystep=countery,
+                                     zgrace=zgrace)
+        xg, yg = num.mgrid[Xc.min():Xc.max():50j, Yc.min():Yc.max():50j]
+        if not nogrid:
+            vg = griddata((Xc,Yc), Zc, (xg,yg), method='cubic')
 
-        ax.contourf(xg,
-                    yg,
-                    vg,
-                    linewidth=2,
-                    zorder=0,
-                    alpha=0.5, 
-                    levels=[isolevel,110],
-                    colors=('grey' )) 
-        ax.contour(xg,yg,vg, levels=[isolevel], linewidths=(2), colors=('grey'), 
-                  zorder=1)
+            ax.contourf(xg,
+                        yg,
+                        vg,
+                        linewidth=2,
+                        zorder=0,
+                        alpha=0.5, 
+                        levels=[isolevel,110],
+                        colors=('grey' )) 
+            ax.contour(xg,yg,vg, levels=[isolevel], linewidths=(2), colors=('grey'), 
+                      zorder=1)
     # ax.scatter(Xc, Yc, s=Zc, c='b', marker='o')
 
 bounds = num.arange(vmin, vmax+dz, dz)

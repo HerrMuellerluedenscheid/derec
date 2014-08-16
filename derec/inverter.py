@@ -56,9 +56,8 @@ class Inverter(object):
     def get_results_unformatted(self):
         outstr = ''
         for mf,s in self.best_steps:
-            outstr += '%s %s %s %s \n'%(mf, s.strike, s.dip, s.rake)
+            outstr += '%s %s %s %s %s\n'%(mf, s.strike, s.dip, s.rake, s.depth)
         return outstr
-
 
     def print_results(self):
         print self.get_result_str()
@@ -118,7 +117,6 @@ class FocusMonteCarlo(Inverter):
             location_test_sources_lists = self.get_test_sources_lists(i)
             cases = self.setup_cases(location_test_sources_lists)
             map(self.run_step, cases, n=nworkers)
-            time.sleep(0.1)
             self.evaluate_last(cases)
 
     def evaluate_last(self, cases):
