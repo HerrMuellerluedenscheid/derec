@@ -501,7 +501,7 @@ class OpticBase():
                 y_abs_max = max(abs(y_ref))
             else:
                 y_cand = self.processed_candidates[source][t]
-                y_abs_max = max(abs(y_cand))
+                y_abs_max = max(abs(y_cand.get_ydata()))
 
             ymin_woffset = -1*y_abs_max-0.1*y_abs_max
             ymax_woffset = y_abs_max+0.1*y_abs_max
@@ -535,7 +535,7 @@ class OpticBase():
             sm.set_array([depths])
             sm.set_clim((min(depths)/1000.-0.5*dz, max(depths)/1000.+0.5*dz))
             fig.subplots_adjust(right=0.90)
-            cbar_ax = fig.add_axes([0.15, 0.08, 0.7, 0.02])
+            cbar_ax = fig.add_axes([0.1, 0.08, 0.8, 0.02])
             cb = fig.colorbar(sm, 
                             cmap=cmap, 
                          cax=cbar_ax,
