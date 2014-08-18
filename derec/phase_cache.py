@@ -8,7 +8,13 @@ def cake_first_arrival(distance, depth, model, phase_ids=None):
     """
     Get very first arrival of *phases*. 
     """
-    phases = map(cake.PhaseDef, phase_ids)
+    phases = []
+    for pid in phase_ids:
+        try:
+            phases.append(cake.PhaseDef(pid))
+        except cake.PhaseDefParseError:
+            continue
+
     arrivals = model.arrivals(distances=[distance*cake.m2d], 
                             phases=phases,
                             zstart=depth)
