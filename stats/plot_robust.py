@@ -195,7 +195,6 @@ if scatter_type=='depth_location':
     vmin=None
     vmax=None
 
-gamma = num.abs(vmin/vmax)
 dz=0.2
 cmap_jet = matplotlib.cm.get_cmap('jet')
 #cmap = matplotlib.cm.get_cmap('brg')
@@ -211,6 +210,8 @@ print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
 target_depth = None
+target_zmin = None
+target_zmax = None
 if len(sys.argv)>2:
     target_depth = sys.argv[2]
     target_zmin = sys.argv[3]
@@ -237,6 +238,7 @@ if target_zmin:
     vmin = float(target_zmin)
 if target_zmax:
     vmax = float(target_zmax )
+gamma = num.abs(vmin/vmax)
 cmap = du.get_cmap(N=len(num.array(results).T[0])+1, gamma=gamma)
 
 results = results[:max_data]
