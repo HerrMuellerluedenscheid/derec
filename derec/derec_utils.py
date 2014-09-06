@@ -144,7 +144,15 @@ def make_traces_dict(source, targets, traces):
     """
     targets_traces= {}
     for tr in traces:
-        tar = filter(lambda x: x.codes==tr.nslc_id, targets)
+        comp_id = tr.nslc_id
+        if len(comp_id[-1])>1:
+            comp_id_tmp = '.'.join(comp_id[:3])
+            comp_str = comp_id_tmp+ '*' + comp_id[-1][-1]
+        else:
+            comp_str = '.'.join(comp_id)
+
+        #tar = filter(lambda x: x.codes==tr.nslc_id, targets)
+        tar = filter(lambda x: util.match_nslc(comp_str, x.codes), targets)
         if len(tar)==0:
             continue
         assert len(tar)==1
@@ -172,7 +180,11 @@ def get_phase_alignment(ref, can):
     for s,t,mtmin in iter_dict(can):
         try:
             #shift = (dref_targets[t].tmin-t_ref_source)-mtmin
-            shift = (dref_targets[t].tmin)-mtmin
+            try:
+                shift = (dref_targets[t].tmin)-mtmin
+            except KeyError:
+                shift = None
+
         except TypeError:
             try:
                 shift =\
@@ -187,7 +199,11 @@ def get_phase_alignment(ref, can):
 
 def align(alignment, unaligned, static_shift=0.):
     for s,t,ali in iter_dict(alignment):
-        ali += static_shift
+        try:
+            ali += static_shift
+        except TypeError:
+            continue
+            
         if isinstance(unaligned[s][t], trace.Trace):
             unaligned[s][t].shift(ali)
         else:
@@ -490,7 +506,10 @@ def calculate_misfit(test_case, verbose=False, nocache=False):
         r_data = []
         
         for ti, target in enumerate(targets):
-            reft = references.values()[0][target]
+            try:
+                reft = references.values()[0][target]
+            except KeyError:
+                continue
             M_tmp = 999.
 
             shifted_candidates = test_case.make_shifted_candidates(source,
