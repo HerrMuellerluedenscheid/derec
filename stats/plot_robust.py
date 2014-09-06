@@ -170,7 +170,7 @@ if iscastor_dir(cwd):
     correct_depth = 2000
     counterx = 0.8
     countery = 10
-    x_max = 6
+    x_max = 7.5
     y_max = 90
 if isdoctar_dir(cwd):
     correct_depth = 5000
@@ -369,7 +369,7 @@ his = hax.hist(concat.T[3],
          align='mid')
          
 xmin, xmax = hax.get_xlim()
-hax.set_xticks(num.arange(0,xmax%1,0.1))
+hax.set_xticks(num.arange(0,xmax%1,0.05))
 hax.set_yticks(cticks)
 hax.set_yticklabels([])
 hax.set_ylim(vmin, vmax)
