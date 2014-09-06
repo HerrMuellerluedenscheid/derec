@@ -179,7 +179,7 @@ if isdoctar_dir(cwd):
     x_max = 4
     y_max = 90
 
-print 'CORRECT DEPTH_________________ ', correct_depth
+
 grace = 200
 graces = [0.2, 0.4]
 isolevel = 66.6
@@ -210,6 +210,16 @@ clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
 print 'VMIN VMAX____________________', vmin, vmax
 
 file_name = sys.argv[1]
+target_depth = None
+if len(sys.argv)>2:
+    target_depth = sys.argv[2]
+    target_zmin = sys.argv[3]
+    target_zmax = sys.argv[4]
+
+if target_depth:
+    correct_depth = float(target_depth)
+
+print 'CORRECT DEPTH_________________ ', correct_depth
 
 f = open(file_name, 'r')
 results = []
@@ -223,8 +233,10 @@ ax = fig.add_subplot(gs[0])
 max_data = 2000
 print 'max data: ', max_data
 i=1
-zmin = min(num.array(results).T[3])
-zmax = max(num.array(results).T[3])
+if target_zmin:
+    vmin = float(target_zmin)
+if target_zmax:
+    vmax = float(target_zmax )
 cmap = du.get_cmap(N=len(num.array(results).T[0])+1, gamma=gamma)
 
 results = results[:max_data]
