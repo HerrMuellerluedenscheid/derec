@@ -15,8 +15,8 @@ def to_percent(y, position):
 def isplain_dir(dirstr):
     return re.match('.*plain.*', dirstr)!=None
 def iscastor_dir(dirstr):
-    return re.match('.*castor.*', dirstr)!=None
+    return re.match('.*castor_results.*', dirstr)!=None
 
 def isdoctar_dir(dirstr):
-    return re.match('.*doctar.*', dirstr)!=None
+    return re.match('.*doctar_results.*', dirstr)!=None
 
