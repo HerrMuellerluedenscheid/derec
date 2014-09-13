@@ -1,0 +1,27 @@
+--- !derec.yaml_derec.TestCaseSetup
+tagname: TestCaseSetup
+engine: !pyrocko.gf.seismosizer.LocalEngine
+  store_superdirs: [/home/zmaw/u254061/Programming/derec/fomostos, /scratch/local1/marius/doctar_inversion/gfdb,
+    /scratch/local1/marius]
+depths: [600.0, 800.0, 1000.0, 1200.0, 1400.0, 1600.0, 1800.0, 2000.0, 2200.0, 2400.0,
+  2600.0, 2800.0, 3000.0, 3200.0, 3400.0, 3600.0, 3800.0, 4000.0, 4200.0, 4400.0,
+  4600.0, 4800.0, 5000.0]
+misfit_setup: !pyrocko.trace.MisfitSetup
+  norm: 2
+  taper: !pyrocko.trace.CosFader
+    xfrac: 0.3
+  filter: !pyrocko.trace.PoleZeroResponse
+    zeros: [0j, 0j]
+    poles: [(-16.884132933912511+17.794238987026951j), (-16.8841329339125-17.794238987026944j),
+      (-0.44311052490511621+0.4669955282093044j), (-0.44311052490511627-0.46699552820930457j)]
+    constant: (600.46673176227648+0j)
+  domain: time_domain
+source_time_function:
+- [0.0, 0.6]
+- [0.0, 1.0]
+number_of_time_shifts: 41 
+percentage_of_shift: 20.0
+phase_ids_start: [p, P, begin]
+static_length: 8.0
+marker_perc_length: 20.0
+marker_shift_frac: 0.3
