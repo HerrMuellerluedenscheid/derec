@@ -18,8 +18,8 @@ if __name__ ==  "__main__":
 
     use_markers = True  
     use_cake = True
-    test_type  = 'doctar'
-    invert =False 
+    test_type  = 'castor'
+    invert =False
 
     selfdir = pjoin(os.getcwd(), __file__.rsplit('/', 1)[0])
     selfdir = selfdir.rsplit('/')[0]
@@ -41,21 +41,16 @@ if __name__ ==  "__main__":
     engine = LocalEngine(store_superdirs=store_dirs)
  
 
-    print 'WATCH OUT! THE STORE ID HAS TO BE CHANGED!'
     if test_type == 'castor':
-        store_id = 'castor'
+        store_id = 'castor_20Hz'
         stations = model.load_stations(pjoin(derec_home, 'mseeds', 'castor',
                         'stations.txt'))
         event = model.Event(load=pjoin(derec_home, 'mseeds', 'castor',
                         'castor_event_2013-10-01.dat'))
-        files = pjoin(derec_home, 'mseeds', 'castor', '2013-10-01T03-32-45',
-                                                      'displacement2.mseed')
-        test_case_setup = guts.load(filename=pjoin(derec_home, 
-                                                    'stats', 
-                                                    'castor_results', 
-                                                    'last_stage',
-                                                    'crust',
-                                                    'castor_standard.yaml')) 
+        files = [pjoin(derec_home, 'mseeds', 'castor', '2013-10-01T03-32-45',
+                                                      'displacement2.mseed')]
+        #test_case_setup = guts.load(filename=derec_home+'/stats/castor_results/castor_standard.yaml') 
+        test_case_setup = guts.load(filename=derec_home+'/stats/castor_results/castor_mod.yaml') 
         depths=num.arange(1000., 5200.,200.)
 
         if use_markers:
@@ -84,30 +79,30 @@ if __name__ ==  "__main__":
             marker_fn = pjoin(derec_home, 'mseeds', 'doctar', 'doctar_2011-11-01',
                               'doctar_markers_111101.txt')
             markers = gui_util.Marker.load_markers(marker_fn)
-        
 
     traces = [io.load(f) for f in files]
     traces = du.flatten_list(traces)
 
-    print 'highpassing traces'
     #map(lambda x: x.highpass(2, 0.05), traces)
-    map(lambda x: x.highpass(2, 0.5), traces)
+    if test_type=='doctar':
+        print 'highpassing traces'
+        map(lambda x: x.highpass(2, 0.5), traces)
+    else:
+        print 'highpassing traces'
+        map(lambda x: x.highpass(4, 0.1), traces)
 
+    print 'event magnitude: ', event.magnitude
 
     targets = du.stations2targets(stations, store_id )
     ref_source = DCSource.from_pyrocko_event(event)
-
+    print 'ref source magnitude: ', ref_source.magnitude
+    ref_source.magnitude*=0.5
     model = du.get_earthmodel_from_engine(engine, store_id) 
-
     print 'using depths %s'%depths
 
     # Das kann mit als Funktion in TestCaseSetup...
     location_test_sources = du.test_event_generator(ref_source, depths)
     map(lambda x: x.regularize(), location_test_sources)
-
-    rise_time=0.4
-    print 'using rise time %s' %rise_time
-    stf = [[0.,rise_time],[0.,1.]]
 
     print ' NACHSCHAUEN OB DAS WIRKLICH DAS RICHTIGE CASTOR STANDARD FILE IST!'
     test_case_setup.targets = targets
@@ -115,12 +110,14 @@ if __name__ ==  "__main__":
     test_case_setup.reference_source = ref_source
     test_case_setup.store_id = store_id
     test_case_setup.validate()
+    test_case_setup.sources = location_test_sources
     reference_seismograms = du.make_traces_dict(ref_source, test_case_setup.targets, traces)
     targets = reference_seismograms.values()[0].keys()
     
     test_case = TestCase( test_case_setup )
     test_case.individual_scaling = False
-    #test_case.blacklist = (('Y7','L004','','HHN'),)
+    test_case.scaling_factors = num.arange(0.1, 4., 0.1)
+    test_case.blacklist = (('Y7','L004','','HHN'),('ES','EMOS','','N'))
 
     test_case.set_raw_references(reference_seismograms)
 
@@ -163,6 +160,8 @@ if __name__ ==  "__main__":
                      scaling=test_case.scaling)
     plt.figure()
     ob.stack_plot()
-    ob.plot_misfits()
+    plt.figure()
+    ob.stack_plot(scaling=test_case.scaling, force_update=True)
+    #ob.plot_misfits()
     plt.show()
     
