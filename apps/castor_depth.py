@@ -38,11 +38,12 @@ if __name__ ==  "__main__":
                                 'scratch',
                                 'local1',
                                 'marius'))
+    store_dirs.append('/data/share/u253/doctar/gfdb_stores')
     engine = LocalEngine(store_superdirs=store_dirs)
  
 
     if test_type == 'castor':
-        store_id = 'castor_20Hz'
+        store_id = 'castor_20Hz_deep'
         stations = model.load_stations(pjoin(derec_home, 'mseeds', 'castor',
                         'stations.txt'))
         event = model.Event(load=pjoin(derec_home, 'mseeds', 'castor',
@@ -70,8 +71,8 @@ if __name__ ==  "__main__":
         files = glob.glob(pjoin(data_base_dir, 'restituted')+'/*')
         event = model.Event(load=pjoin(data_base_dir, 
                                        'doctar_2011-11-01_quakefile.dat'))
-        test_case_setup = guts.load(filename=pjoin(
-            '/Users/marius/prog/derec/stats/doctar_results/crust/random_mts'+\
+        test_case_setup = guts.load(filename=pjoin(derec_home, 
+            'stats/doctar_results/crust/random_mts'+\
                                                     '/doctar_standard.yaml')) 
         depths=num.arange(1000., 8200.,200.)
         if use_markers:
@@ -96,7 +97,8 @@ if __name__ ==  "__main__":
     targets = du.stations2targets(stations, store_id )
     ref_source = DCSource.from_pyrocko_event(event)
     print 'ref source magnitude: ', ref_source.magnitude
-    ref_source.magnitude*=0.5
+    if test_type=='castor':
+        ref_source.magnitude*=0.5
     model = du.get_earthmodel_from_engine(engine, store_id) 
     print 'using depths %s'%depths
 
@@ -138,7 +140,7 @@ if __name__ ==  "__main__":
     test_case.set_reference_markers(extended_ref_marker)
 
     if not invert:
-        test_case.process(verbose=True, debug=False)
+        test_case.process(verbose=True, debug=False, use_cake=use_cake)
     if invert:
         print 'REDUCING NUMBER OF DEPTHS'
         test_case.test_case_setup.depths = [2000.,5000.,7000.,]
