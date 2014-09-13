@@ -72,8 +72,9 @@ def check_data_length(tdict):
                 print 'WARNING: found data length with N<65 samples in trace %s'%tr
 
 
-def get_cmap(N=255, gamma=1, reverse=False):
-    rgba01 = ((1,0,0), (0,1,0), (0,0,1))
+def get_cmap(N=255, gamma=1, reverse=False, rgba01=None):
+    if not rgba01:
+        rgba01 = ((1,0,0), (0,1,0), (0,0,1))
     c_converter = matplotlib.colors.ColorConverter()
     clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
     if reverse:
