@@ -1,0 +1,691 @@
+--- !derec.yaml_derec.TestCaseSetup
+tagname: TestCaseSetup
+reference_source: !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  depth: 5000.0
+  name: '''Doctar'''
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 57.99996810037366
+  dip: 55.99998511668447
+  rake: 122.99997079104091
+sources:
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 1000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 1200.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 1400.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 1600.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 1800.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 2000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 2200.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 2400.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 2600.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 2800.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 3000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 3200.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 3400.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 3600.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 3800.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 4000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 4200.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 4400.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 4600.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 4800.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 5000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 5200.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 5400.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 5600.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 5800.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 6000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 6200.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 6400.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 6600.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 6800.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 7000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 7200.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 7400.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 7600.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 7800.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+- !pyrocko.gf.seismosizer.DCSource
+  lat: 38.864
+  lon: -8.238
+  north_shift: 332.9658066235138
+  east_shift: -1597.4051899318733
+  depth: 8000.0
+  time: 2011-11-01 18:23:42
+  magnitude: 1.9999999723083572
+  strike: 63.51973478225525
+  dip: 50.4317707190592
+  rake: 128.19598490493766
+targets:
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.87984
+  lon: -7.96226
+  depth: 0.0
+  codes: [Y7, L001, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.87984
+  lon: -7.96226
+  depth: 0.0
+  codes: [Y7, L001, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.87984
+  lon: -7.96226
+  depth: 0.0
+  codes: [Y7, L001, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.83255
+  lon: -8.07663
+  depth: 0.0
+  codes: [Y7, L002, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.83255
+  lon: -8.07663
+  depth: 0.0
+  codes: [Y7, L002, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.83255
+  lon: -8.07663
+  depth: 0.0
+  codes: [Y7, L002, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.70053
+  lon: -8.19153
+  depth: 0.0
+  codes: [Y7, L003, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.70053
+  lon: -8.19153
+  depth: 0.0
+  codes: [Y7, L003, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.70053
+  lon: -8.19153
+  depth: 0.0
+  codes: [Y7, L003, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.97579
+  lon: -8.20962
+  depth: 0.0
+  codes: [Y7, L004, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.97579
+  lon: -8.20962
+  depth: 0.0
+  codes: [Y7, L004, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.97579
+  lon: -8.20962
+  depth: 0.0
+  codes: [Y7, L004, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.79668
+  lon: -7.96925
+  depth: 0.0
+  codes: [Y7, L005, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.79668
+  lon: -7.96925
+  depth: 0.0
+  codes: [Y7, L005, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.79668
+  lon: -7.96925
+  depth: 0.0
+  codes: [Y7, L005, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.95233
+  lon: -7.87452
+  depth: 0.0
+  codes: [Y7, L006, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.95233
+  lon: -7.87452
+  depth: 0.0
+  codes: [Y7, L006, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.95233
+  lon: -7.87452
+  depth: 0.0
+  codes: [Y7, L006, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.99345
+  lon: -7.67249
+  depth: 0.0
+  codes: [Y7, L007, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.99345
+  lon: -7.67249
+  depth: 0.0
+  codes: [Y7, L007, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.99345
+  lon: -7.67249
+  depth: 0.0
+  codes: [Y7, L007, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.68375
+  lon: -7.89801
+  depth: 0.0
+  codes: [Y7, L008, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.68375
+  lon: -7.89801
+  depth: 0.0
+  codes: [Y7, L008, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.68375
+  lon: -7.89801
+  depth: 0.0
+  codes: [Y7, L008, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.75314
+  lon: -8.35979
+  depth: 0.0
+  codes: [Y7, L009, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.75314
+  lon: -8.35979
+  depth: 0.0
+  codes: [Y7, L009, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.75314
+  lon: -8.35979
+  depth: 0.0
+  codes: [Y7, L009, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.66282
+  lon: -7.70761
+  depth: 0.0
+  codes: [Y7, L010, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.66282
+  lon: -7.70761
+  depth: 0.0
+  codes: [Y7, L010, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.66282
+  lon: -7.70761
+  depth: 0.0
+  codes: [Y7, L010, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.06351
+  lon: -8.05425
+  depth: 0.0
+  codes: [Y7, L011, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.06351
+  lon: -8.05425
+  depth: 0.0
+  codes: [Y7, L011, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 39.06351
+  lon: -8.05425
+  depth: 0.0
+  codes: [Y7, L011, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.74976
+  lon: -8.06516
+  depth: 0.0
+  codes: [Y7, L012, '', N]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.74976
+  lon: -8.06516
+  depth: 0.0
+  codes: [Y7, L012, '', E]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+- !pyrocko.gf.seismosizer.Target
+  lat: 38.74976
+  lon: -8.06516
+  depth: 0.0
+  codes: [Y7, L012, '', Z]
+  elevation: 0.0
+  store_id: doctar_crust_20Hz_200m
+engine: !pyrocko.gf.seismosizer.LocalEngine
+  store_superdirs: [/Users/marius/prog/derec/fomostos, /scratch/local1/marius/doctar_inversion/gfdb,
+    /scratch/local1/marius]
+store_id: doctar_crust_20Hz_200m
+depths: [1000.0, 1200.0, 1400.0, 1600.0, 1800.0, 2000.0, 2200.0, 2400.0, 2600.0, 2800.0,
+  3000.0, 3200.0, 3400.0, 3600.0, 3800.0, 4000.0, 4200.0, 4400.0, 4600.0, 4800.0,
+  5000.0, 5200.0, 5400.0, 5600.0, 5800.0, 6000.0, 6200.0, 6400.0, 6600.0, 6800.0,
+  7000.0, 7200.0, 7400.0, 7600.0, 7800.0, 8000.0]
+misfit_setup: !pyrocko.trace.MisfitSetup
+  norm: 2
+  taper: !pyrocko.trace.CosFader
+    xfade: 1.0
+  filter: !pyrocko.trace.PoleZeroResponse
+    zeros: [0j, 0j, 0j, 0j]
+    poles: [(-7.44005128776929+23.38338146335331j), (-7.440051287769272-23.383381463353253j),
+      (-16.951033561183063+10.500922884294328j), (-16.95103356118309-10.500922884294326j),
+      (-0.975596930611574+3.066209398377261j), (-3.366138503792964+2.0852746659134587j),
+      (-3.3661385037929636-2.0852746659134644j), (-0.9755969306115757-3.066209398377263j)]
+    constant: (233879.22757263982+0j)
+  domain: time_domain
+source_time_function:
+- [0.0, 0.15]
+- [0.0, 1.0]
+number_of_time_shifts: 31
+time_shift: 0.1
+phase_ids_start: [p, P, pP]
+static_length: 4.0
+marker_perc_length: 5.0
+marker_shift_frac: 0.4
