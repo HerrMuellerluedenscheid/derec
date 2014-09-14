@@ -52,7 +52,7 @@ if __name__ ==  "__main__":
                                                       'displacement2.mseed')]
         #test_case_setup = guts.load(filename=derec_home+'/stats/castor_results/castor_standard.yaml') 
         test_case_setup = guts.load(filename=derec_home+'/stats/castor_results/castor_mod.yaml') 
-        depths=num.arange(1000., 5200.,200.)
+        depths=num.arange(1000., 5000.,200.)
 
         if use_markers:
             marker_fn = pjoin(derec_home, 
@@ -98,7 +98,7 @@ if __name__ ==  "__main__":
     ref_source = DCSource.from_pyrocko_event(event)
     print 'ref source magnitude: ', ref_source.magnitude
     if test_type=='castor':
-        ref_source.magnitude*=0.5
+        ref_source.magnitude*=0.6
     model = du.get_earthmodel_from_engine(engine, store_id) 
     print 'using depths %s'%depths
 
@@ -106,12 +106,38 @@ if __name__ ==  "__main__":
     location_test_sources = du.test_event_generator(ref_source, depths)
     map(lambda x: x.regularize(), location_test_sources)
 
+    norm = 2
+    taper = trace.CosFader(xfrac=0.333)
+    #taper = trace.CosFader(xfade=3.0) 
+
+    z, p, k = butter(2, [0.05*num.pi*2, 3.0*num.pi*2.],
+                       'band',
+                       analog=True,
+                       output='zpk')
+
+    z = map(complex, z)
+    p = map(complex, p)
+    k = complex(k)
+
+    fresponse = trace.PoleZeroResponse(z,p,k)
+    fresponse.validate()
+
+    misfit_setup = trace.MisfitSetup(norm=norm,
+                                     taper=taper,
+                                     domain='time_domain',
+                                     filter=fresponse)
+    
+    
     print ' NACHSCHAUEN OB DAS WIRKLICH DAS RICHTIGE CASTOR STANDARD FILE IST!'
     test_case_setup.targets = targets
     test_case_setup.engine = engine
     test_case_setup.reference_source = ref_source
     test_case_setup.store_id = store_id
+    #test_case_setup.number_of_time_shifts = 0
+    test_case_setup.percentage_of_shift= 5.
     test_case_setup.validate()
+    test_case_setup.misfit_setup = misfit_setup
+    print 'MISFIT SETUP AUSGETAUSCHT !!!!'
     test_case_setup.sources = location_test_sources
     reference_seismograms = du.make_traces_dict(ref_source, test_case_setup.targets, traces)
     targets = reference_seismograms.values()[0].keys()
