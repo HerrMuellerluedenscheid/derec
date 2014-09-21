@@ -33,19 +33,19 @@ if __name__ ==  "__main__":
                                 'doctar_inversion',
                                 'gfdb'))
 
-    if not socket.gethostname()=='Mariuss-MacBook.local':
+    if not socket.gethostname() in ('Mariuss-MacBook.local', 'M.local'):
         store_dirs.append(pjoin('/',
                                 'scratch',
                                 'local1',
                                 'marius'))
-    store_dirs.append('/data/share/u253/doctar/gfdb_stores')
+        store_dirs.append('/data/share/u253/doctar/gfdb_stores')
     engine = LocalEngine(store_superdirs=store_dirs)
  
 
     if test_type == 'castor':
-        store_id = 'castor_20Hz_deep'
+        store_id = 'castor_20Hz'
         stations = model.load_stations(pjoin(derec_home, 'mseeds', 'castor',
-                        'stations.txt'))
+                        'stations_selection.txt'))
         event = model.Event(load=pjoin(derec_home, 'mseeds', 'castor',
                         'castor_event_2013-10-01.dat'))
         files = [pjoin(derec_home, 'mseeds', 'castor', '2013-10-01T03-32-45',
@@ -98,7 +98,7 @@ if __name__ ==  "__main__":
     ref_source = DCSource.from_pyrocko_event(event)
     print 'ref source magnitude: ', ref_source.magnitude
     if test_type=='castor':
-        ref_source.magnitude*=0.6
+        ref_source.magnitude*=0.65
     model = du.get_earthmodel_from_engine(engine, store_id) 
     print 'using depths %s'%depths
 
@@ -143,7 +143,7 @@ if __name__ ==  "__main__":
     targets = reference_seismograms.values()[0].keys()
     
     test_case = TestCase( test_case_setup )
-    test_case.individual_scaling = False
+    test_case.individual_scaling = True
     test_case.scaling_factors = num.arange(0.1, 4., 0.1)
     test_case.blacklist = (('Y7','L004','','HHN'),('ES','EMOS','','N'))
 
