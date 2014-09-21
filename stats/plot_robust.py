@@ -123,10 +123,12 @@ def gridded_counter(ax, X,Y,Z,xstep=None, ystep=None, numx=None, numy=None, zgra
         xstep = x_vals[1]
         ystep = y_vals[1]
 
-    while x_low<xmax-xstep:
+    while x_low<=xmax-xstep:
         x_up = x_low+xstep
         if x_low==xmin:
             x_center = xmin
+        elif x_low==xmax-xstep:
+            x_center=xmax
         else:
             x_center = x_low+(x_up-x_low)/2.
         y_low = 0
@@ -238,8 +240,22 @@ if target_zmin:
     vmin = float(target_zmin)
 if target_zmax:
     vmax = float(target_zmax )
-gamma = num.abs(vmin/vmax)
-cmap = du.get_cmap(N=len(num.array(results).T[0])+1, gamma=gamma)
+
+rgba01 = None
+try:
+    gamma = num.abs(vmin/vmax)
+except ZeroDivisionError:
+    gamma = 5.
+    rgba01 = ((1,0,0), (0,1,0))
+if gamma==0:
+    gamma=1
+    rgba01 = ((0,1,0), (0,0,1))
+print gamma
+gamma = 0.55
+#gamma *= 1.5
+#gamma = 0.5
+#print 'CHANGED GAMMA'
+cmap = du.get_cmap(N=len(num.array(results).T[0])+1, gamma=gamma, rgba01=rgba01)
 
 results = results[:max_data]
 
