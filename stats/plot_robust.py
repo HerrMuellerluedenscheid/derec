@@ -1,4 +1,4 @@
-#/usr/bin/python2.7
+#!/sw/squeeze-x64/python/python-2.7-ve2-gccsys/bin/python
 import derec.derec_utils as du
 import os
 import sys 
@@ -209,12 +209,15 @@ clrs = c_converter.to_rgba_array(rgba01, alpha=0.75)
 #                                                           gamma=1.)
 
 print 'VMIN VMAX____________________', vmin, vmax
-
+if len(sys.argv)==1:
+    print "USAGE plot_robust inputpile.dat"
+    sys.exit(0)
 file_name = sys.argv[1]
+
 target_depth = None
 target_zmin = None
 target_zmax = None
-if len(sys.argv)>2:
+if len(sys.argv)>4:
     target_depth = sys.argv[2]
     target_zmin = sys.argv[3]
     target_zmax = sys.argv[4]
@@ -389,7 +392,8 @@ if only_failed:
 else:
     concat = results
 depths = set(concat.T[3])
-print 'depth: ', depths
+print 'depth: ', map(num.round,depths)
+print 'depth min, max: ', min(depths), max(depths)
 his = hax.hist(concat.T[3],
          len(depths), 
          orientation='horizontal',
