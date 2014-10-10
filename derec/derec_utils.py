@@ -69,7 +69,7 @@ def check_data_length(tdict):
     for s,tt in tdict.iteritems():
         for t, tr in tt.iteritems():
             if len(tr.ydata)<=64:
-                print 'WARNING: found data length with N<65 samples in trace %s'%tr
+                print 'WARNING: found data length with N<65 (%s) samples in trace %s'%(len(tr.ydata),tr)
 
 
 def get_cmap(N=255, gamma=1, reverse=False, rgba01=None):
@@ -637,6 +637,7 @@ def stations2targets(stations, store_id=None, channels=None):
                                  lat=s.lat,
                                  lon=s.lon,
                                  store_id=store_id,
+                                 quantity='displacement',
                                  )for component in channels]
         targets.extend(target)
     
