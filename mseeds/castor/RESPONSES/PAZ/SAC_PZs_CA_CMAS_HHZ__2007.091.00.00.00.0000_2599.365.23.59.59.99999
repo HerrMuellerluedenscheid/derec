@@ -1,0 +1,35 @@
+* **********************************
+* NETWORK   (KNETWK): CA
+* STATION    (KSTNM): CMAS
+* LOCATION   (KHOLE): 
+* CHANNEL   (KCMPNM): HHZ
+* CREATED           : 2013-10-01T10:00:16
+* START             : 2007-04-01T00:00:00
+* END               : 2599-12-31T23:59:59
+* DESCRIPTION       : Mas de Barberans, Tarragona
+* LATITUDE          : 40.726700 
+* LONGITUDE         : 0.315000   
+* ELEVATION         : 530.0  
+* DEPTH             : 0.0  
+* DIP               : 0.0  
+* AZIMUTH           : 0.0  
+* SAMPLE RATE       : 100.0
+* INPUT UNIT        : M
+* OUTPUT UNIT       : COUNTS
+* INSTTYPE          : Guralp CMG3T/Nanometric Trident Datalogger
+* INSTGAIN          : 1.504190e+03 (M/S)
+* COMMENT           : unk unk
+* SENSITIVITY       : 1.504190e+09 (M/S)
+* A0                : 5.714020e+08
+* **********************************
+ZEROS	3
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+POLES	5
+	-3.701000e-02	+3.701000e-02
+	-3.701000e-02	-3.701000e-02
+	-1.131000e+03	+0.000000e+00
+	-1.005000e+03	+0.000000e+00
+	-5.027000e+02	+0.000000e+00
+CONSTANT	+8.594971e+17

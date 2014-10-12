@@ -1,0 +1,40 @@
+* **********************************
+* NETWORK   (KNETWK): ES
+* STATION    (KSTNM): EADA
+* LOCATION   (KHOLE): 
+* CHANNEL   (KCMPNM): HHZ
+* CREATED           : 2013-10-01T14:54:50
+* START             : 2003-02-07T00:00:00
+* END               : 2003-10-09T23:59:59
+* DESCRIPTION       : Adamuz (Cordoba) IGN, Spain
+* LATITUDE          : 38.167300 
+* LONGITUDE         : -4.577100  
+* ELEVATION         : 565.0  
+* DEPTH             : 0.0  
+* DIP               : 0.0  
+* AZIMUTH           : 0.0  
+* SAMPLE RATE       : 100.0
+* INPUT UNIT        : M
+* OUTPUT UNIT       : COUNTS
+* INSTTYPE          : XXXX
+* INSTGAIN          : 1.515200e+03 (M/S)
+* COMMENT           : 0
+* SENSITIVITY       : 6.469740e+08 (M/S)
+* A0                : 8.031452e+20
+* **********************************
+ZEROS	4
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+1.000000e+00	+0.000000e+00
+POLES	9
+	-4.442210e-02	+4.442210e-02
+	-4.442210e-02	-4.442210e-02
+	-1.130970e+03	+0.000000e+00
+	-1.005310e+03	+0.000000e+00
+	-5.026550e+02	+0.000000e+00
+	-9.904800e+03	+3.786000e+03
+	-9.904800e+03	-3.786000e+03
+	-1.250700e+04	+0.000000e+00
+	+9.993720e-01	+0.000000e+00
+CONSTANT	+5.196141e+29
