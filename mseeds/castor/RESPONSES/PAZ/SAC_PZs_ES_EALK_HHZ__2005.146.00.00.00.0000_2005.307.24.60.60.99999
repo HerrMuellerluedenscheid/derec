@@ -1,0 +1,38 @@
+* **********************************
+* NETWORK   (KNETWK): ES
+* STATION    (KSTNM): EALK
+* LOCATION   (KHOLE): 
+* CHANNEL   (KCMPNM): HHZ
+* CREATED           : 2013-10-01T14:54:50
+* START             : 2005-05-26T00:00:00
+* END               : 2005-11-03T24:60:60
+* DESCRIPTION       : Alkurruntz (Navarra/Nafarroa) IGN, Spain
+* LATITUDE          : 43.219700 
+* LONGITUDE         : -1.507100  
+* ELEVATION         : 965.0  
+* DEPTH             : 0.0  
+* DIP               : 0.0  
+* AZIMUTH           : 0.0  
+* SAMPLE RATE       : 100.0
+* INPUT UNIT        : M
+* OUTPUT UNIT       : COUNTS
+* INSTTYPE          : XXXX
+* INSTGAIN          : 1.492000e+03 (M/S)
+* COMMENT           : 0
+* SENSITIVITY       : 5.968000e+08 (M/S)
+* A0                : 7.518774e+12
+* **********************************
+ZEROS	4
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+1.000000e+00	+0.000000e+00
+POLES	7
+	-4.442200e-02	+4.442200e-02
+	-4.442200e-02	-4.442200e-02
+	-1.130970e+03	+0.000000e+00
+	-1.005310e+03	+0.000000e+00
+	-5.026550e+02	+0.000000e+00
+	-1.315950e+04	+0.000000e+00
+	+9.993720e-01	+0.000000e+00
+CONSTANT	+4.487204e+21

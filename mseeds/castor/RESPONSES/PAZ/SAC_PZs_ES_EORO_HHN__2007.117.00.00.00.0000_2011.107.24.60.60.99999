@@ -1,0 +1,38 @@
+* **********************************
+* NETWORK   (KNETWK): ES
+* STATION    (KSTNM): EORO
+* LOCATION   (KHOLE): 
+* CHANNEL   (KCMPNM): HHN
+* CREATED           : 2013-10-01T14:54:51
+* START             : 2007-04-27T00:00:00
+* END               : 2011-04-17T24:60:60
+* DESCRIPTION       : Oroz Betelu (Navarra/Nafarroa) IGN, Spain
+* LATITUDE          : 42.892600 
+* LONGITUDE         : -1.309500  
+* ELEVATION         : 880.0  
+* DEPTH             : 0.0  
+* DIP               : 90.0 
+* AZIMUTH           : 0.0  
+* SAMPLE RATE       : 30000.0
+* INPUT UNIT        : M
+* OUTPUT UNIT       : COUNTS
+* INSTTYPE          : XXXX
+* INSTGAIN          : 1.494000e+03 (M/S)
+* COMMENT           : 0
+* SENSITIVITY       : 4.647060e+08 (M/S)
+* A0                : 8.033573e+20
+* **********************************
+ZEROS	3
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+	+0.000000e+00	+0.000000e+00
+POLES	8
+	-3.700800e-02	+3.700800e-02
+	-3.700800e-02	-3.700800e-02
+	-1.130970e+03	+0.000000e+00
+	-1.005310e+03	+0.000000e+00
+	-5.026550e+02	+0.000000e+00
+	-9.904800e+03	+3.786000e+03
+	-9.904800e+03	-3.786000e+03
+	-1.250700e+04	+0.000000e+00
+CONSTANT	+3.733249e+29
