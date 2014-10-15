@@ -250,6 +250,7 @@ class TestCase(Object):
 
         self.picked = None
         self.pre_highpass = None
+        self.pre_lowpass = None
         self.reduce_half_rise = False
         self.individual_scaling = False
 
@@ -558,7 +559,10 @@ class TestCase(Object):
             try:
                 c = scaling[source]
             except KeyError:
-                c = 1
+                try:
+                    c = scaling[tr]
+                except KeyError:
+                    c = 1
             
             lines_dict[source][target] = pltlines.Line2D(
                                             tr.get_xdata()-reduction_value,
@@ -596,6 +600,12 @@ class TestCase(Object):
                 tr.highpass(*self.pre_highpass)
             for s,t,tr in TestCase.iter_dict(self.raw_references):
                 tr.highpass(*self.pre_highpass)
+
+        if self.pre_lowpass:
+            for s,t,tr in TestCase.iter_dict(self.raw_candidates):
+                tr.lowpass(*self.pre_lowpass)
+            for s,t,tr in TestCase.iter_dict(self.raw_references):
+                tr.lowpass(*self.pre_lowpass)
 
         setup = self.test_case_setup
 

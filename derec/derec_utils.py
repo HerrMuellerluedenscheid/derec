@@ -884,7 +884,7 @@ def L2_norm(u, v, scaling=None, individual_scaling=False, verbose=False):
 
     if verbose:
         print 'L2 norm using scaling factors: ', c
-
+    
     for source in u.keys():
         M_tmp = defaultdict()
         x_j = v[source]
@@ -897,9 +897,8 @@ def L2_norm(u, v, scaling=None, individual_scaling=False, verbose=False):
             min_M = min(M_tmp.keys())
 
         else:
-            min_M = L2_norm_inner(y_j, x_j, c)
-
-
+            min_M, scalings = L2_norm_inner(y_j, x_j, c)
+            return_scaling.update(scalings)
         if verbose and not individual_scaling: 
             if M_tmp[min_M]==c[0] or M_tmp[min_M]==c[len(c)-1]:
                 print 'warning: L2 norm found uppermost/lowermost scaling as best fit'
@@ -929,13 +928,18 @@ def L2_norm_inner(u, v, c=[1.] ):
         return num.sqrt(m_i)/num.sqrt(n_i)
 
     else:
+        scalings = {}
         for target in u.keys():
             x_i = v[target].get_ydata()
             y_i = u[target].get_ydata()
-            m = []
+            m = {}
+            #m = []
             for c_i in c:
-                m.append(num.sum((x_i-y_i*c_i)**2))
-            m_i += min(m)
+                m[num.sum((x_i-y_i*c_i)**2)] = c_i
+                #m.append(num.sum((x_i-y_i*c_i)**2))
+            best_m = min(m.keys())
+            m_i += best_m
             n_i += num.sum(x_i**2)
-        return num.sqrt(m_i)/num.sqrt(n_i)
+            scalings[u[target]] = m[best_m]
+        return num.sqrt(m_i)/num.sqrt(n_i), scalings
 
