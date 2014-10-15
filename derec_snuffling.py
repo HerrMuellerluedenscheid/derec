@@ -131,12 +131,19 @@ class Derec(Snuffling):
         traces = self.chopper_selected_traces(fallback=False)
         traces = list(traces)
         traces = du.flatten_list(traces)
+        traces_ids = [tr.nslc_id for tr in traces]
         if not self.targets:
             self.targets = du.stations2targets(self.stations, \
                     self.store_id_choice)
+        for tr in traces: 
+            print tr
+        targets_filtered = filter(lambda x: x.codes in traces_ids, self.targets) 
         for t in self.targets:
             t.store_id = self.store_id_choice
-
+        
+        print len(targets_filtered)
+        self.targets = targets_filtered
+        
         set_channel_if_needed(self.stations, traces)
 
         if self.pre_filter:
@@ -194,7 +201,7 @@ class Derec(Snuffling):
         test_case_setup.regularize()
         test_case = core.TestCase(test_case_setup)
         test_case.individual_scaling = self.indiv_scaling
-        #test_case.scaling_factors = [1.]
+        test_case.scaling_factors = num.arange(0.1, 4, 0.1)
 
         test_case.set_raw_references(self.traces_dict)
         test_case.set_reference_markers(self.ref_markers_dict)
@@ -203,22 +210,30 @@ class Derec(Snuffling):
         
     def call(self):
         self.prepare()
+        self.test_case_setup = self.test_case.test_case_setup
         self.test_case.process(verbose=self.verbose)
         self.test_case.validate()
         plot_misfit_dict(self.test_case.misfits,
                          self.test_case.scaled_misfits,
                          scaling=self.test_case.scaling)
 
+        plt.gcf().savefig('snuffling_misfits.pdf', pad_inches=0.05,
+                          bbox_inches='tight')
+
         fig = plt.figure()
         ob = optics.OpticBase(self.test_case)
         #ax = fig.add_subplot(111)
         #ob.plot_misfits(ax=ax)
         ob.stack_plot()
+        plt.gcf().savefig('snuffling_unscaled_stack.pdf', pad_inches=0.05,
+                          bbox_inches='tight')
         fig =plt.figure()
         ob.stack_plot(scaling=self.test_case.scaling, 
                       force_update=True)
+        plt.gcf().savefig('snuffling_scaled_stack.pdf', pad_inches=0.05,
+                          bbox_inches='tight')
         plt.show()
-    
+        
         #self.test_case_setup = test_case_setup
 
     def add_store_dir(self):
