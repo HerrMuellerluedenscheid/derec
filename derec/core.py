@@ -585,6 +585,15 @@ class TestCase(Object):
         self.request_data(verbose)
 
         if verbose: print 'individual scaling c: ', self.individual_scaling
+        if verbose:
+            print 'Using distances:'
+            for targ in self.targets:
+                print targ.distance_to(self.sources[0])
+
+            print 'Using depths:'
+            for s in self.sources:
+                print s.depth
+
 
         if self.pre_highpass:
             for s,t,tr in TestCase.iter_dict(self.raw_candidates):
